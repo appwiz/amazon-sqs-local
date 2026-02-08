@@ -1,6 +1,92 @@
 # aws-sqs-local
 
-A local implementation of the Amazon Simple Queue Service (SQS) API, written in Rust.
+A local implementation of the Amazon Simple Queue Service (SQS) API, written in Rust. All 23 SQS API operations are supported, including FIFO queues, dead-letter queues, message move tasks, long polling, and batch operations.
+
+All state is held in memory — there is no disk persistence. Restarting the server clears all queues and messages.
+
+## Getting Started
+
+### Prerequisites
+
+- [Rust](https://rustup.rs/) (1.70+)
+
+### Build
+
+```bash
+cargo build --release
+```
+
+### Run
+
+```bash
+./target/release/aws-sqs-local
+```
+
+The server listens on `http://0.0.0.0:9324` by default.
+
+### CLI Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--port` | `9324` | Port to listen on |
+| `--region` | `us-east-1` | AWS region used in ARNs and queue URLs |
+| `--account-id` | `000000000000` | AWS account ID used in ARNs and queue URLs |
+
+```bash
+./target/release/aws-sqs-local --port 9325 --region eu-west-1 --account-id 123456789012
+```
+
+### Usage with the AWS CLI
+
+Point the AWS CLI at the local endpoint with `--endpoint-url` and skip signature authentication:
+
+```bash
+# Create a queue
+aws sqs create-queue \
+  --queue-name my-queue \
+  --endpoint-url http://localhost:9324 \
+  --no-sign-request
+
+# Send a message
+aws sqs send-message \
+  --queue-url http://localhost:9324/000000000000/my-queue \
+  --message-body "Hello, world!" \
+  --endpoint-url http://localhost:9324 \
+  --no-sign-request
+
+# Receive messages
+aws sqs receive-message \
+  --queue-url http://localhost:9324/000000000000/my-queue \
+  --endpoint-url http://localhost:9324 \
+  --no-sign-request
+```
+
+### Usage with AWS SDKs
+
+Configure the SDK client to use the local endpoint. For example, with the JavaScript v3 SDK:
+
+```javascript
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
+
+const client = new SQSClient({
+  endpoint: "http://localhost:9324",
+  region: "us-east-1",
+  credentials: { accessKeyId: "test", secretAccessKey: "test" },
+});
+```
+
+### Running Tests
+
+The integration test suite uses the AWS CLI to exercise all 23 API operations:
+
+```bash
+cd tests
+./integration.sh
+```
+
+The script builds the binary, starts the server, runs all test cases, and reports pass/fail counts.
+
+---
 
 ## Wire Protocol
 
@@ -1085,3 +1171,17 @@ When a consumer receives a message, it becomes invisible to other consumers for 
 - **FIFO queues**: maximum 20,000 inflight messages per queue.
 - Exceeding these limits causes `ReceiveMessage` to return an `OverLimit` error.
 - An inflight message is one that has been received but not yet deleted or whose visibility timeout has not yet expired.
+
+---
+
+## Differences from AWS SQS
+
+This is a local development tool, not a production SQS replacement. Key differences:
+
+- **In-memory only** — all state is lost when the server stops. There is no disk persistence or replication.
+- **No authentication** — all requests are accepted without signature verification. `--no-sign-request` is sufficient.
+- **Permissions are stored but not enforced** — `AddPermission` / `RemovePermission` update the queue's policy, but no access checks are performed.
+- **No TLS** — the server speaks plain HTTP only.
+- **Single-process** — no distributed behavior. Approximate message counts are exact, and short polling always returns all available messages.
+- **No CloudWatch metrics** — queue metrics are only available through `GetQueueAttributes`.
+- **Encryption attributes are accepted but not applied** — `SqsManagedSseEnabled`, `KmsMasterKeyId`, and `KmsDataKeyReusePeriodSeconds` are stored as attributes but messages are not encrypted at rest.
