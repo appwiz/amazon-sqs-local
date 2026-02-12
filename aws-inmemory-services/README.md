@@ -1,8 +1,8 @@
 # aws-inmemory-services
 
-In-memory implementations of Amazon S3 and Amazon SNS, written in Rust. Both services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
+In-memory implementations of Amazon S3, Amazon SNS, and Amazon SQS, written in Rust. All three services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
 
-All state is held in memory — there is no disk persistence. Restarting the server clears all buckets, objects, topics, and subscriptions.
+All state is held in memory — there is no disk persistence. Restarting the server clears all buckets, objects, topics, subscriptions, queues, and messages.
 
 ## Getting Started
 
@@ -23,7 +23,7 @@ cargo build --release
 ./target/release/aws-inmemory-services
 ```
 
-S3 listens on `http://0.0.0.0:9000` and SNS on `http://0.0.0.0:9911` by default.
+S3 listens on `http://0.0.0.0:9000`, SNS on `http://0.0.0.0:9911`, and SQS on `http://0.0.0.0:9324` by default.
 
 ### CLI Options
 
@@ -31,11 +31,12 @@ S3 listens on `http://0.0.0.0:9000` and SNS on `http://0.0.0.0:9911` by default.
 |------|---------|-------------|
 | `--s3-port` | `9000` | Port for the S3 service |
 | `--sns-port` | `9911` | Port for the SNS service |
+| `--sqs-port` | `9324` | Port for the SQS service |
 | `--region` | `us-east-1` | AWS region used in ARNs |
 | `--account-id` | `000000000000` | AWS account ID used in ARNs |
 
 ```bash
-./target/release/aws-inmemory-services --s3-port 9000 --sns-port 9911 --region eu-west-1 --account-id 123456789012
+./target/release/aws-inmemory-services --s3-port 9000 --sns-port 9911 --sqs-port 9324 --region eu-west-1 --account-id 123456789012
 ```
 
 ---
@@ -351,6 +352,154 @@ SNS uses the **AWS Query** protocol over HTTP POST:
 
 ---
 
+## SQS Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a queue
+aws sqs create-queue \
+  --queue-name my-queue \
+  --endpoint-url http://localhost:9324 \
+  --no-sign-request
+
+# Send a message
+aws sqs send-message \
+  --queue-url http://localhost:9324/000000000000/my-queue \
+  --message-body "Hello, world!" \
+  --endpoint-url http://localhost:9324 \
+  --no-sign-request
+
+# Receive messages
+aws sqs receive-message \
+  --queue-url http://localhost:9324/000000000000/my-queue \
+  --endpoint-url http://localhost:9324 \
+  --no-sign-request
+
+# Create a FIFO queue
+aws sqs create-queue \
+  --queue-name my-fifo.fifo \
+  --attributes FifoQueue=true,ContentBasedDeduplication=true \
+  --endpoint-url http://localhost:9324 \
+  --no-sign-request
+
+# Delete a queue
+aws sqs delete-queue \
+  --queue-url http://localhost:9324/000000000000/my-queue \
+  --endpoint-url http://localhost:9324 \
+  --no-sign-request
+```
+
+### Usage with AWS SDKs
+
+```javascript
+import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
+
+const client = new SQSClient({
+  endpoint: "http://localhost:9324",
+  region: "us-east-1",
+  credentials: { accessKeyId: "test", secretAccessKey: "test" },
+});
+
+await client.send(new SendMessageCommand({
+  QueueUrl: "http://localhost:9324/000000000000/my-queue",
+  MessageBody: "Hello, world!",
+}));
+```
+
+### Wire Protocol
+
+SQS uses the **AWS JSON 1.0** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.0`
+- **Action routing**: `X-Amz-Target: AmazonSQS.<ActionName>` header
+- **Request/response body**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (23)
+
+#### Queue Management
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateQueue | `AmazonSQS.CreateQueue` | Create a standard or FIFO queue |
+| DeleteQueue | `AmazonSQS.DeleteQueue` | Delete a queue and all its messages |
+| GetQueueUrl | `AmazonSQS.GetQueueUrl` | Look up a queue URL by name |
+| ListQueues | `AmazonSQS.ListQueues` | List queues with optional prefix filter |
+| GetQueueAttributes | `AmazonSQS.GetQueueAttributes` | Retrieve queue attributes |
+| SetQueueAttributes | `AmazonSQS.SetQueueAttributes` | Modify queue attributes |
+| PurgeQueue | `AmazonSQS.PurgeQueue` | Delete all messages without deleting the queue |
+
+#### Messaging
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| SendMessage | `AmazonSQS.SendMessage` | Send a single message |
+| SendMessageBatch | `AmazonSQS.SendMessageBatch` | Send up to 10 messages |
+| ReceiveMessage | `AmazonSQS.ReceiveMessage` | Receive messages with long polling support |
+| DeleteMessage | `AmazonSQS.DeleteMessage` | Delete a processed message |
+| DeleteMessageBatch | `AmazonSQS.DeleteMessageBatch` | Delete up to 10 messages |
+| ChangeMessageVisibility | `AmazonSQS.ChangeMessageVisibility` | Extend/shorten visibility timeout |
+| ChangeMessageVisibilityBatch | `AmazonSQS.ChangeMessageVisibilityBatch` | Change visibility for up to 10 messages |
+
+#### Tags and Permissions
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| TagQueue | `AmazonSQS.TagQueue` | Add or update queue tags |
+| UntagQueue | `AmazonSQS.UntagQueue` | Remove queue tags |
+| ListQueueTags | `AmazonSQS.ListQueueTags` | List all tags on a queue |
+| AddPermission | `AmazonSQS.AddPermission` | Add a permission statement |
+| RemovePermission | `AmazonSQS.RemovePermission` | Remove a permission statement |
+
+#### Dead-Letter Queues and Message Move Tasks
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| ListDeadLetterSourceQueues | `AmazonSQS.ListDeadLetterSourceQueues` | List queues using this queue as DLQ |
+| StartMessageMoveTask | `AmazonSQS.StartMessageMoveTask` | Move messages between queues |
+| CancelMessageMoveTask | `AmazonSQS.CancelMessageMoveTask` | Cancel an in-progress move task |
+| ListMessageMoveTasks | `AmazonSQS.ListMessageMoveTasks` | List move tasks for a source queue |
+
+### Queue Types
+
+**Standard Queues**: At-least-once delivery, best-effort ordering, unlimited throughput.
+
+**FIFO Queues**: Exactly-once processing within a 5-minute deduplication window, strict ordering within message groups. Queue names must end with `.fifo`. Require `MessageGroupId` on every send. Support optional `ContentBasedDeduplication`.
+
+### Queue Attributes
+
+| Attribute | Default | Range | Notes |
+|-----------|---------|-------|-------|
+| `VisibilityTimeout` | 30s | 0--43200 | Time a received message is hidden |
+| `MessageRetentionPeriod` | 345600s (4d) | 60--1209600 | How long messages are retained |
+| `DelaySeconds` | 0 | 0--900 | Default delivery delay |
+| `MaximumMessageSize` | 262144 (256KB) | 1024--262144 | Maximum message body size |
+| `ReceiveMessageWaitTimeSeconds` | 0 | 0--20 | Default long-poll wait time |
+| `RedrivePolicy` | none | -- | DLQ config (JSON: `deadLetterTargetArn`, `maxReceiveCount`) |
+| `RedriveAllowPolicy` | none | -- | Controls which queues can use this as DLQ |
+| `FifoQueue` | false | -- | Immutable after creation |
+| `ContentBasedDeduplication` | false | -- | FIFO only. SHA-256 body hash as dedup ID |
+| `SqsManagedSseEnabled` | true | -- | SSE with SQS-managed keys (stored, not enforced) |
+
+### SQS Error Response Format
+
+```json
+{
+  "__type": "com.amazonaws.sqs#QueueDoesNotExist",
+  "message": "The specified queue does not exist."
+}
+```
+
+| HTTP Status | Meaning |
+|-------------|---------|
+| 200 | Success |
+| 400 | Client error (invalid parameters, missing fields) |
+| 404 | Resource not found |
+| 409 | Conflict (queue exists with different attributes, purge in progress) |
+
+---
+
 ## Running Tests
 
 The integration test suites use the AWS CLI to exercise all API operations:
@@ -361,6 +510,9 @@ bash tests/s3_integration.sh
 
 # Run SNS tests (42 assertions)
 bash tests/sns_integration.sh
+
+# Run SQS tests (70 assertions)
+bash tests/sqs_integration.sh
 ```
 
 Each script builds the binary, starts the server, runs all test cases, and reports pass/fail counts.
@@ -371,16 +523,17 @@ Each script builds the binary, starts the server, runs all test cases, and repor
 
 This is a local development tool, not a production replacement. Key differences:
 
-- **In-memory only** — all state is lost when the server stops. No disk persistence or replication.
-- **No authentication** — all requests are accepted without signature verification. Use `--no-sign-request`.
-- **No TLS** — the server speaks plain HTTP only.
-- **Single-process** — no distributed behavior.
-- **S3 versioning** — versioning status can be toggled but version history is not maintained. Only the latest version of each object is stored.
-- **SNS subscriptions auto-confirm** — all subscriptions are immediately confirmed without requiring endpoint verification.
-- **SNS message delivery** — messages are accepted and assigned IDs but not actually delivered to endpoints. Use this service for API compatibility testing, not delivery testing.
-- **No CloudWatch metrics** — no metrics integration.
-- **Encryption attributes are accepted but not applied** — KMS-related attributes are stored but data is not encrypted.
-- **Upload size limit** — S3 supports uploads up to 5 GB per request (axum body limit).
+- **In-memory only** -- all state is lost when the server stops. No disk persistence or replication.
+- **No authentication** -- all requests are accepted without signature verification. Use `--no-sign-request`.
+- **No TLS** -- the server speaks plain HTTP only.
+- **Single-process** -- no distributed behavior.
+- **S3 versioning** -- versioning status can be toggled but version history is not maintained. Only the latest version of each object is stored.
+- **SNS subscriptions auto-confirm** -- all subscriptions are immediately confirmed without requiring endpoint verification.
+- **SNS message delivery** -- messages are accepted and assigned IDs but not actually delivered to endpoints. Use this service for API compatibility testing, not delivery testing.
+- **SQS permissions stored but not enforced** -- `AddPermission` / `RemovePermission` update the queue's policy, but no access checks are performed.
+- **No CloudWatch metrics** -- no metrics integration.
+- **Encryption attributes are accepted but not applied** -- KMS-related attributes are stored but data is not encrypted.
+- **Upload size limit** -- S3 supports uploads up to 5 GB per request (axum body limit).
 
 ## References
 
@@ -391,3 +544,7 @@ This is a local development tool, not a production replacement. Key differences:
 ### Amazon SNS
 - [Developer Guide](https://docs.aws.amazon.com/sns/latest/dg/sns-dg.pdf)
 - [API Reference](https://docs.aws.amazon.com/sns/latest/api/sns-api.pdf)
+
+### Amazon SQS
+- [Developer Guide](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/sqs-api.pdf)
