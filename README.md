@@ -1,8 +1,8 @@
 # aws-inmemory-services
 
-In-memory implementations of Amazon S3, Amazon SNS, and Amazon SQS, written in Rust. All three services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
+In-memory implementations of seven AWS services written in Rust: Amazon S3, Amazon SNS, Amazon SQS, Amazon DynamoDB, AWS Lambda, Amazon Data Firehose, and Amazon MemoryDB. All services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
 
-All state is held in memory — there is no disk persistence. Restarting the server clears all buckets, objects, topics, subscriptions, queues, and messages.
+All state is held in memory — there is no disk persistence. Restarting the server clears all data.
 
 ## Getting Started
 
@@ -23,7 +23,17 @@ cargo build --release
 ./target/release/aws-inmemory-services
 ```
 
-S3 listens on `http://0.0.0.0:9000`, SNS on `http://0.0.0.0:9911`, and SQS on `http://0.0.0.0:9324` by default.
+All services start on their default ports:
+
+| Service | Default Port |
+|---------|-------------|
+| S3 | `9000` |
+| SNS | `9911` |
+| SQS | `9324` |
+| DynamoDB | `8000` |
+| Lambda | `9001` |
+| Firehose | `4573` |
+| MemoryDB | `6379` |
 
 ### CLI Options
 
@@ -32,11 +42,15 @@ S3 listens on `http://0.0.0.0:9000`, SNS on `http://0.0.0.0:9911`, and SQS on `h
 | `--s3-port` | `9000` | Port for the S3 service |
 | `--sns-port` | `9911` | Port for the SNS service |
 | `--sqs-port` | `9324` | Port for the SQS service |
+| `--dynamodb-port` | `8000` | Port for the DynamoDB service |
+| `--lambda-port` | `9001` | Port for the Lambda service |
+| `--firehose-port` | `4573` | Port for the Firehose service |
+| `--memorydb-port` | `6379` | Port for the MemoryDB service |
 | `--region` | `us-east-1` | AWS region used in ARNs |
 | `--account-id` | `000000000000` | AWS account ID used in ARNs |
 
 ```bash
-./target/release/aws-inmemory-services --s3-port 9000 --sns-port 9911 --sqs-port 9324 --region eu-west-1 --account-id 123456789012
+./target/release/aws-inmemory-services --region eu-west-1 --account-id 123456789012
 ```
 
 ---
@@ -500,6 +514,545 @@ SQS uses the **AWS JSON 1.0** protocol over HTTP POST:
 
 ---
 
+## DynamoDB Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a table
+aws dynamodb create-table \
+  --table-name MyTable \
+  --attribute-definitions AttributeName=pk,AttributeType=S \
+  --key-schema AttributeName=pk,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST \
+  --endpoint-url http://localhost:8000 \
+  --no-sign-request
+
+# Put an item
+aws dynamodb put-item \
+  --table-name MyTable \
+  --item '{"pk":{"S":"key1"},"data":{"S":"value1"}}' \
+  --endpoint-url http://localhost:8000 \
+  --no-sign-request
+
+# Get an item
+aws dynamodb get-item \
+  --table-name MyTable \
+  --key '{"pk":{"S":"key1"}}' \
+  --endpoint-url http://localhost:8000 \
+  --no-sign-request
+
+# Query
+aws dynamodb query \
+  --table-name MyTable \
+  --key-condition-expression "pk = :pk" \
+  --expression-attribute-values '{":pk":{"S":"key1"}}' \
+  --endpoint-url http://localhost:8000 \
+  --no-sign-request
+
+# Scan
+aws dynamodb scan \
+  --table-name MyTable \
+  --endpoint-url http://localhost:8000 \
+  --no-sign-request
+```
+
+### Usage with AWS SDKs
+
+```javascript
+import { DynamoDBClient, PutItemCommand, GetItemCommand } from "@aws-sdk/client-dynamodb";
+
+const client = new DynamoDBClient({
+  endpoint: "http://localhost:8000",
+  region: "us-east-1",
+  credentials: { accessKeyId: "test", secretAccessKey: "test" },
+});
+
+await client.send(new PutItemCommand({
+  TableName: "MyTable",
+  Item: { pk: { S: "key1" }, data: { S: "value1" } },
+}));
+
+const { Item } = await client.send(new GetItemCommand({
+  TableName: "MyTable",
+  Key: { pk: { S: "key1" } },
+}));
+```
+
+### Wire Protocol
+
+DynamoDB uses the **AWS JSON 1.0** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.0`
+- **Action routing**: `X-Amz-Target: DynamoDB_20120810.<ActionName>` header
+- **Request/response body**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (16)
+
+#### Table Management
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateTable | `DynamoDB_20120810.CreateTable` | Create a table with hash key or hash+range key |
+| DeleteTable | `DynamoDB_20120810.DeleteTable` | Delete a table and all its items |
+| DescribeTable | `DynamoDB_20120810.DescribeTable` | Get table metadata |
+| ListTables | `DynamoDB_20120810.ListTables` | List all tables |
+| UpdateTable | `DynamoDB_20120810.UpdateTable` | Update billing mode or provisioned throughput |
+
+#### Item Operations
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| PutItem | `DynamoDB_20120810.PutItem` | Create or replace an item |
+| GetItem | `DynamoDB_20120810.GetItem` | Retrieve an item by primary key |
+| DeleteItem | `DynamoDB_20120810.DeleteItem` | Delete an item by primary key |
+| UpdateItem | `DynamoDB_20120810.UpdateItem` | Update specific attributes with expressions |
+| Query | `DynamoDB_20120810.Query` | Query items by key condition expression |
+| Scan | `DynamoDB_20120810.Scan` | Scan all items with optional filter |
+| BatchGetItem | `DynamoDB_20120810.BatchGetItem` | Get multiple items across tables |
+| BatchWriteItem | `DynamoDB_20120810.BatchWriteItem` | Put or delete multiple items across tables |
+
+#### Tagging
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| TagResource | `DynamoDB_20120810.TagResource` | Add tags to a table |
+| UntagResource | `DynamoDB_20120810.UntagResource` | Remove tags from a table |
+| ListTagsOfResource | `DynamoDB_20120810.ListTagsOfResource` | List tags on a table |
+
+### DynamoDB Error Response Format
+
+```json
+{
+  "__type": "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException",
+  "message": "Requested resource not found"
+}
+```
+
+| HTTP Status | Code | Description |
+|-------------|------|-------------|
+| 200 | | Success |
+| 400 | ResourceInUseException | Table already exists |
+| 400 | ValidationException | Invalid parameters |
+| 400 | SerializationException | Malformed request |
+| 404 | ResourceNotFoundException | Table not found |
+
+---
+
+## Lambda Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a function (with a dummy zip)
+aws lambda create-function \
+  --function-name my-func \
+  --runtime python3.12 \
+  --role arn:aws:iam::000000000000:role/test-role \
+  --handler index.handler \
+  --zip-file fileb://function.zip \
+  --endpoint-url http://localhost:9001 \
+  --no-sign-request
+
+# Invoke a function
+aws lambda invoke \
+  --function-name my-func \
+  output.json \
+  --endpoint-url http://localhost:9001 \
+  --no-sign-request
+
+# List functions
+aws lambda list-functions \
+  --endpoint-url http://localhost:9001 \
+  --no-sign-request
+
+# Publish a version
+aws lambda publish-version \
+  --function-name my-func \
+  --endpoint-url http://localhost:9001 \
+  --no-sign-request
+
+# Create an alias
+aws lambda create-alias \
+  --function-name my-func \
+  --name prod \
+  --function-version 1 \
+  --endpoint-url http://localhost:9001 \
+  --no-sign-request
+
+# Delete a function
+aws lambda delete-function \
+  --function-name my-func \
+  --endpoint-url http://localhost:9001 \
+  --no-sign-request
+```
+
+### Usage with AWS SDKs
+
+```javascript
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
+
+const client = new LambdaClient({
+  endpoint: "http://localhost:9001",
+  region: "us-east-1",
+  credentials: { accessKeyId: "test", secretAccessKey: "test" },
+});
+
+const response = await client.send(new InvokeCommand({
+  FunctionName: "my-func",
+}));
+```
+
+### Wire Protocol
+
+Lambda uses a **REST API** with JSON — the HTTP method and path determine the operation:
+
+- **Functions**: `GET/POST /2015-03-31/functions`, `GET/DELETE /2015-03-31/functions/{name}`
+- **Code/Config**: `PUT /2015-03-31/functions/{name}/code`, `PUT /2015-03-31/functions/{name}/configuration`
+- **Invoke**: `POST /2015-03-31/functions/{name}/invocations`
+- **Versions**: `GET/POST /2015-03-31/functions/{name}/versions`
+- **Aliases**: `GET/POST /2015-03-31/functions/{name}/aliases`
+- **Policy**: `GET/POST /2015-03-31/functions/{name}/policy`
+- **Tags**: `GET/POST/DELETE /2017-03-31/tags/{arn}`
+- **Event Source Mappings**: `GET/POST /2015-03-31/event-source-mappings`
+
+### Supported Operations (22)
+
+#### Function Management
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| CreateFunction | POST | `/2015-03-31/functions` |
+| GetFunction | GET | `/2015-03-31/functions/{name}` |
+| DeleteFunction | DELETE | `/2015-03-31/functions/{name}` |
+| ListFunctions | GET | `/2015-03-31/functions` |
+| UpdateFunctionCode | PUT | `/2015-03-31/functions/{name}/code` |
+| UpdateFunctionConfiguration | PUT | `/2015-03-31/functions/{name}/configuration` |
+
+#### Invocation
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| Invoke | POST | `/2015-03-31/functions/{name}/invocations` |
+
+#### Versions and Aliases
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| PublishVersion | POST | `/2015-03-31/functions/{name}/versions` |
+| ListVersionsByFunction | GET | `/2015-03-31/functions/{name}/versions` |
+| CreateAlias | POST | `/2015-03-31/functions/{name}/aliases` |
+| GetAlias | GET | `/2015-03-31/functions/{name}/aliases/{alias}` |
+| DeleteAlias | DELETE | `/2015-03-31/functions/{name}/aliases/{alias}` |
+| ListAliases | GET | `/2015-03-31/functions/{name}/aliases` |
+
+#### Permissions
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| AddPermission | POST | `/2015-03-31/functions/{name}/policy` |
+| RemovePermission | DELETE | `/2015-03-31/functions/{name}/policy/{sid}` |
+| GetPolicy | GET | `/2015-03-31/functions/{name}/policy` |
+
+#### Event Source Mappings
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| CreateEventSourceMapping | POST | `/2015-03-31/event-source-mappings` |
+| DeleteEventSourceMapping | DELETE | `/2015-03-31/event-source-mappings/{uuid}` |
+| ListEventSourceMappings | GET | `/2015-03-31/event-source-mappings` |
+
+#### Tagging
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| TagResource | POST | `/2017-03-31/tags/{arn}` |
+| UntagResource | DELETE | `/2017-03-31/tags/{arn}` |
+| ListTags | GET | `/2017-03-31/tags/{arn}` |
+
+### Lambda Error Response Format
+
+```json
+{
+  "Message": "Function not found: arn:aws:lambda:us-east-1:000000000000:function:my-func"
+}
+```
+
+Response includes `x-amzn-ErrorType` header (e.g. `ResourceNotFoundException`).
+
+| HTTP Status | Error Type | Description |
+|-------------|------------|-------------|
+| 200/202 | | Success |
+| 400 | InvalidParameterValueException | Invalid parameters |
+| 404 | ResourceNotFoundException | Function or resource not found |
+| 409 | ResourceConflictException | Function already exists |
+
+---
+
+## Firehose Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a delivery stream
+aws firehose create-delivery-stream \
+  --delivery-stream-name mystream \
+  --endpoint-url http://localhost:4573 \
+  --no-sign-request
+
+# Put a record (base64-encoded data)
+aws firehose put-record \
+  --delivery-stream-name mystream \
+  --record '{"Data":"SGVsbG8gV29ybGQ="}' \
+  --endpoint-url http://localhost:4573 \
+  --no-sign-request
+
+# Put a batch of records
+aws firehose put-record-batch \
+  --delivery-stream-name mystream \
+  --records '{"Data":"UmVjb3JkMQ=="}' '{"Data":"UmVjb3JkMg=="}' \
+  --endpoint-url http://localhost:4573 \
+  --no-sign-request
+
+# Describe a delivery stream
+aws firehose describe-delivery-stream \
+  --delivery-stream-name mystream \
+  --endpoint-url http://localhost:4573 \
+  --no-sign-request
+
+# List delivery streams
+aws firehose list-delivery-streams \
+  --endpoint-url http://localhost:4573 \
+  --no-sign-request
+
+# Delete a delivery stream
+aws firehose delete-delivery-stream \
+  --delivery-stream-name mystream \
+  --endpoint-url http://localhost:4573 \
+  --no-sign-request
+```
+
+### Usage with AWS SDKs
+
+```javascript
+import { FirehoseClient, PutRecordCommand } from "@aws-sdk/client-firehose";
+
+const client = new FirehoseClient({
+  endpoint: "http://localhost:4573",
+  region: "us-east-1",
+  credentials: { accessKeyId: "test", secretAccessKey: "test" },
+});
+
+await client.send(new PutRecordCommand({
+  DeliveryStreamName: "mystream",
+  Record: { Data: Buffer.from("Hello World") },
+}));
+```
+
+### Wire Protocol
+
+Firehose uses the **AWS JSON 1.1** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: Firehose_20150804.<ActionName>` header
+- **Request/response body**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (10)
+
+#### Stream Management
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateDeliveryStream | `Firehose_20150804.CreateDeliveryStream` | Create a delivery stream |
+| DeleteDeliveryStream | `Firehose_20150804.DeleteDeliveryStream` | Delete a delivery stream |
+| DescribeDeliveryStream | `Firehose_20150804.DescribeDeliveryStream` | Get stream metadata and status |
+| ListDeliveryStreams | `Firehose_20150804.ListDeliveryStreams` | List all delivery streams |
+| UpdateDestination | `Firehose_20150804.UpdateDestination` | Update stream destination config |
+
+#### Data Ingestion
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| PutRecord | `Firehose_20150804.PutRecord` | Put a single record |
+| PutRecordBatch | `Firehose_20150804.PutRecordBatch` | Put multiple records (up to 500) |
+
+#### Tagging
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| TagDeliveryStream | `Firehose_20150804.TagDeliveryStream` | Add tags to a stream |
+| UntagDeliveryStream | `Firehose_20150804.UntagDeliveryStream` | Remove tags from a stream |
+| ListTagsForDeliveryStream | `Firehose_20150804.ListTagsForDeliveryStream` | List tags on a stream |
+
+### Firehose Error Response Format
+
+```json
+{
+  "__type": "#ResourceNotFoundException",
+  "message": "Delivery stream mystream under account 000000000000 not found."
+}
+```
+
+| HTTP Status | Code | Description |
+|-------------|------|-------------|
+| 200 | | Success |
+| 400 | InvalidArgumentException | Invalid parameters |
+| 400 | ResourceInUseException | Stream already exists |
+| 404 | ResourceNotFoundException | Stream not found |
+
+---
+
+## MemoryDB Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a user
+aws memorydb create-user \
+  --user-name myuser \
+  --access-string "on ~* +@all" \
+  --authentication-mode Type=no-password \
+  --endpoint-url http://localhost:6379 \
+  --no-sign-request
+
+# Create an ACL
+aws memorydb create-acl \
+  --acl-name myacl \
+  --user-names myuser \
+  --endpoint-url http://localhost:6379 \
+  --no-sign-request
+
+# Create a cluster
+aws memorydb create-cluster \
+  --cluster-name mycluster \
+  --node-type db.t4g.small \
+  --acl-name myacl \
+  --endpoint-url http://localhost:6379 \
+  --no-sign-request
+
+# Describe clusters
+aws memorydb describe-clusters \
+  --endpoint-url http://localhost:6379 \
+  --no-sign-request
+
+# Create a snapshot
+aws memorydb create-snapshot \
+  --cluster-name mycluster \
+  --snapshot-name mysnap \
+  --endpoint-url http://localhost:6379 \
+  --no-sign-request
+
+# Delete a cluster
+aws memorydb delete-cluster \
+  --cluster-name mycluster \
+  --endpoint-url http://localhost:6379 \
+  --no-sign-request
+```
+
+### Usage with AWS SDKs
+
+```javascript
+import { MemoryDBClient, CreateClusterCommand } from "@aws-sdk/client-memorydb";
+
+const client = new MemoryDBClient({
+  endpoint: "http://localhost:6379",
+  region: "us-east-1",
+  credentials: { accessKeyId: "test", secretAccessKey: "test" },
+});
+
+await client.send(new CreateClusterCommand({
+  ClusterName: "mycluster",
+  NodeType: "db.t4g.small",
+  ACLName: "myacl",
+}));
+```
+
+### Wire Protocol
+
+MemoryDB uses the **AWS JSON 1.1** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: AmazonMemoryDB.<ActionName>` header
+- **Request/response body**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (21)
+
+#### Cluster Management
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateCluster | `AmazonMemoryDB.CreateCluster` | Create a cluster |
+| DeleteCluster | `AmazonMemoryDB.DeleteCluster` | Delete a cluster |
+| DescribeClusters | `AmazonMemoryDB.DescribeClusters` | Describe one or all clusters |
+| UpdateCluster | `AmazonMemoryDB.UpdateCluster` | Update cluster configuration |
+
+#### Subnet Groups
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateSubnetGroup | `AmazonMemoryDB.CreateSubnetGroup` | Create a subnet group |
+| DeleteSubnetGroup | `AmazonMemoryDB.DeleteSubnetGroup` | Delete a subnet group |
+| DescribeSubnetGroups | `AmazonMemoryDB.DescribeSubnetGroups` | Describe subnet groups |
+
+#### Users
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateUser | `AmazonMemoryDB.CreateUser` | Create a user |
+| DeleteUser | `AmazonMemoryDB.DeleteUser` | Delete a user |
+| DescribeUsers | `AmazonMemoryDB.DescribeUsers` | Describe users |
+| UpdateUser | `AmazonMemoryDB.UpdateUser` | Update a user's access string |
+
+#### ACLs
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateACL | `AmazonMemoryDB.CreateACL` | Create an access control list |
+| DeleteACL | `AmazonMemoryDB.DeleteACL` | Delete an ACL |
+| DescribeACLs | `AmazonMemoryDB.DescribeACLs` | Describe ACLs |
+| UpdateACL | `AmazonMemoryDB.UpdateACL` | Add or remove users from an ACL |
+
+#### Snapshots
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateSnapshot | `AmazonMemoryDB.CreateSnapshot` | Create a snapshot of a cluster |
+| DeleteSnapshot | `AmazonMemoryDB.DeleteSnapshot` | Delete a snapshot |
+| DescribeSnapshots | `AmazonMemoryDB.DescribeSnapshots` | Describe snapshots |
+
+#### Tagging
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| TagResource | `AmazonMemoryDB.TagResource` | Add tags to a resource |
+| UntagResource | `AmazonMemoryDB.UntagResource` | Remove tags from a resource |
+| ListTags | `AmazonMemoryDB.ListTags` | List tags on a resource |
+
+### MemoryDB Error Response Format
+
+```json
+{
+  "__type": "ClusterNotFoundFault",
+  "message": "Cluster mycluster not found"
+}
+```
+
+| HTTP Status | Code | Description |
+|-------------|------|-------------|
+| 200 | | Success |
+| 400 | ClusterAlreadyExistsFault | Cluster already exists |
+| 400 | UserAlreadyExistsFault | User already exists |
+| 400 | ACLAlreadyExistsFault | ACL already exists |
+| 400 | InvalidParameterValue | Invalid parameters |
+| 404 | ClusterNotFoundFault | Cluster not found |
+| 404 | UserNotFoundFault | User not found |
+| 404 | ACLNotFoundFault | ACL not found |
+
+---
+
 ## Running Tests
 
 The integration test suites use the AWS CLI to exercise all API operations:
@@ -513,9 +1066,21 @@ bash tests/sns_integration.sh
 
 # Run SQS tests (70 assertions)
 bash tests/sqs_integration.sh
+
+# Run DynamoDB tests (30 assertions)
+bash tests/dynamodb_integration.sh
+
+# Run Lambda tests (28 assertions)
+bash tests/lambda_integration.sh
+
+# Run Firehose tests (18 assertions)
+bash tests/firehose_integration.sh
+
+# Run MemoryDB tests (29 assertions)
+bash tests/memorydb_integration.sh
 ```
 
-Each script builds the binary, starts the server, runs all test cases, and reports pass/fail counts.
+Each script builds the binary, starts the server on isolated ports, runs all test cases, and reports pass/fail counts.
 
 ---
 
@@ -531,6 +1096,10 @@ This is a local development tool, not a production replacement. Key differences:
 - **SNS subscriptions auto-confirm** -- all subscriptions are immediately confirmed without requiring endpoint verification.
 - **SNS message delivery** -- messages are accepted and assigned IDs but not actually delivered to endpoints. Use this service for API compatibility testing, not delivery testing.
 - **SQS permissions stored but not enforced** -- `AddPermission` / `RemovePermission` update the queue's policy, but no access checks are performed.
+- **DynamoDB expressions** -- basic `KeyConditionExpression`, `UpdateExpression` (SET, REMOVE), `FilterExpression`, and `ProjectionExpression` are supported. Advanced features like condition expressions with complex operators, transactions, GSIs/LSIs, and streams are not implemented.
+- **Lambda invocation** -- `Invoke` returns a stub 200 response. Functions are not actually executed. Use this for API compatibility testing.
+- **Firehose delivery** -- records are accepted and stored in memory but not delivered to any destination. Use this for API compatibility testing.
+- **MemoryDB clusters** -- clusters are created with simulated metadata (endpoints, shards, nodes) but no actual Redis instances are started.
 - **No CloudWatch metrics** -- no metrics integration.
 - **Encryption attributes are accepted but not applied** -- KMS-related attributes are stored but data is not encrypted.
 - **Upload size limit** -- S3 supports uploads up to 5 GB per request (axum body limit).
@@ -548,3 +1117,19 @@ This is a local development tool, not a production replacement. Key differences:
 ### Amazon SQS
 - [Developer Guide](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dg.pdf)
 - [API Reference](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/sqs-api.pdf)
+
+### Amazon DynamoDB
+- [Developer Guide](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/dynamodb-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/dynamodb-api.pdf)
+
+### AWS Lambda
+- [Developer Guide](https://docs.aws.amazon.com/lambda/latest/dg/lambda-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/lambda/latest/api/lambda-api.pdf)
+
+### Amazon Data Firehose
+- [Developer Guide](https://docs.aws.amazon.com/firehose/latest/dev/firehose-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/firehose/latest/APIReference/firehose-api.pdf)
+
+### Amazon MemoryDB
+- [Developer Guide](https://docs.aws.amazon.com/memorydb/latest/devguide/memorydb-guide.pdf)
+- [API Reference](https://docs.aws.amazon.com/memorydb/latest/APIReference/memorydb-api.pdf)
