@@ -1,6 +1,6 @@
 # aws-inmemory-services
 
-In-memory implementations of seven AWS services written in Rust: Amazon S3, Amazon SNS, Amazon SQS, Amazon DynamoDB, AWS Lambda, Amazon Data Firehose, and Amazon MemoryDB. All services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
+In-memory implementations of nine AWS services written in Rust: Amazon S3, Amazon SNS, Amazon SQS, Amazon DynamoDB, AWS Lambda, Amazon Data Firehose, Amazon MemoryDB, Amazon Cognito, and Amazon API Gateway. All services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
 
 All state is held in memory — there is no disk persistence. Restarting the server clears all data.
 
@@ -34,6 +34,8 @@ All services start on their default ports:
 | Lambda | `9001` |
 | Firehose | `4573` |
 | MemoryDB | `6379` |
+| Cognito | `9229` |
+| API Gateway | `4567` |
 
 ### CLI Options
 
@@ -46,6 +48,8 @@ All services start on their default ports:
 | `--lambda-port` | `9001` | Port for the Lambda service |
 | `--firehose-port` | `4573` | Port for the Firehose service |
 | `--memorydb-port` | `6379` | Port for the MemoryDB service |
+| `--cognito-port` | `9229` | Port for the Cognito service |
+| `--apigateway-port` | `4567` | Port for the API Gateway service |
 | `--region` | `us-east-1` | AWS region used in ARNs |
 | `--account-id` | `000000000000` | AWS account ID used in ARNs |
 
@@ -1053,6 +1057,362 @@ MemoryDB uses the **AWS JSON 1.1** protocol over HTTP POST:
 
 ---
 
+## Cognito Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a user pool
+aws cognito-idp create-user-pool \
+  --pool-name mypool \
+  --endpoint-url http://localhost:9229 \
+  --no-sign-request
+
+# Create a user pool client
+aws cognito-idp create-user-pool-client \
+  --user-pool-id us-east-1_abc123 \
+  --client-name myclient \
+  --endpoint-url http://localhost:9229 \
+  --no-sign-request
+
+# Create a user
+aws cognito-idp admin-create-user \
+  --user-pool-id us-east-1_abc123 \
+  --username testuser \
+  --endpoint-url http://localhost:9229 \
+  --no-sign-request
+
+# List users
+aws cognito-idp list-users \
+  --user-pool-id us-east-1_abc123 \
+  --endpoint-url http://localhost:9229 \
+  --no-sign-request
+
+# Create a group
+aws cognito-idp create-group \
+  --user-pool-id us-east-1_abc123 \
+  --group-name mygroup \
+  --endpoint-url http://localhost:9229 \
+  --no-sign-request
+
+# Add user to group
+aws cognito-idp admin-add-user-to-group \
+  --user-pool-id us-east-1_abc123 \
+  --username testuser \
+  --group-name mygroup \
+  --endpoint-url http://localhost:9229 \
+  --no-sign-request
+
+# Initiate auth
+aws cognito-idp initiate-auth \
+  --auth-flow USER_PASSWORD_AUTH \
+  --auth-parameters USERNAME=testuser,PASSWORD=Test1234! \
+  --client-id <client-id> \
+  --endpoint-url http://localhost:9229 \
+  --no-sign-request
+```
+
+### Usage with AWS SDKs
+
+```javascript
+import { CognitoIdentityProviderClient, CreateUserPoolCommand, AdminCreateUserCommand } from "@aws-sdk/client-cognito-identity-provider";
+
+const client = new CognitoIdentityProviderClient({
+  endpoint: "http://localhost:9229",
+  region: "us-east-1",
+  credentials: { accessKeyId: "test", secretAccessKey: "test" },
+});
+
+const { UserPool } = await client.send(new CreateUserPoolCommand({
+  PoolName: "mypool",
+}));
+
+await client.send(new AdminCreateUserCommand({
+  UserPoolId: UserPool.Id,
+  Username: "testuser",
+}));
+```
+
+### Wire Protocol
+
+Cognito uses the **AWS JSON 1.1** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: AWSCognitoIdentityProviderService.<ActionName>` header
+- **Request/response body**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (33)
+
+#### User Pool Management
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateUserPool | `AWSCognitoIdentityProviderService.CreateUserPool` | Create a user pool |
+| DeleteUserPool | `AWSCognitoIdentityProviderService.DeleteUserPool` | Delete a user pool |
+| DescribeUserPool | `AWSCognitoIdentityProviderService.DescribeUserPool` | Get user pool details |
+| ListUserPools | `AWSCognitoIdentityProviderService.ListUserPools` | List user pools |
+| UpdateUserPool | `AWSCognitoIdentityProviderService.UpdateUserPool` | Update user pool settings |
+
+#### User Management
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| AdminCreateUser | `AWSCognitoIdentityProviderService.AdminCreateUser` | Create a user |
+| AdminDeleteUser | `AWSCognitoIdentityProviderService.AdminDeleteUser` | Delete a user |
+| AdminGetUser | `AWSCognitoIdentityProviderService.AdminGetUser` | Get user details |
+| AdminSetUserPassword | `AWSCognitoIdentityProviderService.AdminSetUserPassword` | Set a user's password |
+| AdminEnableUser | `AWSCognitoIdentityProviderService.AdminEnableUser` | Enable a user |
+| AdminDisableUser | `AWSCognitoIdentityProviderService.AdminDisableUser` | Disable a user |
+| AdminResetUserPassword | `AWSCognitoIdentityProviderService.AdminResetUserPassword` | Reset a user's password |
+| AdminUpdateUserAttributes | `AWSCognitoIdentityProviderService.AdminUpdateUserAttributes` | Update user attributes |
+| ListUsers | `AWSCognitoIdentityProviderService.ListUsers` | List users in a pool |
+
+#### User Pool Clients
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateUserPoolClient | `AWSCognitoIdentityProviderService.CreateUserPoolClient` | Create an app client |
+| DeleteUserPoolClient | `AWSCognitoIdentityProviderService.DeleteUserPoolClient` | Delete an app client |
+| DescribeUserPoolClient | `AWSCognitoIdentityProviderService.DescribeUserPoolClient` | Get client details |
+| ListUserPoolClients | `AWSCognitoIdentityProviderService.ListUserPoolClients` | List app clients |
+| UpdateUserPoolClient | `AWSCognitoIdentityProviderService.UpdateUserPoolClient` | Update an app client |
+
+#### Groups
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateGroup | `AWSCognitoIdentityProviderService.CreateGroup` | Create a group |
+| DeleteGroup | `AWSCognitoIdentityProviderService.DeleteGroup` | Delete a group |
+| GetGroup | `AWSCognitoIdentityProviderService.GetGroup` | Get group details |
+| ListGroups | `AWSCognitoIdentityProviderService.ListGroups` | List groups in a pool |
+| AdminAddUserToGroup | `AWSCognitoIdentityProviderService.AdminAddUserToGroup` | Add a user to a group |
+| AdminRemoveUserFromGroup | `AWSCognitoIdentityProviderService.AdminRemoveUserFromGroup` | Remove a user from a group |
+| AdminListGroupsForUser | `AWSCognitoIdentityProviderService.AdminListGroupsForUser` | List groups for a user |
+| ListUsersInGroup | `AWSCognitoIdentityProviderService.ListUsersInGroup` | List users in a group |
+
+#### Authentication
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| InitiateAuth | `AWSCognitoIdentityProviderService.InitiateAuth` | Start an auth flow |
+| AdminInitiateAuth | `AWSCognitoIdentityProviderService.AdminInitiateAuth` | Start an admin auth flow |
+| SignUp | `AWSCognitoIdentityProviderService.SignUp` | Self-register a new user |
+| ConfirmSignUp | `AWSCognitoIdentityProviderService.ConfirmSignUp` | Confirm a self-registration |
+| ForgotPassword | `AWSCognitoIdentityProviderService.ForgotPassword` | Initiate password reset |
+| ConfirmForgotPassword | `AWSCognitoIdentityProviderService.ConfirmForgotPassword` | Complete password reset |
+
+### Cognito Error Response Format
+
+```json
+{
+  "__type": "#ResourceNotFoundException",
+  "message": "User pool us-east-1_abc123 does not exist."
+}
+```
+
+| HTTP Status | Code | Description |
+|-------------|------|-------------|
+| 200 | | Success |
+| 400 | ResourceNotFoundException | User pool, user, or client not found |
+| 400 | InvalidParameterException | Invalid or missing parameter |
+| 400 | UsernameExistsException | Username already exists |
+| 400 | UserNotFoundException | User not found |
+| 400 | GroupExistsException | Group already exists |
+| 400 | NotAuthorizedException | Authentication failed |
+| 500 | InternalErrorException | Internal server error |
+
+---
+
+## API Gateway Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a REST API
+aws apigateway create-rest-api \
+  --name myapi \
+  --endpoint-url http://localhost:4567 \
+  --no-sign-request
+
+# Get resources
+aws apigateway get-resources \
+  --rest-api-id <api-id> \
+  --endpoint-url http://localhost:4567 \
+  --no-sign-request
+
+# Create a resource
+aws apigateway create-resource \
+  --rest-api-id <api-id> \
+  --parent-id <root-resource-id> \
+  --path-part myresource \
+  --endpoint-url http://localhost:4567 \
+  --no-sign-request
+
+# Add a method
+aws apigateway put-method \
+  --rest-api-id <api-id> \
+  --resource-id <resource-id> \
+  --http-method GET \
+  --authorization-type NONE \
+  --endpoint-url http://localhost:4567 \
+  --no-sign-request
+
+# Add an integration
+aws apigateway put-integration \
+  --rest-api-id <api-id> \
+  --resource-id <resource-id> \
+  --http-method GET \
+  --type MOCK \
+  --endpoint-url http://localhost:4567 \
+  --no-sign-request
+
+# Create a deployment
+aws apigateway create-deployment \
+  --rest-api-id <api-id> \
+  --stage-name prod \
+  --endpoint-url http://localhost:4567 \
+  --no-sign-request
+
+# List REST APIs
+aws apigateway get-rest-apis \
+  --endpoint-url http://localhost:4567 \
+  --no-sign-request
+```
+
+### Usage with AWS SDKs
+
+```javascript
+import { APIGatewayClient, CreateRestApiCommand, GetResourcesCommand } from "@aws-sdk/client-api-gateway";
+
+const client = new APIGatewayClient({
+  endpoint: "http://localhost:4567",
+  region: "us-east-1",
+  credentials: { accessKeyId: "test", secretAccessKey: "test" },
+});
+
+const { id } = await client.send(new CreateRestApiCommand({
+  name: "myapi",
+}));
+
+const { items } = await client.send(new GetResourcesCommand({
+  restApiId: id,
+}));
+```
+
+### Wire Protocol
+
+API Gateway uses a **REST API** with JSON — the HTTP method and path determine the operation:
+
+- **REST APIs**: `GET/POST /restapis`, `GET/PATCH/DELETE /restapis/{restApiId}`
+- **Resources**: `GET /restapis/{restApiId}/resources`, `GET/POST/DELETE /restapis/{restApiId}/resources/{resourceId}`
+- **Methods**: `GET/PUT/DELETE /restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}`
+- **Integrations**: `GET/PUT/DELETE /restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}/integration`
+- **Method Responses**: `GET/PUT/DELETE /restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}/responses/{statusCode}`
+- **Integration Responses**: `PUT /restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}/integration/responses/{statusCode}`
+- **Deployments**: `GET/POST /restapis/{restApiId}/deployments`, `GET /restapis/{restApiId}/deployments/{deploymentId}`
+- **Stages**: `GET/POST /restapis/{restApiId}/stages`, `GET/PATCH/DELETE /restapis/{restApiId}/stages/{stageName}`
+- **Tags**: `GET/POST/DELETE /tags/{restApiId}`
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (30)
+
+#### REST API Management
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| CreateRestApi | POST | `/restapis` |
+| GetRestApis | GET | `/restapis` |
+| GetRestApi | GET | `/restapis/{restApiId}` |
+| UpdateRestApi | PATCH | `/restapis/{restApiId}` |
+| DeleteRestApi | DELETE | `/restapis/{restApiId}` |
+
+#### Resources
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| GetResources | GET | `/restapis/{restApiId}/resources` |
+| GetResource | GET | `/restapis/{restApiId}/resources/{resourceId}` |
+| CreateResource | POST | `/restapis/{restApiId}/resources/{parentId}` |
+| DeleteResource | DELETE | `/restapis/{restApiId}/resources/{resourceId}` |
+
+#### Methods
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| PutMethod | PUT | `/restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}` |
+| GetMethod | GET | `/restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}` |
+| DeleteMethod | DELETE | `/restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}` |
+
+#### Integrations
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| PutIntegration | PUT | `/restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}/integration` |
+| GetIntegration | GET | `/restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}/integration` |
+| DeleteIntegration | DELETE | `/restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}/integration` |
+
+#### Method Responses
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| PutMethodResponse | PUT | `/restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}/responses/{statusCode}` |
+| GetMethodResponse | GET | `/restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}/responses/{statusCode}` |
+| DeleteMethodResponse | DELETE | `/restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}/responses/{statusCode}` |
+
+#### Integration Responses
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| PutIntegrationResponse | PUT | `/restapis/{restApiId}/resources/{resourceId}/methods/{httpMethod}/integration/responses/{statusCode}` |
+
+#### Deployments
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| CreateDeployment | POST | `/restapis/{restApiId}/deployments` |
+| GetDeployments | GET | `/restapis/{restApiId}/deployments` |
+| GetDeployment | GET | `/restapis/{restApiId}/deployments/{deploymentId}` |
+
+#### Stages
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| CreateStage | POST | `/restapis/{restApiId}/stages` |
+| GetStages | GET | `/restapis/{restApiId}/stages` |
+| GetStage | GET | `/restapis/{restApiId}/stages/{stageName}` |
+| UpdateStage | PATCH | `/restapis/{restApiId}/stages/{stageName}` |
+| DeleteStage | DELETE | `/restapis/{restApiId}/stages/{stageName}` |
+
+#### Tagging
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| TagResource | POST | `/tags/{restApiId}` |
+| UntagResource | DELETE | `/tags/{restApiId}` |
+| GetTags | GET | `/tags/{restApiId}` |
+
+### API Gateway Error Response Format
+
+```json
+{
+  "message": "Invalid REST API identifier specified"
+}
+```
+
+Response includes `x-amzn-ErrorType` header (e.g. `NotFoundException`).
+
+| HTTP Status | Error Type | Description |
+|-------------|------------|-------------|
+| 200/201/202 | | Success |
+| 400 | BadRequestException | Invalid parameters |
+| 401 | UnauthorizedException | Not authorized |
+| 404 | NotFoundException | REST API, resource, or stage not found |
+| 409 | ConflictException | Resource already exists |
+| 429 | TooManyRequestsException | Rate limit exceeded |
+
+---
+
 ## Running Tests
 
 The integration test suites use the AWS CLI to exercise all API operations:
@@ -1078,6 +1438,12 @@ bash tests/firehose_integration.sh
 
 # Run MemoryDB tests (29 assertions)
 bash tests/memorydb_integration.sh
+
+# Run Cognito tests (53 assertions)
+bash tests/cognito_integration.sh
+
+# Run API Gateway tests (43 assertions)
+bash tests/apigateway_integration.sh
 ```
 
 Each script builds the binary, starts the server on isolated ports, runs all test cases, and reports pass/fail counts.
@@ -1100,6 +1466,9 @@ This is a local development tool, not a production replacement. Key differences:
 - **Lambda invocation** -- `Invoke` returns a stub 200 response. Functions are not actually executed. Use this for API compatibility testing.
 - **Firehose delivery** -- records are accepted and stored in memory but not delivered to any destination. Use this for API compatibility testing.
 - **MemoryDB clusters** -- clusters are created with simulated metadata (endpoints, shards, nodes) but no actual Redis instances are started.
+- **Cognito authentication** -- `InitiateAuth`, `AdminInitiateAuth`, `SignUp`, and related flows return stub token responses. No actual JWT signing or token validation is performed. Use this for API compatibility testing.
+- **Cognito subscriptions auto-confirm** -- `ConfirmSignUp` succeeds for any user regardless of the confirmation code provided.
+- **API Gateway invocations** -- the service manages REST API configuration (resources, methods, integrations, deployments, stages) but does not route or proxy actual HTTP requests. Use this for infrastructure-as-code and API compatibility testing.
 - **No CloudWatch metrics** -- no metrics integration.
 - **Encryption attributes are accepted but not applied** -- KMS-related attributes are stored but data is not encrypted.
 - **Upload size limit** -- S3 supports uploads up to 5 GB per request (axum body limit).
@@ -1133,3 +1502,11 @@ This is a local development tool, not a production replacement. Key differences:
 ### Amazon MemoryDB
 - [Developer Guide](https://docs.aws.amazon.com/memorydb/latest/devguide/memorydb-guide.pdf)
 - [API Reference](https://docs.aws.amazon.com/memorydb/latest/APIReference/memorydb-api.pdf)
+
+### Amazon Cognito
+- [Developer Guide](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/cognito-userpools-api.pdf)
+
+### Amazon API Gateway
+- [Developer Guide](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/apigateway/latest/api/API_Operations.html)
