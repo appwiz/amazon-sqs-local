@@ -3,19 +3,27 @@ use std::sync::Arc;
 use clap::Parser;
 
 mod apigateway;
+mod cloudwatchlogs;
 mod cognito;
 mod dynamodb;
+mod eventbridge;
 mod firehose;
+mod kinesis;
+mod kms;
 mod lambda;
 mod memorydb;
 mod s3;
+mod secretsmanager;
+mod ses;
 mod sns;
 mod sqs;
+mod ssm;
+mod stepfunctions;
 
 #[derive(Parser)]
 #[command(
     name = "aws-inmemory-services",
-    about = "Local AWS S3, SNS, SQS, DynamoDB, Lambda, Firehose, MemoryDB, Cognito, and API Gateway services"
+    about = "Local AWS services: S3, SNS, SQS, DynamoDB, Lambda, Firehose, MemoryDB, Cognito, API Gateway, KMS, Secrets Manager, Kinesis, EventBridge, Step Functions, SSM Parameter Store, CloudWatch Logs, SES"
 )]
 struct Args {
     #[arg(long, default_value = "9000")]
@@ -36,6 +44,22 @@ struct Args {
     cognito_port: u16,
     #[arg(long, default_value = "4567")]
     apigateway_port: u16,
+    #[arg(long, default_value = "7600")]
+    kms_port: u16,
+    #[arg(long, default_value = "7700")]
+    secretsmanager_port: u16,
+    #[arg(long, default_value = "4568")]
+    kinesis_port: u16,
+    #[arg(long, default_value = "9195")]
+    eventbridge_port: u16,
+    #[arg(long, default_value = "8083")]
+    stepfunctions_port: u16,
+    #[arg(long, default_value = "9100")]
+    ssm_port: u16,
+    #[arg(long, default_value = "9201")]
+    cloudwatchlogs_port: u16,
+    #[arg(long, default_value = "9300")]
+    ses_port: u16,
     #[arg(long, default_value = "us-east-1")]
     region: String,
     #[arg(long, default_value = "000000000000")]
@@ -83,6 +107,38 @@ async fn main() {
         args.account_id.clone(),
         args.region.clone(),
     ));
+    let kms_state = Arc::new(kms::state::KmsState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
+    let secretsmanager_state = Arc::new(secretsmanager::state::SecretsManagerState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
+    let kinesis_state = Arc::new(kinesis::state::KinesisState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
+    let eventbridge_state = Arc::new(eventbridge::state::EventBridgeState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
+    let stepfunctions_state = Arc::new(stepfunctions::state::SfnState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
+    let ssm_state = Arc::new(ssm::state::SsmState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
+    let cloudwatchlogs_state = Arc::new(cloudwatchlogs::state::CwlState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
+    let ses_state = Arc::new(ses::state::SesState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
 
     let s3_app = s3::server::create_router(s3_state);
     let sns_app = sns::server::create_router(sns_state);
@@ -93,88 +149,49 @@ async fn main() {
     let memorydb_app = memorydb::server::create_router(memorydb_state);
     let cognito_app = cognito::server::create_router(cognito_state);
     let apigateway_app = apigateway::server::create_router(apigateway_state);
+    let kms_app = kms::server::create_router(kms_state);
+    let secretsmanager_app = secretsmanager::server::create_router(secretsmanager_state);
+    let kinesis_app = kinesis::server::create_router(kinesis_state);
+    let eventbridge_app = eventbridge::server::create_router(eventbridge_state);
+    let stepfunctions_app = stepfunctions::server::create_router(stepfunctions_state);
+    let ssm_app = ssm::server::create_router(ssm_state);
+    let cloudwatchlogs_app = cloudwatchlogs::server::create_router(cloudwatchlogs_state);
+    let ses_app = ses::server::create_router(ses_state);
 
-    let s3_port = args.s3_port;
-    let sns_port = args.sns_port;
-    let sqs_port = args.sqs_port;
-    let dynamodb_port = args.dynamodb_port;
-    let lambda_port = args.lambda_port;
-    let firehose_port = args.firehose_port;
-    let memorydb_port = args.memorydb_port;
-    let cognito_port = args.cognito_port;
-    let apigateway_port = args.apigateway_port;
+    macro_rules! spawn_service {
+        ($app:expr, $port:expr, $name:expr) => {{
+            let port = $port;
+            let app = $app;
+            tokio::spawn(async move {
+                let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
+                    .await
+                    .unwrap();
+                println!("{} service listening on port {}", $name, port);
+                axum::serve(listener, app).await.unwrap();
+            })
+        }};
+    }
 
-    let s3_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", s3_port))
-            .await
-            .unwrap();
-        println!("S3 service listening on port {}", s3_port);
-        axum::serve(listener, s3_app).await.unwrap();
-    });
-
-    let sns_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", sns_port))
-            .await
-            .unwrap();
-        println!("SNS service listening on port {}", sns_port);
-        axum::serve(listener, sns_app).await.unwrap();
-    });
-
-    let sqs_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", sqs_port))
-            .await
-            .unwrap();
-        println!("SQS service listening on port {}", sqs_port);
-        axum::serve(listener, sqs_app).await.unwrap();
-    });
-
-    let dynamodb_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", dynamodb_port))
-            .await
-            .unwrap();
-        println!("DynamoDB service listening on port {}", dynamodb_port);
-        axum::serve(listener, dynamodb_app).await.unwrap();
-    });
-
-    let lambda_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", lambda_port))
-            .await
-            .unwrap();
-        println!("Lambda service listening on port {}", lambda_port);
-        axum::serve(listener, lambda_app).await.unwrap();
-    });
-
-    let firehose_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", firehose_port))
-            .await
-            .unwrap();
-        println!("Firehose service listening on port {}", firehose_port);
-        axum::serve(listener, firehose_app).await.unwrap();
-    });
-
-    let memorydb_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", memorydb_port))
-            .await
-            .unwrap();
-        println!("MemoryDB service listening on port {}", memorydb_port);
-        axum::serve(listener, memorydb_app).await.unwrap();
-    });
-
-    let cognito_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", cognito_port))
-            .await
-            .unwrap();
-        println!("Cognito service listening on port {}", cognito_port);
-        axum::serve(listener, cognito_app).await.unwrap();
-    });
-
-    let apigateway_handle = tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", apigateway_port))
-            .await
-            .unwrap();
-        println!("API Gateway service listening on port {}", apigateway_port);
-        axum::serve(listener, apigateway_app).await.unwrap();
-    });
+    let s3_handle = spawn_service!(s3_app, args.s3_port, "S3");
+    let sns_handle = spawn_service!(sns_app, args.sns_port, "SNS");
+    let sqs_handle = spawn_service!(sqs_app, args.sqs_port, "SQS");
+    let dynamodb_handle = spawn_service!(dynamodb_app, args.dynamodb_port, "DynamoDB");
+    let lambda_handle = spawn_service!(lambda_app, args.lambda_port, "Lambda");
+    let firehose_handle = spawn_service!(firehose_app, args.firehose_port, "Firehose");
+    let memorydb_handle = spawn_service!(memorydb_app, args.memorydb_port, "MemoryDB");
+    let cognito_handle = spawn_service!(cognito_app, args.cognito_port, "Cognito");
+    let apigateway_handle = spawn_service!(apigateway_app, args.apigateway_port, "API Gateway");
+    let kms_handle = spawn_service!(kms_app, args.kms_port, "KMS");
+    let secretsmanager_handle =
+        spawn_service!(secretsmanager_app, args.secretsmanager_port, "Secrets Manager");
+    let kinesis_handle = spawn_service!(kinesis_app, args.kinesis_port, "Kinesis");
+    let eventbridge_handle = spawn_service!(eventbridge_app, args.eventbridge_port, "EventBridge");
+    let stepfunctions_handle =
+        spawn_service!(stepfunctions_app, args.stepfunctions_port, "Step Functions");
+    let ssm_handle = spawn_service!(ssm_app, args.ssm_port, "SSM Parameter Store");
+    let cloudwatchlogs_handle =
+        spawn_service!(cloudwatchlogs_app, args.cloudwatchlogs_port, "CloudWatch Logs");
+    let ses_handle = spawn_service!(ses_app, args.ses_port, "SES");
 
     tokio::select! {
         r = s3_handle => r.unwrap(),
@@ -186,5 +203,13 @@ async fn main() {
         r = memorydb_handle => r.unwrap(),
         r = cognito_handle => r.unwrap(),
         r = apigateway_handle => r.unwrap(),
+        r = kms_handle => r.unwrap(),
+        r = secretsmanager_handle => r.unwrap(),
+        r = kinesis_handle => r.unwrap(),
+        r = eventbridge_handle => r.unwrap(),
+        r = stepfunctions_handle => r.unwrap(),
+        r = ssm_handle => r.unwrap(),
+        r = cloudwatchlogs_handle => r.unwrap(),
+        r = ses_handle => r.unwrap(),
     }
 }

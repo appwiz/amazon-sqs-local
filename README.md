@@ -1,6 +1,6 @@
 # aws-inmemory-services
 
-In-memory implementations of nine AWS services written in Rust: Amazon S3, Amazon SNS, Amazon SQS, Amazon DynamoDB, AWS Lambda, Amazon Data Firehose, Amazon MemoryDB, Amazon Cognito, and Amazon API Gateway. All services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
+In-memory implementations of seventeen AWS services written in Rust: Amazon S3, Amazon SNS, Amazon SQS, Amazon DynamoDB, AWS Lambda, Amazon Data Firehose, Amazon MemoryDB, Amazon Cognito, Amazon API Gateway, AWS KMS, AWS Secrets Manager, Amazon Kinesis Data Streams, Amazon EventBridge, AWS Step Functions, AWS Systems Manager Parameter Store, Amazon CloudWatch Logs, and Amazon SES. All services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
 
 All state is held in memory — there is no disk persistence. Restarting the server clears all data.
 
@@ -36,6 +36,14 @@ All services start on their default ports:
 | MemoryDB | `6379` |
 | Cognito | `9229` |
 | API Gateway | `4567` |
+| KMS | `7600` |
+| Secrets Manager | `7700` |
+| Kinesis Data Streams | `4568` |
+| EventBridge | `9195` |
+| Step Functions | `8083` |
+| SSM Parameter Store | `9100` |
+| CloudWatch Logs | `9201` |
+| SES | `9300` |
 
 ### CLI Options
 
@@ -50,6 +58,14 @@ All services start on their default ports:
 | `--memorydb-port` | `6379` | Port for the MemoryDB service |
 | `--cognito-port` | `9229` | Port for the Cognito service |
 | `--apigateway-port` | `4567` | Port for the API Gateway service |
+| `--kms-port` | `7600` | Port for the KMS service |
+| `--secretsmanager-port` | `7700` | Port for the Secrets Manager service |
+| `--kinesis-port` | `4568` | Port for the Kinesis Data Streams service |
+| `--eventbridge-port` | `9195` | Port for the EventBridge service |
+| `--stepfunctions-port` | `8083` | Port for the Step Functions service |
+| `--ssm-port` | `9100` | Port for the SSM Parameter Store service |
+| `--cloudwatchlogs-port` | `9201` | Port for the CloudWatch Logs service |
+| `--ses-port` | `9300` | Port for the SES service |
 | `--region` | `us-east-1` | AWS region used in ARNs |
 | `--account-id` | `000000000000` | AWS account ID used in ARNs |
 
@@ -1413,6 +1429,688 @@ Response includes `x-amzn-ErrorType` header (e.g. `NotFoundException`).
 
 ---
 
+## KMS Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a key
+aws kms create-key \
+  --description "My test key" \
+  --endpoint-url http://localhost:7600 \
+  --no-sign-request
+
+# List keys
+aws kms list-keys \
+  --endpoint-url http://localhost:7600 \
+  --no-sign-request
+
+# Encrypt data
+aws kms encrypt \
+  --key-id <key-id> \
+  --plaintext "SGVsbG8gV29ybGQ=" \
+  --endpoint-url http://localhost:7600 \
+  --no-sign-request
+
+# Decrypt data
+aws kms decrypt \
+  --ciphertext-blob <ciphertext> \
+  --endpoint-url http://localhost:7600 \
+  --no-sign-request
+
+# Generate a data key
+aws kms generate-data-key \
+  --key-id <key-id> \
+  --key-spec AES_256 \
+  --endpoint-url http://localhost:7600 \
+  --no-sign-request
+
+# Create an alias
+aws kms create-alias \
+  --alias-name alias/my-key \
+  --target-key-id <key-id> \
+  --endpoint-url http://localhost:7600 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+KMS uses the **AWS JSON 1.1** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: TrentService.<ActionName>` header
+- **Request/response body**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (21)
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateKey | `TrentService.CreateKey` | Create a new KMS key |
+| DescribeKey | `TrentService.DescribeKey` | Get key metadata |
+| ListKeys | `TrentService.ListKeys` | List all keys |
+| EnableKey | `TrentService.EnableKey` | Enable a disabled key |
+| DisableKey | `TrentService.DisableKey` | Disable a key |
+| ScheduleKeyDeletion | `TrentService.ScheduleKeyDeletion` | Schedule a key for deletion |
+| CancelKeyDeletion | `TrentService.CancelKeyDeletion` | Cancel a scheduled deletion |
+| Encrypt | `TrentService.Encrypt` | Encrypt plaintext (simulated) |
+| Decrypt | `TrentService.Decrypt` | Decrypt ciphertext (simulated) |
+| GenerateDataKey | `TrentService.GenerateDataKey` | Generate a data key |
+| GenerateDataKeyWithoutPlaintext | `TrentService.GenerateDataKeyWithoutPlaintext` | Generate encrypted data key only |
+| GenerateRandom | `TrentService.GenerateRandom` | Generate random bytes |
+| Sign | `TrentService.Sign` | Sign a message (simulated) |
+| Verify | `TrentService.Verify` | Verify a signature (simulated) |
+| TagResource | `TrentService.TagResource` | Add tags to a key |
+| UntagResource | `TrentService.UntagResource` | Remove tags from a key |
+| ListResourceTags | `TrentService.ListResourceTags` | List tags on a key |
+| CreateAlias | `TrentService.CreateAlias` | Create an alias for a key |
+| DeleteAlias | `TrentService.DeleteAlias` | Delete an alias |
+| ListAliases | `TrentService.ListAliases` | List aliases |
+| GetKeyPolicy | `TrentService.GetKeyPolicy` | Get the key policy |
+| PutKeyPolicy | `TrentService.PutKeyPolicy` | Set the key policy |
+
+### KMS Error Response Format
+
+```json
+{
+  "__type": "NotFoundException",
+  "message": "Invalid keyId: nonexistent"
+}
+```
+
+---
+
+## Secrets Manager Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a secret
+aws secretsmanager create-secret \
+  --name mydb/credentials \
+  --secret-string '{"username":"admin","password":"s3cr3t"}' \
+  --endpoint-url http://localhost:7700 \
+  --no-sign-request
+
+# Get a secret value
+aws secretsmanager get-secret-value \
+  --secret-id mydb/credentials \
+  --endpoint-url http://localhost:7700 \
+  --no-sign-request
+
+# Update a secret
+aws secretsmanager put-secret-value \
+  --secret-id mydb/credentials \
+  --secret-string '{"username":"admin","password":"newpass"}' \
+  --endpoint-url http://localhost:7700 \
+  --no-sign-request
+
+# List secrets
+aws secretsmanager list-secrets \
+  --endpoint-url http://localhost:7700 \
+  --no-sign-request
+
+# Delete a secret
+aws secretsmanager delete-secret \
+  --secret-id mydb/credentials \
+  --force-delete-without-recovery \
+  --endpoint-url http://localhost:7700 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+Secrets Manager uses the **AWS JSON 1.1** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: secretsmanager.<ActionName>` header
+- **Request/response body**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (11)
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateSecret | `secretsmanager.CreateSecret` | Create a new secret |
+| GetSecretValue | `secretsmanager.GetSecretValue` | Retrieve the current secret value |
+| PutSecretValue | `secretsmanager.PutSecretValue` | Update the secret value (creates a new version) |
+| DescribeSecret | `secretsmanager.DescribeSecret` | Get secret metadata |
+| ListSecrets | `secretsmanager.ListSecrets` | List all secrets |
+| UpdateSecret | `secretsmanager.UpdateSecret` | Update secret description or KMS key |
+| DeleteSecret | `secretsmanager.DeleteSecret` | Delete a secret |
+| RestoreSecret | `secretsmanager.RestoreSecret` | Cancel a pending deletion |
+| TagResource | `secretsmanager.TagResource` | Add tags to a secret |
+| UntagResource | `secretsmanager.UntagResource` | Remove tags from a secret |
+| ListSecretVersionIds | `secretsmanager.ListSecretVersionIds` | List all versions of a secret |
+
+### Secrets Manager Error Response Format
+
+```json
+{
+  "__type": "ResourceNotFoundException",
+  "message": "Secrets Manager can't find the specified secret."
+}
+```
+
+---
+
+## Kinesis Data Streams Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a stream
+aws kinesis create-stream \
+  --stream-name mystream \
+  --shard-count 1 \
+  --endpoint-url http://localhost:4568 \
+  --no-sign-request
+
+# Put a record
+aws kinesis put-record \
+  --stream-name mystream \
+  --data "$(echo -n 'Hello Kinesis' | base64)" \
+  --partition-key pk1 \
+  --endpoint-url http://localhost:4568 \
+  --no-sign-request
+
+# Get a shard iterator
+aws kinesis get-shard-iterator \
+  --stream-name mystream \
+  --shard-id shardId-000000000000 \
+  --shard-iterator-type TRIM_HORIZON \
+  --endpoint-url http://localhost:4568 \
+  --no-sign-request
+
+# Get records
+aws kinesis get-records \
+  --shard-iterator <iterator> \
+  --endpoint-url http://localhost:4568 \
+  --no-sign-request
+
+# List streams
+aws kinesis list-streams \
+  --endpoint-url http://localhost:4568 \
+  --no-sign-request
+
+# Delete a stream
+aws kinesis delete-stream \
+  --stream-name mystream \
+  --endpoint-url http://localhost:4568 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+Kinesis uses the **AWS JSON 1.1** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: Kinesis_20131202.<ActionName>` header
+- **Request/response body**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (15)
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateStream | `Kinesis_20131202.CreateStream` | Create a stream with N shards |
+| DeleteStream | `Kinesis_20131202.DeleteStream` | Delete a stream |
+| DescribeStream | `Kinesis_20131202.DescribeStream` | Get stream details and shard list |
+| DescribeStreamSummary | `Kinesis_20131202.DescribeStreamSummary` | Get a stream summary |
+| ListStreams | `Kinesis_20131202.ListStreams` | List all streams |
+| ListShards | `Kinesis_20131202.ListShards` | List shards for a stream |
+| PutRecord | `Kinesis_20131202.PutRecord` | Put a single record |
+| PutRecords | `Kinesis_20131202.PutRecords` | Put multiple records |
+| GetShardIterator | `Kinesis_20131202.GetShardIterator` | Get a shard iterator (TRIM_HORIZON, LATEST, AT_SEQUENCE_NUMBER, AFTER_SEQUENCE_NUMBER) |
+| GetRecords | `Kinesis_20131202.GetRecords` | Read records from a shard iterator |
+| AddTagsToStream | `Kinesis_20131202.AddTagsToStream` | Add tags to a stream |
+| RemoveTagsFromStream | `Kinesis_20131202.RemoveTagsFromStream` | Remove tags from a stream |
+| ListTagsForStream | `Kinesis_20131202.ListTagsForStream` | List tags on a stream |
+| IncreaseStreamRetentionPeriod | `Kinesis_20131202.IncreaseStreamRetentionPeriod` | Increase retention period |
+| DecreaseStreamRetentionPeriod | `Kinesis_20131202.DecreaseStreamRetentionPeriod` | Decrease retention period |
+
+### Kinesis Error Response Format
+
+```json
+{
+  "__type": "ResourceNotFoundException",
+  "message": "Stream mystream under account 000000000000 not found."
+}
+```
+
+---
+
+## EventBridge Service
+
+### Usage with the AWS CLI
+
+```bash
+# Describe the default event bus
+aws events describe-event-bus \
+  --endpoint-url http://localhost:9195 \
+  --no-sign-request
+
+# Create a custom event bus
+aws events create-event-bus \
+  --name mybus \
+  --endpoint-url http://localhost:9195 \
+  --no-sign-request
+
+# Put events
+aws events put-events \
+  --entries '[{"Source":"my.service","DetailType":"OrderPlaced","Detail":"{\"orderId\":\"123\"}"}]' \
+  --endpoint-url http://localhost:9195 \
+  --no-sign-request
+
+# Create a rule
+aws events put-rule \
+  --name my-rule \
+  --event-pattern '{"source":["my.service"]}' \
+  --state ENABLED \
+  --endpoint-url http://localhost:9195 \
+  --no-sign-request
+
+# Add a target
+aws events put-targets \
+  --rule my-rule \
+  --targets Id=target1,Arn=arn:aws:lambda:us-east-1:000000000000:function:my-func \
+  --endpoint-url http://localhost:9195 \
+  --no-sign-request
+
+# List rules
+aws events list-rules \
+  --endpoint-url http://localhost:9195 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+EventBridge uses the **AWS JSON 1.1** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: AmazonEventBridge.<ActionName>` header
+- **Request/response body**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (17)
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateEventBus | `AmazonEventBridge.CreateEventBus` | Create a custom event bus |
+| DeleteEventBus | `AmazonEventBridge.DeleteEventBus` | Delete a custom event bus |
+| DescribeEventBus | `AmazonEventBridge.DescribeEventBus` | Describe an event bus |
+| ListEventBuses | `AmazonEventBridge.ListEventBuses` | List all event buses |
+| PutEvents | `AmazonEventBridge.PutEvents` | Publish events to a bus |
+| PutRule | `AmazonEventBridge.PutRule` | Create or update a rule |
+| DeleteRule | `AmazonEventBridge.DeleteRule` | Delete a rule |
+| DescribeRule | `AmazonEventBridge.DescribeRule` | Describe a rule |
+| ListRules | `AmazonEventBridge.ListRules` | List rules |
+| PutTargets | `AmazonEventBridge.PutTargets` | Add targets to a rule |
+| RemoveTargets | `AmazonEventBridge.RemoveTargets` | Remove targets from a rule |
+| ListTargetsByRule | `AmazonEventBridge.ListTargetsByRule` | List targets for a rule |
+| TagResource | `AmazonEventBridge.TagResource` | Add tags to a resource |
+| UntagResource | `AmazonEventBridge.UntagResource` | Remove tags from a resource |
+| ListTagsForResource | `AmazonEventBridge.ListTagsForResource` | List tags on a resource |
+
+### EventBridge Error Response Format
+
+```json
+{
+  "__type": "ResourceNotFoundException",
+  "message": "Event bus mybus does not exist."
+}
+```
+
+---
+
+## Step Functions Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a state machine
+DEFINITION='{"Comment":"Test","StartAt":"Pass","States":{"Pass":{"Type":"Pass","End":true}}}'
+aws stepfunctions create-state-machine \
+  --name my-state-machine \
+  --definition "$DEFINITION" \
+  --role-arn arn:aws:iam::000000000000:role/StepFunctionsRole \
+  --endpoint-url http://localhost:8083 \
+  --no-sign-request
+
+# Start an execution
+aws stepfunctions start-execution \
+  --state-machine-arn arn:aws:states:us-east-1:000000000000:stateMachine:my-state-machine \
+  --name my-execution \
+  --input '{"key":"value"}' \
+  --endpoint-url http://localhost:8083 \
+  --no-sign-request
+
+# Describe an execution
+aws stepfunctions describe-execution \
+  --execution-arn arn:aws:states:us-east-1:000000000000:execution:my-state-machine:my-execution \
+  --endpoint-url http://localhost:8083 \
+  --no-sign-request
+
+# List state machines
+aws stepfunctions list-state-machines \
+  --endpoint-url http://localhost:8083 \
+  --no-sign-request
+
+# Delete a state machine
+aws stepfunctions delete-state-machine \
+  --state-machine-arn arn:aws:states:us-east-1:000000000000:stateMachine:my-state-machine \
+  --endpoint-url http://localhost:8083 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+Step Functions uses the **AWS JSON 1.1** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: AmazonStates.<ActionName>` header
+- **Request/response body**: JSON with **camelCase** field names (e.g. `stateMachineArn`, `startDate`)
+- **ARN format**: `arn:aws:states:<region>:<account>:stateMachine:<name>`
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (16)
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateStateMachine | `AmazonStates.CreateStateMachine` | Create a state machine |
+| DeleteStateMachine | `AmazonStates.DeleteStateMachine` | Delete a state machine |
+| DescribeStateMachine | `AmazonStates.DescribeStateMachine` | Describe a state machine |
+| ListStateMachines | `AmazonStates.ListStateMachines` | List all state machines |
+| StartExecution | `AmazonStates.StartExecution` | Start a new execution |
+| StopExecution | `AmazonStates.StopExecution` | Stop a running execution |
+| DescribeExecution | `AmazonStates.DescribeExecution` | Describe an execution |
+| ListExecutions | `AmazonStates.ListExecutions` | List executions for a state machine |
+| GetExecutionHistory | `AmazonStates.GetExecutionHistory` | Get execution event history |
+| SendTaskSuccess | `AmazonStates.SendTaskSuccess` | Report task success |
+| SendTaskFailure | `AmazonStates.SendTaskFailure` | Report task failure |
+| SendTaskHeartbeat | `AmazonStates.SendTaskHeartbeat` | Send a task heartbeat |
+| TagResource | `AmazonStates.TagResource` | Add tags to a resource |
+| UntagResource | `AmazonStates.UntagResource` | Remove tags from a resource |
+| ListTagsForResource | `AmazonStates.ListTagsForResource` | List tags on a resource |
+
+### Step Functions Error Response Format
+
+```json
+{
+  "__type": "StateMachineDoesNotExist",
+  "message": "State machine does not exist: arn:aws:states:..."
+}
+```
+
+---
+
+## SSM Parameter Store Service
+
+### Usage with the AWS CLI
+
+```bash
+# Put a parameter
+aws ssm put-parameter \
+  --name /myapp/db/host \
+  --value "localhost" \
+  --type String \
+  --endpoint-url http://localhost:9100 \
+  --no-sign-request
+
+# Get a parameter
+aws ssm get-parameter \
+  --name /myapp/db/host \
+  --endpoint-url http://localhost:9100 \
+  --no-sign-request
+
+# Get parameters by path
+aws ssm get-parameters-by-path \
+  --path /myapp \
+  --recursive \
+  --endpoint-url http://localhost:9100 \
+  --no-sign-request
+
+# Overwrite a parameter
+aws ssm put-parameter \
+  --name /myapp/db/host \
+  --value "prod.example.com" \
+  --type String \
+  --overwrite \
+  --endpoint-url http://localhost:9100 \
+  --no-sign-request
+
+# Delete a parameter
+aws ssm delete-parameter \
+  --name /myapp/db/host \
+  --endpoint-url http://localhost:9100 \
+  --no-sign-request
+
+# Describe parameters
+aws ssm describe-parameters \
+  --endpoint-url http://localhost:9100 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+SSM uses the **AWS JSON 1.1** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: AmazonSSM.<ActionName>` header
+- **Request/response body**: JSON
+- **ARN format**: `arn:aws:ssm:<region>:<account>:parameter/<name>`
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (10)
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| PutParameter | `AmazonSSM.PutParameter` | Create or update a parameter |
+| GetParameter | `AmazonSSM.GetParameter` | Get a single parameter |
+| GetParameters | `AmazonSSM.GetParameters` | Get multiple parameters by name |
+| GetParametersByPath | `AmazonSSM.GetParametersByPath` | Get parameters under a path prefix (with optional recursion) |
+| DeleteParameter | `AmazonSSM.DeleteParameter` | Delete a single parameter |
+| DeleteParameters | `AmazonSSM.DeleteParameters` | Delete multiple parameters |
+| DescribeParameters | `AmazonSSM.DescribeParameters` | List all parameters with metadata |
+| AddTagsToResource | `AmazonSSM.AddTagsToResource` | Add tags to a parameter |
+| RemoveTagsFromResource | `AmazonSSM.RemoveTagsFromResource` | Remove tags from a parameter |
+| ListTagsForResource | `AmazonSSM.ListTagsForResource` | List tags on a parameter |
+
+### Parameter Types
+
+| Type | Description |
+|------|-------------|
+| `String` | Plain text string value |
+| `SecureString` | Encrypted string (stored as-is in local mode) |
+| `StringList` | Comma-delimited list of values |
+
+### SSM Error Response Format
+
+```json
+{
+  "__type": "ParameterNotFound",
+  "message": "Parameter /myapp/db/host not found."
+}
+```
+
+---
+
+## CloudWatch Logs Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a log group
+aws logs create-log-group \
+  --log-group-name /myapp/service \
+  --endpoint-url http://localhost:9201 \
+  --no-sign-request
+
+# Create a log stream
+aws logs create-log-stream \
+  --log-group-name /myapp/service \
+  --log-stream-name stream-2024-01-01 \
+  --endpoint-url http://localhost:9201 \
+  --no-sign-request
+
+# Put log events
+NOW_MS=$(date +%s)000
+aws logs put-log-events \
+  --log-group-name /myapp/service \
+  --log-stream-name stream-2024-01-01 \
+  --log-events "[{\"timestamp\":${NOW_MS},\"message\":\"Application started\"}]" \
+  --endpoint-url http://localhost:9201 \
+  --no-sign-request
+
+# Get log events
+aws logs get-log-events \
+  --log-group-name /myapp/service \
+  --log-stream-name stream-2024-01-01 \
+  --endpoint-url http://localhost:9201 \
+  --no-sign-request
+
+# Filter log events
+aws logs filter-log-events \
+  --log-group-name /myapp/service \
+  --filter-pattern "ERROR" \
+  --endpoint-url http://localhost:9201 \
+  --no-sign-request
+
+# Set retention policy
+aws logs put-retention-policy \
+  --log-group-name /myapp/service \
+  --retention-in-days 7 \
+  --endpoint-url http://localhost:9201 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+CloudWatch Logs uses the **AWS JSON 1.1** protocol over HTTP POST:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: Logs_20140328.<ActionName>` header
+- **Request/response body**: JSON with **camelCase** field names
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (17)
+
+#### Log Groups
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateLogGroup | `Logs_20140328.CreateLogGroup` | Create a log group |
+| DeleteLogGroup | `Logs_20140328.DeleteLogGroup` | Delete a log group |
+| DescribeLogGroups | `Logs_20140328.DescribeLogGroups` | List log groups with optional prefix filter |
+| PutRetentionPolicy | `Logs_20140328.PutRetentionPolicy` | Set retention period for a log group |
+| DeleteRetentionPolicy | `Logs_20140328.DeleteRetentionPolicy` | Remove retention policy |
+
+#### Log Streams
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| CreateLogStream | `Logs_20140328.CreateLogStream` | Create a log stream |
+| DeleteLogStream | `Logs_20140328.DeleteLogStream` | Delete a log stream |
+| DescribeLogStreams | `Logs_20140328.DescribeLogStreams` | List log streams in a group |
+
+#### Log Events
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| PutLogEvents | `Logs_20140328.PutLogEvents` | Write log events to a stream |
+| GetLogEvents | `Logs_20140328.GetLogEvents` | Read log events from a stream |
+| FilterLogEvents | `Logs_20140328.FilterLogEvents` | Search log events across streams with pattern matching |
+
+#### Tagging
+
+| Operation | Target | Description |
+|-----------|--------|-------------|
+| TagLogGroup | `Logs_20140328.TagLogGroup` | Add tags to a log group (legacy) |
+| UntagLogGroup | `Logs_20140328.UntagLogGroup` | Remove tags from a log group (legacy) |
+| ListTagsLogGroup | `Logs_20140328.ListTagsLogGroup` | List tags on a log group (legacy) |
+| TagResource | `Logs_20140328.TagResource` | Add tags to a resource |
+| UntagResource | `Logs_20140328.UntagResource` | Remove tags from a resource |
+| ListTagsForResource | `Logs_20140328.ListTagsForResource` | List tags on a resource |
+
+### CloudWatch Logs Error Response Format
+
+```json
+{
+  "__type": "ResourceNotFoundException",
+  "message": "The specified log group does not exist"
+}
+```
+
+---
+
+## SES Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create an email identity
+aws sesv2 create-email-identity \
+  --email-identity sender@example.com \
+  --endpoint-url http://localhost:9300 \
+  --no-sign-request
+
+# List identities
+aws sesv2 list-email-identities \
+  --endpoint-url http://localhost:9300 \
+  --no-sign-request
+
+# Get identity details
+aws sesv2 get-email-identity \
+  --email-identity sender@example.com \
+  --endpoint-url http://localhost:9300 \
+  --no-sign-request
+
+# Send an email
+aws sesv2 send-email \
+  --from-email-address sender@example.com \
+  --destination '{"ToAddresses":["recipient@example.com"]}' \
+  --content '{"Simple":{"Subject":{"Data":"Hello"},"Body":{"Text":{"Data":"Hello World"}}}}' \
+  --endpoint-url http://localhost:9300 \
+  --no-sign-request
+
+# Delete an identity
+aws sesv2 delete-email-identity \
+  --email-identity sender@example.com \
+  --endpoint-url http://localhost:9300 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+SES uses the **SES v2 REST API** with JSON:
+
+- **Content-Type**: `application/json`
+- **Action routing**: HTTP method + path
+- **Request/response body**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (5)
+
+| Operation | Method | Path | Description |
+|-----------|--------|------|-------------|
+| CreateEmailIdentity | POST | `/v2/email/identities` | Create and auto-verify an email identity (address or domain) |
+| ListEmailIdentities | GET | `/v2/email/identities` | List all email identities |
+| GetEmailIdentity | GET | `/v2/email/identities/{emailIdentity}` | Get details for an identity |
+| DeleteEmailIdentity | DELETE | `/v2/email/identities/{emailIdentity}` | Delete an identity |
+| SendEmail | POST | `/v2/email/outbound-emails` | Send an email (accepted; not delivered) |
+
+### SES Error Response Format
+
+```json
+{
+  "message": "Email identity sender@example.com not found."
+}
+```
+
+Response includes `x-amzn-ErrorType` header (e.g. `NotFoundException`, `AlreadyExistsException`).
+
+---
+
 ## Running Tests
 
 The integration test suites use the AWS CLI to exercise all API operations:
@@ -1444,6 +2142,30 @@ bash tests/cognito_integration.sh
 
 # Run API Gateway tests (43 assertions)
 bash tests/apigateway_integration.sh
+
+# Run KMS tests (27 assertions)
+bash tests/kms_integration.sh
+
+# Run Secrets Manager tests (17 assertions)
+bash tests/secretsmanager_integration.sh
+
+# Run Kinesis tests (18 assertions)
+bash tests/kinesis_integration.sh
+
+# Run EventBridge tests (17 assertions)
+bash tests/eventbridge_integration.sh
+
+# Run Step Functions tests (16 assertions)
+bash tests/stepfunctions_integration.sh
+
+# Run SSM tests (14 assertions)
+bash tests/ssm_integration.sh
+
+# Run CloudWatch Logs tests (23 assertions)
+bash tests/cloudwatchlogs_integration.sh
+
+# Run SES tests (10 assertions)
+bash tests/ses_integration.sh
 ```
 
 Each script builds the binary, starts the server on isolated ports, runs all test cases, and reports pass/fail counts.
@@ -1472,6 +2194,14 @@ This is a local development tool, not a production replacement. Key differences:
 - **No CloudWatch metrics** -- no metrics integration.
 - **Encryption attributes are accepted but not applied** -- KMS-related attributes are stored but data is not encrypted.
 - **Upload size limit** -- S3 supports uploads up to 5 GB per request (axum body limit).
+- **KMS cryptography is simulated** -- Encrypt/Decrypt, Sign/Verify, and GenerateDataKey operations produce deterministic fake outputs. No actual cryptographic operations are performed; do not use for security-sensitive testing.
+- **Secrets Manager deletion is immediate** -- `DeleteSecret` with `--force-delete-without-recovery` removes the secret immediately. Without this flag the secret is marked deleted but still inaccessible.
+- **Kinesis shard iterators expire on restart** -- iterators are stored in memory and are lost when the server restarts.
+- **EventBridge rules do not evaluate events** -- `PutEvents` accepts and assigns IDs to events but does not match them against rules or invoke targets.
+- **Step Functions executions do not run** -- `StartExecution` creates an execution in RUNNING state but does not evaluate the state machine definition or advance state.
+- **SSM SecureString values are stored in plaintext** -- no KMS encryption is performed.
+- **CloudWatch Logs FilterLogEvents uses substring matching** -- the filter pattern is matched as a plain substring, not as CloudWatch Logs filter syntax.
+- **SES emails are not delivered** -- `SendEmail` accepts the request and returns a message ID but does not connect to an SMTP server or deliver email. All identities are auto-verified.
 
 ## References
 
@@ -1510,3 +2240,35 @@ This is a local development tool, not a production replacement. Key differences:
 ### Amazon API Gateway
 - [Developer Guide](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-dg.pdf)
 - [API Reference](https://docs.aws.amazon.com/apigateway/latest/api/API_Operations.html)
+
+### AWS KMS
+- [Developer Guide](https://docs.aws.amazon.com/kms/latest/developerguide/kms-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/kms/latest/APIReference/kms-api.pdf)
+
+### AWS Secrets Manager
+- [Developer Guide](https://docs.aws.amazon.com/secretsmanager/latest/userguide/secretsmanager-userguide.pdf)
+- [API Reference](https://docs.aws.amazon.com/secretsmanager/latest/apireference/secretsmanager-api.pdf)
+
+### Amazon Kinesis Data Streams
+- [Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/kinesis-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/kinesis/latest/APIReference/kinesis-api.pdf)
+
+### Amazon EventBridge
+- [Developer Guide](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-ug.pdf)
+- [API Reference](https://docs.aws.amazon.com/eventbridge/latest/APIReference/eb-api.pdf)
+
+### AWS Step Functions
+- [Developer Guide](https://docs.aws.amazon.com/step-functions/latest/dg/stepfunctions-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/step-functions/latest/apireference/stepfunctions-api.pdf)
+
+### AWS Systems Manager Parameter Store
+- [Developer Guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-guide.pdf)
+- [API Reference](https://docs.aws.amazon.com/systems-manager/latest/APIReference/ssm-api.pdf)
+
+### Amazon CloudWatch Logs
+- [Developer Guide](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch_logs_ug.pdf)
+- [API Reference](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/cwl-api.pdf)
+
+### Amazon SES
+- [Developer Guide](https://docs.aws.amazon.com/ses/latest/dg/ses-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/ses/latest/APIReference/ses-api.pdf)
