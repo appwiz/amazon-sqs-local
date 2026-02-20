@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use clap::Parser;
 
+mod apigateway;
+mod cognito;
 mod dynamodb;
 mod firehose;
 mod lambda;
@@ -13,7 +15,7 @@ mod sqs;
 #[derive(Parser)]
 #[command(
     name = "aws-inmemory-services",
-    about = "Local AWS S3, SNS, SQS, DynamoDB, Lambda, Firehose, and MemoryDB services"
+    about = "Local AWS S3, SNS, SQS, DynamoDB, Lambda, Firehose, MemoryDB, Cognito, and API Gateway services"
 )]
 struct Args {
     #[arg(long, default_value = "9000")]
@@ -30,6 +32,10 @@ struct Args {
     firehose_port: u16,
     #[arg(long, default_value = "6379")]
     memorydb_port: u16,
+    #[arg(long, default_value = "9229")]
+    cognito_port: u16,
+    #[arg(long, default_value = "4567")]
+    apigateway_port: u16,
     #[arg(long, default_value = "us-east-1")]
     region: String,
     #[arg(long, default_value = "000000000000")]
@@ -69,6 +75,14 @@ async fn main() {
         args.account_id.clone(),
         args.region.clone(),
     ));
+    let cognito_state = Arc::new(cognito::state::CognitoState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
+    let apigateway_state = Arc::new(apigateway::state::ApiGatewayState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
 
     let s3_app = s3::server::create_router(s3_state);
     let sns_app = sns::server::create_router(sns_state);
@@ -77,6 +91,8 @@ async fn main() {
     let lambda_app = lambda::server::create_router(lambda_state);
     let firehose_app = firehose::server::create_router(firehose_state);
     let memorydb_app = memorydb::server::create_router(memorydb_state);
+    let cognito_app = cognito::server::create_router(cognito_state);
+    let apigateway_app = apigateway::server::create_router(apigateway_state);
 
     let s3_port = args.s3_port;
     let sns_port = args.sns_port;
@@ -85,6 +101,8 @@ async fn main() {
     let lambda_port = args.lambda_port;
     let firehose_port = args.firehose_port;
     let memorydb_port = args.memorydb_port;
+    let cognito_port = args.cognito_port;
+    let apigateway_port = args.apigateway_port;
 
     let s3_handle = tokio::spawn(async move {
         let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", s3_port))
@@ -142,6 +160,22 @@ async fn main() {
         axum::serve(listener, memorydb_app).await.unwrap();
     });
 
+    let cognito_handle = tokio::spawn(async move {
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", cognito_port))
+            .await
+            .unwrap();
+        println!("Cognito service listening on port {}", cognito_port);
+        axum::serve(listener, cognito_app).await.unwrap();
+    });
+
+    let apigateway_handle = tokio::spawn(async move {
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", apigateway_port))
+            .await
+            .unwrap();
+        println!("API Gateway service listening on port {}", apigateway_port);
+        axum::serve(listener, apigateway_app).await.unwrap();
+    });
+
     tokio::select! {
         r = s3_handle => r.unwrap(),
         r = sns_handle => r.unwrap(),
@@ -150,5 +184,7 @@ async fn main() {
         r = lambda_handle => r.unwrap(),
         r = firehose_handle => r.unwrap(),
         r = memorydb_handle => r.unwrap(),
+        r = cognito_handle => r.unwrap(),
+        r = apigateway_handle => r.unwrap(),
     }
 }
