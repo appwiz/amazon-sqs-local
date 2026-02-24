@@ -5,6 +5,7 @@ use clap::Parser;
 mod apigateway;
 mod cloudwatchlogs;
 mod cognito;
+mod config;
 mod dynamodb;
 mod eventbridge;
 mod firehose;
@@ -14,6 +15,7 @@ mod lambda;
 mod memorydb;
 mod s3;
 mod secretsmanager;
+mod servicecatalog;
 mod ses;
 mod sns;
 mod sqs;
@@ -23,7 +25,7 @@ mod stepfunctions;
 #[derive(Parser)]
 #[command(
     name = "aws-inmemory-services",
-    about = "Local AWS services: S3, SNS, SQS, DynamoDB, Lambda, Firehose, MemoryDB, Cognito, API Gateway, KMS, Secrets Manager, Kinesis, EventBridge, Step Functions, SSM Parameter Store, CloudWatch Logs, SES"
+    about = "Local AWS services: S3, SNS, SQS, DynamoDB, Lambda, Firehose, MemoryDB, Cognito, API Gateway, KMS, Secrets Manager, Kinesis, EventBridge, Step Functions, SSM Parameter Store, CloudWatch Logs, SES, Service Catalog, Config"
 )]
 struct Args {
     #[arg(long, default_value = "9000")]
@@ -60,6 +62,10 @@ struct Args {
     cloudwatchlogs_port: u16,
     #[arg(long, default_value = "9300")]
     ses_port: u16,
+    #[arg(long, default_value = "9400")]
+    servicecatalog_port: u16,
+    #[arg(long, default_value = "9500")]
+    config_port: u16,
     #[arg(long, default_value = "us-east-1")]
     region: String,
     #[arg(long, default_value = "000000000000")]
@@ -139,6 +145,14 @@ async fn main() {
         args.account_id.clone(),
         args.region.clone(),
     ));
+    let servicecatalog_state = Arc::new(servicecatalog::state::ServiceCatalogState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
+    let config_state = Arc::new(config::state::ConfigState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
 
     let s3_app = s3::server::create_router(s3_state);
     let sns_app = sns::server::create_router(sns_state);
@@ -157,6 +171,8 @@ async fn main() {
     let ssm_app = ssm::server::create_router(ssm_state);
     let cloudwatchlogs_app = cloudwatchlogs::server::create_router(cloudwatchlogs_state);
     let ses_app = ses::server::create_router(ses_state);
+    let servicecatalog_app = servicecatalog::server::create_router(servicecatalog_state);
+    let config_app = config::server::create_router(config_state);
 
     macro_rules! spawn_service {
         ($app:expr, $port:expr, $name:expr) => {{
@@ -192,6 +208,9 @@ async fn main() {
     let cloudwatchlogs_handle =
         spawn_service!(cloudwatchlogs_app, args.cloudwatchlogs_port, "CloudWatch Logs");
     let ses_handle = spawn_service!(ses_app, args.ses_port, "SES");
+    let servicecatalog_handle =
+        spawn_service!(servicecatalog_app, args.servicecatalog_port, "Service Catalog");
+    let config_handle = spawn_service!(config_app, args.config_port, "Config");
 
     tokio::select! {
         r = s3_handle => r.unwrap(),
@@ -211,5 +230,7 @@ async fn main() {
         r = ssm_handle => r.unwrap(),
         r = cloudwatchlogs_handle => r.unwrap(),
         r = ses_handle => r.unwrap(),
+        r = servicecatalog_handle => r.unwrap(),
+        r = config_handle => r.unwrap(),
     }
 }

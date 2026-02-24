@@ -1,6 +1,6 @@
 # aws-inmemory-services
 
-In-memory implementations of seventeen AWS services written in Rust: Amazon S3, Amazon SNS, Amazon SQS, Amazon DynamoDB, AWS Lambda, Amazon Data Firehose, Amazon MemoryDB, Amazon Cognito, Amazon API Gateway, AWS KMS, AWS Secrets Manager, Amazon Kinesis Data Streams, Amazon EventBridge, AWS Step Functions, AWS Systems Manager Parameter Store, Amazon CloudWatch Logs, and Amazon SES. All services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
+In-memory implementations of nineteen AWS services written in Rust: Amazon S3, Amazon SNS, Amazon SQS, Amazon DynamoDB, AWS Lambda, Amazon Data Firehose, Amazon MemoryDB, Amazon Cognito, Amazon API Gateway, AWS KMS, AWS Secrets Manager, Amazon Kinesis Data Streams, Amazon EventBridge, AWS Step Functions, AWS Systems Manager Parameter Store, Amazon CloudWatch Logs, Amazon SES, AWS Service Catalog, and AWS Config. All services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
 
 All state is held in memory — there is no disk persistence. Restarting the server clears all data.
 
@@ -44,6 +44,8 @@ All services start on their default ports:
 | SSM Parameter Store | `9100` |
 | CloudWatch Logs | `9201` |
 | SES | `9300` |
+| Service Catalog | `9400` |
+| Config | `9500` |
 
 ### CLI Options
 
@@ -66,6 +68,8 @@ All services start on their default ports:
 | `--ssm-port` | `9100` | Port for the SSM Parameter Store service |
 | `--cloudwatchlogs-port` | `9201` | Port for the CloudWatch Logs service |
 | `--ses-port` | `9300` | Port for the SES service |
+| `--servicecatalog-port` | `9400` | Port for the Service Catalog service |
+| `--config-port` | `9500` | Port for the Config service |
 | `--region` | `us-east-1` | AWS region used in ARNs |
 | `--account-id` | `000000000000` | AWS account ID used in ARNs |
 
@@ -2111,6 +2115,259 @@ Response includes `x-amzn-ErrorType` header (e.g. `NotFoundException`, `AlreadyE
 
 ---
 
+## Service Catalog Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a portfolio
+aws servicecatalog create-portfolio \
+  --display-name "My Portfolio" \
+  --provider-name "Engineering" \
+  --description "Development products" \
+  --idempotency-token "token1" \
+  --endpoint-url http://localhost:9400 \
+  --no-sign-request
+
+# List portfolios
+aws servicecatalog list-portfolios \
+  --endpoint-url http://localhost:9400 \
+  --no-sign-request
+
+# Create a product
+aws servicecatalog create-product \
+  --name "My Product" \
+  --owner "Engineering" \
+  --product-type CLOUD_FORMATION_TEMPLATE \
+  --idempotency-token "token2" \
+  --provisioning-artifact-parameters '{"Name":"v1","Type":"CLOUD_FORMATION_TEMPLATE","Info":{"LoadTemplateFromURL":"https://s3.amazonaws.com/my-bucket/template.yaml"}}' \
+  --endpoint-url http://localhost:9400 \
+  --no-sign-request
+
+# Associate product with portfolio
+aws servicecatalog associate-product-with-portfolio \
+  --product-id prod-XXXX \
+  --portfolio-id port-XXXX \
+  --endpoint-url http://localhost:9400 \
+  --no-sign-request
+
+# Provision a product
+aws servicecatalog provision-product \
+  --provisioned-product-name "my-instance" \
+  --product-id prod-XXXX \
+  --provisioning-artifact-id pa-XXXX \
+  --provision-token "token3" \
+  --endpoint-url http://localhost:9400 \
+  --no-sign-request
+
+# Search provisioned products
+aws servicecatalog search-provisioned-products \
+  --endpoint-url http://localhost:9400 \
+  --no-sign-request
+
+# Terminate a provisioned product
+aws servicecatalog terminate-provisioned-product \
+  --provisioned-product-id pp-XXXX \
+  --terminate-token "token4" \
+  --endpoint-url http://localhost:9400 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+Service Catalog uses the **AWS JSON 1.1** protocol:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: AWS242ServiceCatalogService.<ActionName>`
+- **Request/Response**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (16)
+
+#### Portfolio Management
+
+| Operation | Description |
+|-----------|-------------|
+| CreatePortfolio | Create a new portfolio with display name, provider, and tags |
+| DeletePortfolio | Delete a portfolio by ID |
+| DescribePortfolio | Get portfolio details, tags, and associations |
+| ListPortfolios | List all portfolios with pagination |
+| UpdatePortfolio | Update portfolio attributes and tags |
+
+#### Product Management
+
+| Operation | Description |
+|-----------|-------------|
+| CreateProduct | Create a product with provisioning artifact |
+| DeleteProduct | Delete a product by ID |
+| DescribeProduct | Get product details and provisioning artifacts |
+| UpdateProduct | Update product attributes and tags |
+| SearchProducts | Search products with filters and pagination |
+
+#### Associations
+
+| Operation | Description |
+|-----------|-------------|
+| AssociateProductWithPortfolio | Link a product to a portfolio |
+| DisassociateProductFromPortfolio | Remove a product from a portfolio |
+
+#### Provisioned Products
+
+| Operation | Description |
+|-----------|-------------|
+| ProvisionProduct | Launch a provisioned product instance |
+| DescribeProvisionedProduct | Get provisioned product details |
+| SearchProvisionedProducts | Search provisioned products with pagination |
+| TerminateProvisionedProduct | Terminate a provisioned product |
+
+### Service Catalog Error Response Format
+
+```json
+{
+  "__type": "ResourceNotFoundException",
+  "Message": "The specified resource was not found."
+}
+```
+
+| HTTP Status | Code | Description |
+|-------------|------|-------------|
+| 400 | InvalidParametersException | Invalid or missing parameter |
+| 400 | ResourceNotFoundException | Resource does not exist |
+| 400 | ResourceInUseException | Resource is currently in use |
+| 400 | DuplicateResourceException | Duplicate resource |
+| 400 | LimitExceededException | Service limit exceeded |
+
+---
+
+## Config Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a configuration recorder
+aws configservice put-configuration-recorder \
+  --configuration-recorder name=default,roleARN=arn:aws:iam::000000000000:role/config-role \
+  --recording-group allSupported=true,includeGlobalResourceTypes=false \
+  --endpoint-url http://localhost:9500 \
+  --no-sign-request
+
+# Create a delivery channel
+aws configservice put-delivery-channel \
+  --delivery-channel name=default,s3BucketName=my-config-bucket \
+  --endpoint-url http://localhost:9500 \
+  --no-sign-request
+
+# Start recording
+aws configservice start-configuration-recorder \
+  --configuration-recorder-name default \
+  --endpoint-url http://localhost:9500 \
+  --no-sign-request
+
+# Create a config rule
+aws configservice put-config-rule \
+  --config-rule '{"ConfigRuleName":"s3-bucket-public-read-prohibited","Source":{"Owner":"AWS","SourceIdentifier":"S3_BUCKET_PUBLIC_READ_PROHIBITED"}}' \
+  --endpoint-url http://localhost:9500 \
+  --no-sign-request
+
+# Describe config rules
+aws configservice describe-config-rules \
+  --endpoint-url http://localhost:9500 \
+  --no-sign-request
+
+# Put compliance evaluations
+aws configservice put-evaluations \
+  --evaluations '[{"ComplianceResourceType":"AWS::S3::Bucket","ComplianceResourceId":"my-bucket","ComplianceType":"NON_COMPLIANT","OrderingTimestamp":"2024-01-01T00:00:00Z"}]' \
+  --result-token rule-token-1 \
+  --endpoint-url http://localhost:9500 \
+  --no-sign-request
+
+# Check compliance
+aws configservice describe-compliance-by-config-rule \
+  --endpoint-url http://localhost:9500 \
+  --no-sign-request
+
+# Stop recording
+aws configservice stop-configuration-recorder \
+  --configuration-recorder-name default \
+  --endpoint-url http://localhost:9500 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+AWS Config uses the **AWS JSON 1.1** protocol:
+
+- **Content-Type**: `application/x-amz-json-1.1`
+- **Action routing**: `X-Amz-Target: StarlingDoveService.<ActionName>`
+- **Request/Response**: JSON
+- **Endpoint**: `http://localhost:<port>/`
+
+### Supported Operations (19)
+
+#### Configuration Recorder
+
+| Operation | Description |
+|-----------|-------------|
+| PutConfigurationRecorder | Create or update the configuration recorder |
+| DescribeConfigurationRecorders | Describe configuration recorders |
+| DeleteConfigurationRecorder | Delete the configuration recorder |
+| DescribeConfigurationRecorderStatus | Get recorder status (recording, last start/stop) |
+| StartConfigurationRecorder | Start recording configuration changes |
+| StopConfigurationRecorder | Stop recording configuration changes |
+
+#### Delivery Channel
+
+| Operation | Description |
+|-----------|-------------|
+| PutDeliveryChannel | Create or update the delivery channel |
+| DescribeDeliveryChannels | Describe delivery channels |
+| DeleteDeliveryChannel | Delete the delivery channel |
+
+#### Config Rules
+
+| Operation | Description |
+|-----------|-------------|
+| PutConfigRule | Create or update a config rule |
+| DescribeConfigRules | List config rules |
+| DeleteConfigRule | Delete a config rule |
+
+#### Compliance
+
+| Operation | Description |
+|-----------|-------------|
+| PutEvaluations | Submit compliance evaluation results |
+| GetComplianceDetailsByConfigRule | Get detailed evaluation results for a rule |
+| DescribeComplianceByConfigRule | Get compliance summary by rule |
+| DescribeComplianceByResource | Get compliance summary by resource |
+
+#### Tagging
+
+| Operation | Description |
+|-----------|-------------|
+| TagResource | Add tags to a resource |
+| UntagResource | Remove tags from a resource |
+| ListTagsForResource | List tags for a resource |
+
+### Config Error Response Format
+
+```json
+{
+  "__type": "NoSuchConfigRuleException",
+  "Message": "The config rule does not exist."
+}
+```
+
+| HTTP Status | Code | Description |
+|-------------|------|-------------|
+| 400 | NoSuchConfigurationRecorderException | Recorder does not exist |
+| 400 | NoSuchDeliveryChannelException | Delivery channel does not exist |
+| 400 | NoSuchConfigRuleException | Config rule does not exist |
+| 400 | MaxNumberOfConfigurationRecordersExceededException | Only one recorder allowed |
+| 400 | MaxNumberOfDeliveryChannelsExceededException | Only one delivery channel allowed |
+| 400 | ResourceNotFoundException | Resource does not exist |
+
+---
+
 ## Running Tests
 
 The integration test suites use the AWS CLI to exercise all API operations:
@@ -2166,6 +2423,12 @@ bash tests/cloudwatchlogs_integration.sh
 
 # Run SES tests (10 assertions)
 bash tests/ses_integration.sh
+
+# Run Service Catalog tests (17 assertions)
+bash tests/servicecatalog_integration.sh
+
+# Run Config tests (21 assertions)
+bash tests/config_integration.sh
 ```
 
 Each script builds the binary, starts the server on isolated ports, runs all test cases, and reports pass/fail counts.
@@ -2202,6 +2465,11 @@ This is a local development tool, not a production replacement. Key differences:
 - **SSM SecureString values are stored in plaintext** -- no KMS encryption is performed.
 - **CloudWatch Logs FilterLogEvents uses substring matching** -- the filter pattern is matched as a plain substring, not as CloudWatch Logs filter syntax.
 - **SES emails are not delivered** -- `SendEmail` accepts the request and returns a message ID but does not connect to an SMTP server or deliver email. All identities are auto-verified.
+- **Service Catalog provisioning is simulated** -- `ProvisionProduct` creates a provisioned product record in AVAILABLE state but does not deploy any CloudFormation stacks or resources. Use this for API compatibility testing.
+- **Service Catalog tags are managed inline** -- tags are set via `CreatePortfolio`/`UpdatePortfolio` and `CreateProduct`/`UpdateProduct` fields, not via separate `TagResource`/`UntagResource` operations.
+- **Config recording is simulated** -- `StartConfigurationRecorder` and `StopConfigurationRecorder` toggle a flag but do not actually monitor or record resource configuration changes.
+- **Config rules do not evaluate** -- `PutConfigRule` creates rules but they do not automatically evaluate resources. Use `PutEvaluations` to manually submit compliance results.
+- **Config has single recorder/channel limit** -- only one configuration recorder and one delivery channel are allowed per account, matching AWS behavior.
 
 ## References
 
@@ -2272,3 +2540,11 @@ This is a local development tool, not a production replacement. Key differences:
 ### Amazon SES
 - [Developer Guide](https://docs.aws.amazon.com/ses/latest/dg/ses-dg.pdf)
 - [API Reference](https://docs.aws.amazon.com/ses/latest/APIReference/ses-api.pdf)
+
+### AWS Service Catalog
+- [Developer Guide](https://docs.aws.amazon.com/servicecatalog/latest/dg/servicecatalog-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/servicecatalog/latest/dg/API_Operations.html)
+
+### AWS Config
+- [Developer Guide](https://docs.aws.amazon.com/config/latest/developerguide/config-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/config/latest/APIReference/config-api.pdf)
