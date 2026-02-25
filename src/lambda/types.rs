@@ -34,12 +34,6 @@ pub struct CreateFunctionRequest {
 pub struct FunctionCode {
     #[serde(default)]
     pub zip_file: Option<String>,
-    #[serde(default)]
-    pub s3_bucket: Option<String>,
-    #[serde(default)]
-    pub s3_key: Option<String>,
-    #[serde(default)]
-    pub s3_object_version: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,12 +102,6 @@ pub struct ListFunctionsResponse {
 pub struct UpdateFunctionCodeRequest {
     #[serde(default)]
     pub zip_file: Option<String>,
-    #[serde(default)]
-    pub s3_bucket: Option<String>,
-    #[serde(default)]
-    pub s3_key: Option<String>,
-    #[serde(default)]
-    pub s3_object_version: Option<String>,
 }
 
 // --- UpdateFunctionConfiguration ---
@@ -137,14 +125,6 @@ pub struct UpdateFunctionConfigurationRequest {
     pub environment: Option<Environment>,
 }
 
-// --- Invoke ---
-
-#[derive(Debug, Clone, Serialize)]
-pub struct InvokeResponse {
-    #[serde(rename = "StatusCode")]
-    pub status_code: i32,
-}
-
 // --- AddPermission ---
 
 #[derive(Debug, Clone, Deserialize)]
@@ -153,10 +133,6 @@ pub struct AddPermissionRequest {
     pub statement_id: String,
     pub action: String,
     pub principal: String,
-    #[serde(default)]
-    pub source_arn: Option<String>,
-    #[serde(default)]
-    pub source_account: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -181,8 +157,6 @@ pub struct GetPolicyResponse {
 pub struct PublishVersionRequest {
     #[serde(default)]
     pub description: Option<String>,
-    #[serde(default)]
-    pub code_sha256: Option<String>,
 }
 
 // --- CreateAlias ---

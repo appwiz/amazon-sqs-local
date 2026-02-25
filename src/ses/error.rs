@@ -15,18 +15,6 @@ pub enum SesError {
 }
 
 impl SesError {
-    fn error_code(&self) -> &str {
-        match self {
-            SesError::NotFoundException(_) => "NotFoundException",
-            SesError::AlreadyExistsException(_) => "AlreadyExistsException",
-            SesError::SendingPausedException(_) => "SendingPausedException",
-            SesError::MessageRejected(_) => "MessageRejected",
-            SesError::InvalidParameterException(_) => "InvalidParameterException",
-            SesError::TooManyRequestsException(_) => "TooManyRequestsException",
-            SesError::BadRequestException(_) => "BadRequestException",
-        }
-    }
-
     fn status_code(&self) -> StatusCode {
         match self {
             SesError::NotFoundException(_) => StatusCode::NOT_FOUND,

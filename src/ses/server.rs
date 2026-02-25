@@ -57,8 +57,6 @@ async fn get_email_identity(
 struct ListIdentitiesQuery {
     #[serde(rename = "PageSize")]
     page_size: Option<usize>,
-    #[serde(rename = "NextToken")]
-    next_token: Option<String>,
 }
 
 // GET /v2/email/identities

@@ -9,14 +9,6 @@ pub struct AttributeType {
     pub value: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct Tag {
-    pub key: String,
-    #[serde(default)]
-    pub value: Option<String>,
-}
-
 // --- UserPool types ---
 
 #[derive(Debug, Clone, Serialize)]
@@ -142,10 +134,6 @@ pub struct AdminCreateUserRequest {
     pub user_attributes: Vec<AttributeType>,
     #[serde(default)]
     pub temporary_password: Option<String>,
-    #[serde(default)]
-    pub force_alias_creation: bool,
-    #[serde(default)]
-    pub message_action: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -232,10 +220,6 @@ pub struct ListUsersRequest {
     pub limit: Option<usize>,
     #[serde(default)]
     pub pagination_token: Option<String>,
-    #[serde(default)]
-    pub filter: Option<String>,
-    #[serde(default)]
-    pub attributes_to_get: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -497,10 +481,6 @@ pub struct AdminRemoveUserFromGroupRequest {
 pub struct AdminListGroupsForUserRequest {
     pub user_pool_id: String,
     pub username: String,
-    #[serde(default)]
-    pub limit: Option<usize>,
-    #[serde(default)]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -518,10 +498,6 @@ pub struct AdminListGroupsForUserResponse {
 pub struct ListUsersInGroupRequest {
     pub user_pool_id: String,
     pub group_name: String,
-    #[serde(default)]
-    pub limit: Option<usize>,
-    #[serde(default)]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -600,7 +576,6 @@ pub struct SignUpResponse {
 pub struct ConfirmSignUpRequest {
     pub client_id: String,
     pub username: String,
-    pub confirmation_code: String,
 }
 
 // --- ForgotPassword ---
@@ -633,18 +608,7 @@ pub struct CodeDeliveryDetailsType {
 pub struct ConfirmForgotPasswordRequest {
     pub client_id: String,
     pub username: String,
-    pub confirmation_code: String,
     pub password: String,
-}
-
-// --- ChangePassword ---
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct ChangePasswordRequest {
-    pub access_token: String,
-    pub previous_password: String,
-    pub proposed_password: String,
 }
 
 // --- AdminUpdateUserAttributes ---

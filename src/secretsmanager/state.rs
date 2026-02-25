@@ -233,7 +233,7 @@ impl SecretsManagerState {
 
     pub async fn list_secrets(
         &self,
-        req: ListSecretsRequest,
+        _req: ListSecretsRequest,
     ) -> Result<ListSecretsResponse, SecretsManagerError> {
         let state = self.inner.lock().await;
         let mut secrets: Vec<SecretListEntry> = state.secrets.values()
@@ -248,7 +248,7 @@ impl SecretsManagerState {
             })
             .collect();
         secrets.sort_by(|a, b| a.name.cmp(&b.name));
-        let limit = req.max_results.unwrap_or(100);
+        let limit = 100;
         let truncated = secrets.len() > limit;
         secrets.truncate(limit);
         Ok(ListSecretsResponse {

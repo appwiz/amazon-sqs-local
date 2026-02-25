@@ -1,12 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateEventBusRequest {
     #[serde(rename = "Name")]
     pub name: String,
-    #[serde(rename = "EventSourceName")]
-    pub event_source_name: Option<String>,
     #[serde(rename = "Tags")]
     pub tags: Option<Vec<Tag>>,
 }
@@ -46,8 +43,6 @@ pub struct ListEventBusesRequest {
     pub name_prefix: Option<String>,
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -77,16 +72,6 @@ pub struct PutEventsRequest {
 pub struct PutEventsRequestEntry {
     #[serde(rename = "EventBusName")]
     pub event_bus_name: Option<String>,
-    #[serde(rename = "Source")]
-    pub source: Option<String>,
-    #[serde(rename = "DetailType")]
-    pub detail_type: Option<String>,
-    #[serde(rename = "Detail")]
-    pub detail: Option<String>,
-    #[serde(rename = "Resources")]
-    pub resources: Option<Vec<String>>,
-    #[serde(rename = "Time")]
-    pub time: Option<f64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -140,8 +125,6 @@ pub struct DeleteRuleRequest {
     pub name: String,
     #[serde(rename = "EventBusName")]
     pub event_bus_name: Option<String>,
-    #[serde(rename = "Force")]
-    pub force: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -181,8 +164,6 @@ pub struct ListRulesRequest {
     pub name_prefix: Option<String>,
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -232,8 +213,6 @@ pub struct RemoveTargetsRequest {
     pub event_bus_name: Option<String>,
     #[serde(rename = "Ids")]
     pub ids: Vec<String>,
-    #[serde(rename = "Force")]
-    pub force: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -250,10 +229,6 @@ pub struct ListTargetsByRuleRequest {
     pub rule: String,
     #[serde(rename = "EventBusName")]
     pub event_bus_name: Option<String>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
-    #[serde(rename = "Limit")]
-    pub limit: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -317,17 +292,3 @@ pub struct ListTagsForResourceResponse {
     #[serde(rename = "Tags")]
     pub tags: Vec<Tag>,
 }
-
-// Used internally for storing events
-#[derive(Debug, Clone)]
-pub struct StoredEvent {
-    pub event_id: String,
-    pub event_bus_name: String,
-    pub source: String,
-    pub detail_type: String,
-    pub detail: String,
-    pub timestamp: f64,
-}
-
-// Used for structured storage per bus
-pub type TagMap = HashMap<String, String>;

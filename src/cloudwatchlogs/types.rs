@@ -5,8 +5,6 @@ use std::collections::HashMap;
 pub struct CreateLogGroupRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
-    #[serde(rename = "kmsKeyId")]
-    pub kms_key_id: Option<String>,
     #[serde(rename = "tags")]
     pub tags: Option<HashMap<String, String>>,
 }
@@ -23,8 +21,6 @@ pub struct DescribeLogGroupsRequest {
     pub log_group_name_prefix: Option<String>,
     #[serde(rename = "logGroupNamePattern")]
     pub log_group_name_pattern: Option<String>,
-    #[serde(rename = "nextToken")]
-    pub next_token: Option<String>,
     #[serde(rename = "limit")]
     pub limit: Option<usize>,
 }
@@ -77,12 +73,8 @@ pub struct DescribeLogStreamsRequest {
     pub log_group_name: Option<String>,
     #[serde(rename = "logStreamNamePrefix")]
     pub log_stream_name_prefix: Option<String>,
-    #[serde(rename = "orderBy")]
-    pub order_by: Option<String>,
     #[serde(rename = "descending")]
     pub descending: Option<bool>,
-    #[serde(rename = "nextToken")]
-    pub next_token: Option<String>,
     #[serde(rename = "limit")]
     pub limit: Option<usize>,
 }
@@ -127,8 +119,6 @@ pub struct PutLogEventsRequest {
     pub log_stream_name: String,
     #[serde(rename = "logEvents")]
     pub log_events: Vec<InputLogEvent>,
-    #[serde(rename = "sequenceToken")]
-    pub sequence_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -158,8 +148,6 @@ pub struct GetLogEventsRequest {
     pub start_time: Option<i64>,
     #[serde(rename = "endTime")]
     pub end_time: Option<i64>,
-    #[serde(rename = "nextToken")]
-    pub next_token: Option<String>,
     #[serde(rename = "limit")]
     pub limit: Option<usize>,
     #[serde(rename = "startFromHead")]
@@ -198,8 +186,6 @@ pub struct FilterLogEventsRequest {
     pub end_time: Option<i64>,
     #[serde(rename = "filterPattern")]
     pub filter_pattern: Option<String>,
-    #[serde(rename = "nextToken")]
-    pub next_token: Option<String>,
     #[serde(rename = "limit")]
     pub limit: Option<usize>,
 }

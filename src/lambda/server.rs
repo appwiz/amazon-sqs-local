@@ -129,7 +129,6 @@ async fn publish_version_handler(
     let req: PublishVersionRequest = if body.is_empty() {
         PublishVersionRequest {
             description: None,
-            code_sha256: None,
         }
     } else {
         serde_json::from_slice(&body)

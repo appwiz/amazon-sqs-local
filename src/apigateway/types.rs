@@ -209,13 +209,9 @@ pub struct PutMethodResponseRequest {
 #[serde(rename_all = "camelCase")]
 pub struct PutIntegrationResponseRequest {
     #[serde(default)]
-    pub selection_pattern: Option<String>,
-    #[serde(default)]
     pub response_parameters: HashMap<String, String>,
     #[serde(default)]
     pub response_templates: HashMap<String, String>,
-    #[serde(default)]
-    pub content_handling: Option<String>,
 }
 
 // --- Deployment types ---

@@ -231,10 +231,7 @@ impl FirehoseState {
 
         let record_id = Uuid::new_v4().to_string();
 
-        stream.records.push(StoredRecord {
-            record_id: record_id.clone(),
-            data: req.record.data,
-        });
+        stream.records.push(StoredRecord {});
 
         Ok(PutRecordResponse {
             record_id,
@@ -274,12 +271,9 @@ impl FirehoseState {
 
         let mut responses = Vec::with_capacity(req.records.len());
 
-        for record in req.records {
+        for _record in req.records {
             let record_id = Uuid::new_v4().to_string();
-            stream.records.push(StoredRecord {
-                record_id: record_id.clone(),
-                data: record.data,
-            });
+            stream.records.push(StoredRecord {});
             responses.push(PutRecordBatchResponseEntry { record_id });
         }
 

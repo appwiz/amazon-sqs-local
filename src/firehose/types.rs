@@ -109,14 +109,11 @@ pub struct UpdateDestinationRequest {
 #[serde(rename_all = "PascalCase")]
 pub struct PutRecordRequest {
     pub delivery_stream_name: String,
-    pub record: RecordInput,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct RecordInput {
-    pub data: String,
-}
+pub struct RecordInput {}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "PascalCase")]

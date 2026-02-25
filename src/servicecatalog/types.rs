@@ -151,8 +151,6 @@ pub struct CreatePortfolioRequest {
     pub provider_name: String,
     #[serde(rename = "Description")]
     pub description: Option<String>,
-    #[serde(rename = "IdempotencyToken")]
-    pub idempotency_token: String,
     #[serde(rename = "Tags")]
     pub tags: Option<Vec<Tag>>,
 }
@@ -200,9 +198,6 @@ pub struct ListPortfoliosRequest {
     #[serde(rename = "PageSize")]
     #[serde(default)]
     pub page_size: Option<usize>,
-    #[serde(rename = "PageToken")]
-    #[serde(default)]
-    pub page_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -248,12 +243,8 @@ pub struct ProvisioningArtifactParameters {
     pub name: Option<String>,
     #[serde(rename = "Description")]
     pub description: Option<String>,
-    #[serde(rename = "Info")]
-    pub info: Option<HashMap<String, String>>,
     #[serde(rename = "Type")]
     pub artifact_type: Option<String>,
-    #[serde(rename = "DisableTemplateValidation")]
-    pub disable_template_validation: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -264,8 +255,6 @@ pub struct CreateProductRequest {
     pub owner: String,
     #[serde(rename = "ProductType")]
     pub product_type: String,
-    #[serde(rename = "IdempotencyToken")]
-    pub idempotency_token: String,
     #[serde(rename = "Description")]
     pub description: Option<String>,
     #[serde(rename = "Distributor")]
@@ -366,15 +355,6 @@ pub struct SearchProductsRequest {
     #[serde(rename = "PageSize")]
     #[serde(default)]
     pub page_size: Option<usize>,
-    #[serde(rename = "PageToken")]
-    #[serde(default)]
-    pub page_token: Option<String>,
-    #[serde(rename = "SortBy")]
-    #[serde(default)]
-    pub sort_by: Option<String>,
-    #[serde(rename = "SortOrder")]
-    #[serde(default)]
-    pub sort_order: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -409,31 +389,15 @@ pub struct DisassociateProductFromPortfolioRequest {
 // --- ProvisionProduct ---
 
 #[derive(Debug, Deserialize)]
-pub struct ProvisioningParameter {
-    #[serde(rename = "Key")]
-    pub key: String,
-    #[serde(rename = "Value")]
-    pub value: String,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct ProvisionProductRequest {
     #[serde(rename = "ProvisionedProductName")]
     pub provisioned_product_name: String,
-    #[serde(rename = "ProvisionToken")]
-    pub provision_token: String,
     #[serde(rename = "ProductId")]
     pub product_id: Option<String>,
     #[serde(rename = "ProductName")]
     pub product_name: Option<String>,
     #[serde(rename = "ProvisioningArtifactId")]
     pub provisioning_artifact_id: Option<String>,
-    #[serde(rename = "ProvisioningArtifactName")]
-    pub provisioning_artifact_name: Option<String>,
-    #[serde(rename = "Tags")]
-    pub tags: Option<Vec<Tag>>,
-    #[serde(rename = "ProvisioningParameters")]
-    pub provisioning_parameters: Option<Vec<ProvisioningParameter>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -467,21 +431,6 @@ pub struct SearchProvisionedProductsRequest {
     #[serde(rename = "PageSize")]
     #[serde(default)]
     pub page_size: Option<usize>,
-    #[serde(rename = "PageToken")]
-    #[serde(default)]
-    pub page_token: Option<String>,
-    #[serde(rename = "SortBy")]
-    #[serde(default)]
-    pub sort_by: Option<String>,
-    #[serde(rename = "SortOrder")]
-    #[serde(default)]
-    pub sort_order: Option<String>,
-    #[serde(rename = "Filters")]
-    #[serde(default)]
-    pub filters: Option<HashMap<String, Vec<String>>>,
-    #[serde(rename = "AccessLevelFilter")]
-    #[serde(default)]
-    pub access_level_filter: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -499,14 +448,10 @@ pub struct SearchProvisionedProductsResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct TerminateProvisionedProductRequest {
-    #[serde(rename = "TerminateToken")]
-    pub terminate_token: String,
     #[serde(rename = "ProvisionedProductId")]
     pub provisioned_product_id: Option<String>,
     #[serde(rename = "ProvisionedProductName")]
     pub provisioned_product_name: Option<String>,
-    #[serde(rename = "IgnoreErrors")]
-    pub ignore_errors: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]

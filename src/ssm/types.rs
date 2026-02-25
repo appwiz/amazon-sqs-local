@@ -12,8 +12,6 @@ pub struct PutParameterRequest {
     pub description: Option<String>,
     #[serde(rename = "Overwrite")]
     pub overwrite: Option<bool>,
-    #[serde(rename = "KeyId")]
-    pub key_id: Option<String>,
     #[serde(rename = "Tags")]
     pub tags: Option<Vec<Tag>>,
     #[serde(rename = "Tier")]
@@ -34,8 +32,6 @@ pub struct PutParameterResponse {
 pub struct GetParameterRequest {
     #[serde(rename = "Name")]
     pub name: String,
-    #[serde(rename = "WithDecryption")]
-    pub with_decryption: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -66,8 +62,6 @@ pub struct Parameter {
 pub struct GetParametersRequest {
     #[serde(rename = "Names")]
     pub names: Vec<String>,
-    #[serde(rename = "WithDecryption")]
-    pub with_decryption: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -84,12 +78,8 @@ pub struct GetParametersByPathRequest {
     pub path: String,
     #[serde(rename = "Recursive")]
     pub recursive: Option<bool>,
-    #[serde(rename = "WithDecryption")]
-    pub with_decryption: Option<bool>,
     #[serde(rename = "MaxResults")]
     pub max_results: Option<usize>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -125,10 +115,6 @@ pub struct DeleteParametersResponse {
 pub struct DescribeParametersRequest {
     #[serde(rename = "MaxResults")]
     pub max_results: Option<usize>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
-    #[serde(rename = "ParameterFilters")]
-    pub parameter_filters: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -163,8 +149,6 @@ pub struct ParameterMetadata {
 
 #[derive(Debug, Deserialize)]
 pub struct AddTagsToResourceRequest {
-    #[serde(rename = "ResourceType")]
-    pub resource_type: String,
     #[serde(rename = "ResourceId")]
     pub resource_id: String,
     #[serde(rename = "Tags")]
@@ -173,8 +157,6 @@ pub struct AddTagsToResourceRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct RemoveTagsFromResourceRequest {
-    #[serde(rename = "ResourceType")]
-    pub resource_type: String,
     #[serde(rename = "ResourceId")]
     pub resource_id: String,
     #[serde(rename = "TagKeys")]
@@ -183,8 +165,6 @@ pub struct RemoveTagsFromResourceRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct ListTagsForResourceRequest {
-    #[serde(rename = "ResourceType")]
-    pub resource_type: String,
     #[serde(rename = "ResourceId")]
     pub resource_id: String,
 }

@@ -17,8 +17,6 @@ struct EmailIdentity {
 struct SesStateInner {
     identities: HashMap<String, EmailIdentity>,
     sent_emails: Vec<StoredEmail>,
-    account_id: String,
-    region: String,
 }
 
 pub struct SesState {
@@ -26,48 +24,23 @@ pub struct SesState {
 }
 
 impl SesState {
-    pub fn new(account_id: String, region: String) -> Self {
+    pub fn new(_account_id: String, _region: String) -> Self {
         SesState {
             inner: Arc::new(Mutex::new(SesStateInner {
                 identities: HashMap::new(),
                 sent_emails: Vec::new(),
-                account_id,
-                region,
             })),
         }
-    }
-
-    fn now() -> f64 {
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs_f64()
     }
 
     fn identity_type(name: &str) -> &'static str {
         if name.contains('@') { "EMAIL_ADDRESS" } else { "DOMAIN" }
     }
 
-    pub async fn send_email(&self, req: SendEmailRequest) -> Result<SendEmailResponse, SesError> {
+    pub async fn send_email(&self, _req: SendEmailRequest) -> Result<SendEmailResponse, SesError> {
         let mut state = self.inner.lock().await;
         let message_id = format!("010{}@email.amazonses.com", Uuid::new_v4().to_string().replace('-', ""));
-        let from = req.from_email_address.unwrap_or_else(|| "no-reply@example.com".to_string());
-        let to: Vec<String> = req.destination
-            .and_then(|d| d.to_addresses)
-            .unwrap_or_default();
-        let (subject, body) = if let Some(simple) = req.content.simple {
-            (simple.subject.data, simple.body.text.map(|t| t.data).unwrap_or_default())
-        } else {
-            ("(no subject)".to_string(), "(no body)".to_string())
-        };
-        state.sent_emails.push(StoredEmail {
-            message_id: message_id.clone(),
-            from,
-            to,
-            subject,
-            body,
-            timestamp: Self::now(),
-        });
+        state.sent_emails.push(StoredEmail {});
         Ok(SendEmailResponse { message_id })
     }
 

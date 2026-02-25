@@ -320,8 +320,6 @@ pub struct PutConfigRuleRequest {
 pub struct DescribeConfigRulesRequest {
     #[serde(rename = "ConfigRuleNames")]
     pub config_rule_names: Option<Vec<String>>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -364,8 +362,6 @@ pub struct GetComplianceDetailsByConfigRuleRequest {
     pub compliance_types: Option<Vec<String>>,
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -384,8 +380,6 @@ pub struct DescribeComplianceByConfigRuleRequest {
     pub config_rule_names: Option<Vec<String>>,
     #[serde(rename = "ComplianceTypes")]
     pub compliance_types: Option<Vec<String>>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -408,8 +402,6 @@ pub struct DescribeComplianceByResourceRequest {
     pub compliance_types: Option<Vec<String>>,
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -446,8 +438,6 @@ pub struct ListTagsForResourceRequest {
     pub resource_arn: String,
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

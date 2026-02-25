@@ -115,10 +115,6 @@ pub struct DescribeSecretResponse {
 
 #[derive(Debug, Deserialize, Default)]
 pub struct ListSecretsRequest {
-    #[serde(rename = "MaxResults")]
-    pub max_results: Option<usize>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -225,8 +221,6 @@ pub struct UntagResourceRequest {
 pub struct ListSecretVersionIdsRequest {
     #[serde(rename = "SecretId")]
     pub secret_id: String,
-    #[serde(rename = "MaxResults")]
-    pub max_results: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]

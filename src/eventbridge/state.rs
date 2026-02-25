@@ -12,7 +12,6 @@ struct EventBusData {
     arn: String,
     tags: HashMap<String, String>,
     rules: HashMap<String, RuleData>,
-    events: Vec<StoredEvent>,
 }
 
 struct RuleData {
@@ -46,7 +45,6 @@ impl EventBridgeState {
             arn: default_bus_arn,
             tags: HashMap::new(),
             rules: HashMap::new(),
-            events: Vec::new(),
         });
         EventBridgeState {
             inner: Arc::new(Mutex::new(EventBridgeStateInner {
@@ -54,33 +52,6 @@ impl EventBridgeState {
                 account_id,
                 region,
             })),
-        }
-    }
-
-    fn now() -> f64 {
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs_f64()
-    }
-
-    fn resolve_bus<'a>(state: &'a EventBridgeStateInner, name: Option<&'a str>) -> &'a str {
-        match name {
-            Some(n) if !n.is_empty() => {
-                // Could be ARN or name
-                if n.starts_with("arn:") {
-                    // Find by ARN
-                    for (k, b) in &state.buses {
-                        if b.arn == n {
-                            return k.as_str();
-                        }
-                    }
-                    "default"
-                } else {
-                    n
-                }
-            }
-            _ => "default",
         }
     }
 
@@ -109,7 +80,6 @@ impl EventBridgeState {
             arn: arn.clone(),
             tags,
             rules: HashMap::new(),
-            events: Vec::new(),
         });
         Ok(CreateEventBusResponse { event_bus_arn: arn })
     }
@@ -172,20 +142,12 @@ impl EventBridgeState {
         &self,
         req: PutEventsRequest,
     ) -> Result<PutEventsResponse, EventBridgeError> {
-        let mut state = self.inner.lock().await;
+        let state = self.inner.lock().await;
         let mut results = Vec::with_capacity(req.entries.len());
         for entry in req.entries {
             let event_id = Uuid::new_v4().to_string();
             let bus_name = entry.event_bus_name.as_deref().unwrap_or("default");
-            if let Some(bus) = state.buses.get_mut(bus_name) {
-                bus.events.push(StoredEvent {
-                    event_id: event_id.clone(),
-                    event_bus_name: bus_name.to_string(),
-                    source: entry.source.unwrap_or_default(),
-                    detail_type: entry.detail_type.unwrap_or_default(),
-                    detail: entry.detail.unwrap_or_default(),
-                    timestamp: Self::now(),
-                });
+            if state.buses.contains_key(bus_name) {
                 results.push(PutEventsResultEntry {
                     event_id: Some(event_id),
                     error_code: None,

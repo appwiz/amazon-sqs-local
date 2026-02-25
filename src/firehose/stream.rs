@@ -17,14 +17,10 @@ pub struct DeliveryStream {
 #[derive(Debug, Clone)]
 pub struct Destination {
     pub destination_id: String,
-    pub config: serde_json::Value,
 }
 
 #[derive(Debug, Clone)]
-pub struct StoredRecord {
-    pub record_id: String,
-    pub data: String,
-}
+pub struct StoredRecord {}
 
 impl DeliveryStream {
     pub fn new(name: String, arn: String, stream_type: String) -> Self {
@@ -43,7 +39,6 @@ impl DeliveryStream {
             version_id: "1".to_string(),
             destinations: vec![Destination {
                 destination_id: "destinationId-000000000001".to_string(),
-                config: serde_json::json!({}),
             }],
             tags: HashMap::new(),
             records: Vec::new(),

@@ -10,10 +10,6 @@ pub struct CreateStateMachineRequest {
     pub role_arn: String,
     #[serde(rename = "type")]
     pub machine_type: Option<String>,
-    #[serde(rename = "loggingConfiguration")]
-    pub logging_configuration: Option<serde_json::Value>,
-    #[serde(rename = "tracingConfiguration")]
-    pub tracing_configuration: Option<serde_json::Value>,
     #[serde(rename = "tags")]
     pub tags: Option<Vec<Tag>>,
 }
@@ -60,8 +56,6 @@ pub struct DescribeStateMachineResponse {
 pub struct ListStateMachinesRequest {
     #[serde(rename = "maxResults")]
     pub max_results: Option<usize>,
-    #[serde(rename = "nextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -93,8 +87,6 @@ pub struct StartExecutionRequest {
     pub name: Option<String>,
     #[serde(rename = "input")]
     pub input: Option<String>,
-    #[serde(rename = "traceHeader")]
-    pub trace_header: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -109,10 +101,6 @@ pub struct StartExecutionResponse {
 pub struct StopExecutionRequest {
     #[serde(rename = "executionArn")]
     pub execution_arn: String,
-    #[serde(rename = "error")]
-    pub error: Option<String>,
-    #[serde(rename = "cause")]
-    pub cause: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -158,8 +146,6 @@ pub struct ListExecutionsRequest {
     pub status_filter: Option<String>,
     #[serde(rename = "maxResults")]
     pub max_results: Option<usize>,
-    #[serde(rename = "nextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -192,12 +178,8 @@ pub struct ExecutionListItem {
 pub struct GetExecutionHistoryRequest {
     #[serde(rename = "executionArn")]
     pub execution_arn: String,
-    #[serde(rename = "maxResults")]
-    pub max_results: Option<usize>,
     #[serde(rename = "reverseOrder")]
     pub reverse_order: Option<bool>,
-    #[serde(rename = "nextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -229,26 +211,14 @@ pub struct HistoryEvent {
 
 #[derive(Debug, Deserialize)]
 pub struct SendTaskSuccessRequest {
-    #[serde(rename = "taskToken")]
-    pub task_token: String,
-    #[serde(rename = "output")]
-    pub output: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SendTaskFailureRequest {
-    #[serde(rename = "taskToken")]
-    pub task_token: String,
-    #[serde(rename = "error")]
-    pub error: Option<String>,
-    #[serde(rename = "cause")]
-    pub cause: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SendTaskHeartbeatRequest {
-    #[serde(rename = "taskToken")]
-    pub task_token: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

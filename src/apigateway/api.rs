@@ -130,16 +130,14 @@ pub struct Deployment {
     pub id: String,
     pub description: Option<String>,
     pub created_date: f64,
-    pub stage_name: Option<String>,
 }
 
 impl Deployment {
-    pub fn new(id: String, description: Option<String>, stage_name: Option<String>) -> Self {
+    pub fn new(id: String, description: Option<String>, _stage_name: Option<String>) -> Self {
         Deployment {
             id,
             description,
             created_date: now(),
-            stage_name,
         }
     }
 }

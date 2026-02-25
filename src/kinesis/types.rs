@@ -22,8 +22,6 @@ pub struct DeleteStreamRequest {
     pub stream_name: Option<String>,
     #[serde(rename = "StreamARN")]
     pub stream_arn: Option<String>,
-    #[serde(rename = "EnforceConsumerDeletion")]
-    pub enforce_consumer_deletion: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -32,10 +30,6 @@ pub struct DescribeStreamRequest {
     pub stream_name: Option<String>,
     #[serde(rename = "StreamARN")]
     pub stream_arn: Option<String>,
-    #[serde(rename = "Limit")]
-    pub limit: Option<u32>,
-    #[serde(rename = "ExclusiveStartShardId")]
-    pub exclusive_start_shard_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -133,8 +127,6 @@ pub struct ListStreamsRequest {
     pub limit: Option<usize>,
     #[serde(rename = "ExclusiveStartStreamName")]
     pub exclusive_start_stream_name: Option<String>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -158,10 +150,6 @@ pub struct PutRecordRequest {
     pub data: String, // base64
     #[serde(rename = "PartitionKey")]
     pub partition_key: String,
-    #[serde(rename = "ExplicitHashKey")]
-    pub explicit_hash_key: Option<String>,
-    #[serde(rename = "SequenceNumberForOrdering")]
-    pub sequence_number_for_ordering: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -190,8 +178,6 @@ pub struct PutRecordsRequestEntry {
     pub data: String,
     #[serde(rename = "PartitionKey")]
     pub partition_key: String,
-    #[serde(rename = "ExplicitHashKey")]
-    pub explicit_hash_key: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -224,8 +210,6 @@ pub struct GetShardIteratorRequest {
     pub shard_iterator_type: String,
     #[serde(rename = "StartingSequenceNumber")]
     pub starting_sequence_number: Option<String>,
-    #[serde(rename = "Timestamp")]
-    pub timestamp: Option<f64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -240,8 +224,6 @@ pub struct GetRecordsRequest {
     pub shard_iterator: String,
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
-    #[serde(rename = "StreamARN")]
-    pub stream_arn: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -275,10 +257,6 @@ pub struct ListShardsRequest {
     pub stream_name: Option<String>,
     #[serde(rename = "StreamARN")]
     pub stream_arn: Option<String>,
-    #[serde(rename = "NextToken")]
-    pub next_token: Option<String>,
-    #[serde(rename = "MaxResults")]
-    pub max_results: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -318,8 +296,6 @@ pub struct ListTagsForStreamRequest {
     pub stream_arn: Option<String>,
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
-    #[serde(rename = "ExclusiveStartTagKey")]
-    pub exclusive_start_tag_key: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

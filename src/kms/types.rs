@@ -58,8 +58,6 @@ pub struct DescribeKeyResponse {
 pub struct ListKeysRequest {
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
-    #[serde(rename = "Marker")]
-    pub marker: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -131,8 +129,6 @@ pub struct EncryptRequest {
     pub key_id: String,
     #[serde(rename = "Plaintext")]
     pub plaintext: String, // base64
-    #[serde(rename = "EncryptionContext")]
-    pub encryption_context: Option<std::collections::HashMap<String, String>>,
     #[serde(rename = "EncryptionAlgorithm")]
     pub encryption_algorithm: Option<String>,
 }
@@ -153,8 +149,6 @@ pub struct DecryptRequest {
     pub ciphertext_blob: String, // base64
     #[serde(rename = "KeyId")]
     pub key_id: Option<String>,
-    #[serde(rename = "EncryptionContext")]
-    pub encryption_context: Option<std::collections::HashMap<String, String>>,
     #[serde(rename = "EncryptionAlgorithm")]
     pub encryption_algorithm: Option<String>,
 }
@@ -177,8 +171,6 @@ pub struct GenerateDataKeyRequest {
     pub key_spec: Option<String>,
     #[serde(rename = "NumberOfBytes")]
     pub number_of_bytes: Option<usize>,
-    #[serde(rename = "EncryptionContext")]
-    pub encryption_context: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -227,8 +219,6 @@ pub struct SignRequest {
     pub key_id: String,
     #[serde(rename = "Message")]
     pub message: String, // base64
-    #[serde(rename = "MessageType")]
-    pub message_type: Option<String>,
     #[serde(rename = "SigningAlgorithm")]
     pub signing_algorithm: String,
 }
@@ -253,8 +243,6 @@ pub struct VerifyRequest {
     pub signature: String, // base64
     #[serde(rename = "SigningAlgorithm")]
     pub signing_algorithm: String,
-    #[serde(rename = "MessageType")]
-    pub message_type: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -289,8 +277,6 @@ pub struct ListResourceTagsRequest {
     pub key_id: String,
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
-    #[serde(rename = "Marker")]
-    pub marker: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -329,8 +315,6 @@ pub struct ListAliasesRequest {
     pub key_id: Option<String>,
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
-    #[serde(rename = "Marker")]
-    pub marker: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -355,8 +339,6 @@ pub struct AliasListEntry {
 pub struct GetKeyPolicyRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
-    #[serde(rename = "PolicyName")]
-    pub policy_name: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -369,8 +351,6 @@ pub struct GetKeyPolicyResponse {
 pub struct PutKeyPolicyRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
-    #[serde(rename = "PolicyName")]
-    pub policy_name: String,
     #[serde(rename = "Policy")]
     pub policy: String,
 }

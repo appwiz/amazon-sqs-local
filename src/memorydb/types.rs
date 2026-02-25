@@ -21,8 +21,6 @@ pub struct CreateClusterRequest {
     pub engine_version: Option<String>,
     #[serde(default)]
     pub num_shards: Option<i32>,
-    #[serde(default)]
-    pub num_replicas_per_shard: Option<i32>,
     #[serde(rename = "TLSEnabled")]
     #[serde(default)]
     pub tls_enabled: Option<bool>,
@@ -58,8 +56,6 @@ pub struct CreateClusterResponse {
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteClusterRequest {
     pub cluster_name: String,
-    #[serde(default)]
-    pub final_snapshot_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -116,10 +112,6 @@ pub struct UpdateClusterRequest {
     pub snapshot_retention_limit: Option<i32>,
     #[serde(default)]
     pub snapshot_window: Option<String>,
-    #[serde(default)]
-    pub num_shards: Option<i32>,
-    #[serde(default)]
-    pub num_replicas_per_shard: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -350,8 +342,6 @@ pub struct CreateSnapshotRequest {
     pub cluster_name: String,
     pub snapshot_name: String,
     #[serde(default)]
-    pub kms_key_id: Option<String>,
-    #[serde(default)]
     pub tags: Option<Vec<Tag>>,
 }
 
@@ -388,8 +378,6 @@ pub struct DescribeSnapshotsRequest {
     pub max_results: Option<i32>,
     #[serde(default)]
     pub next_token: Option<String>,
-    #[serde(default)]
-    pub source: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

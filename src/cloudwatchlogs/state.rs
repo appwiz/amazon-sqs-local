@@ -71,7 +71,7 @@ impl CwlState {
             state.region, state.account_id, req.log_group_name
         );
         let now = Self::now_ms();
-        let mut tags = req.tags.unwrap_or_default();
+        let tags = req.tags.unwrap_or_default();
         state.log_groups.insert(req.log_group_name.clone(), LogGroupData {
             log_group_name: req.log_group_name,
             arn,

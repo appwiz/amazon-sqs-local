@@ -178,12 +178,6 @@ pub struct PutItemRequest {
     pub table_name: String,
     #[serde(rename = "Item")]
     pub item: Item,
-    #[serde(rename = "ConditionExpression", default)]
-    pub condition_expression: Option<String>,
-    #[serde(rename = "ExpressionAttributeNames", default)]
-    pub expression_attribute_names: Option<HashMap<String, String>>,
-    #[serde(rename = "ExpressionAttributeValues", default)]
-    pub expression_attribute_values: Option<Item>,
     #[serde(rename = "ReturnValues", default)]
     pub return_values: Option<String>,
 }
@@ -202,8 +196,6 @@ pub struct GetItemRequest {
     pub table_name: String,
     #[serde(rename = "Key")]
     pub key: Item,
-    #[serde(rename = "ConsistentRead", default)]
-    pub consistent_read: Option<bool>,
     #[serde(rename = "ProjectionExpression", default)]
     pub projection_expression: Option<String>,
     #[serde(rename = "ExpressionAttributeNames", default)]
@@ -224,12 +216,6 @@ pub struct DeleteItemRequest {
     pub table_name: String,
     #[serde(rename = "Key")]
     pub key: Item,
-    #[serde(rename = "ConditionExpression", default)]
-    pub condition_expression: Option<String>,
-    #[serde(rename = "ExpressionAttributeNames", default)]
-    pub expression_attribute_names: Option<HashMap<String, String>>,
-    #[serde(rename = "ExpressionAttributeValues", default)]
-    pub expression_attribute_values: Option<Item>,
     #[serde(rename = "ReturnValues", default)]
     pub return_values: Option<String>,
 }
@@ -250,8 +236,6 @@ pub struct UpdateItemRequest {
     pub key: Item,
     #[serde(rename = "UpdateExpression", default)]
     pub update_expression: Option<String>,
-    #[serde(rename = "ConditionExpression", default)]
-    pub condition_expression: Option<String>,
     #[serde(rename = "ExpressionAttributeNames", default)]
     pub expression_attribute_names: Option<HashMap<String, String>>,
     #[serde(rename = "ExpressionAttributeValues", default)]
@@ -290,8 +274,6 @@ pub struct QueryRequest {
     pub exclusive_start_key: Option<Item>,
     #[serde(rename = "Select", default)]
     pub select: Option<String>,
-    #[serde(rename = "ConsistentRead", default)]
-    pub consistent_read: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -326,8 +308,6 @@ pub struct ScanRequest {
     pub exclusive_start_key: Option<Item>,
     #[serde(rename = "Select", default)]
     pub select: Option<String>,
-    #[serde(rename = "ConsistentRead", default)]
-    pub consistent_read: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -354,8 +334,6 @@ pub struct BatchGetItemRequest {
 pub struct KeysAndAttributes {
     #[serde(rename = "Keys")]
     pub keys: Vec<Item>,
-    #[serde(rename = "ConsistentRead", default)]
-    pub consistent_read: Option<bool>,
     #[serde(rename = "ProjectionExpression", default)]
     pub projection_expression: Option<String>,
     #[serde(rename = "ExpressionAttributeNames", default)]
@@ -438,8 +416,6 @@ pub struct UntagResourceRequest {
 pub struct ListTagsOfResourceRequest {
     #[serde(rename = "ResourceArn")]
     pub resource_arn: String,
-    #[serde(rename = "NextToken", default)]
-    pub next_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

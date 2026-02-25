@@ -7,7 +7,6 @@ pub enum LambdaError {
     ResourceNotFoundException(String),
     ResourceConflictException(String),
     InvalidParameterValueException(String),
-    ServiceException(String),
 }
 
 impl LambdaError {
@@ -16,7 +15,6 @@ impl LambdaError {
             LambdaError::ResourceNotFoundException(_) => "ResourceNotFoundException",
             LambdaError::ResourceConflictException(_) => "ResourceConflictException",
             LambdaError::InvalidParameterValueException(_) => "InvalidParameterValueException",
-            LambdaError::ServiceException(_) => "ServiceException",
         }
     }
 
@@ -25,7 +23,6 @@ impl LambdaError {
             LambdaError::ResourceNotFoundException(_) => StatusCode::NOT_FOUND,
             LambdaError::ResourceConflictException(_) => StatusCode::CONFLICT,
             LambdaError::InvalidParameterValueException(_) => StatusCode::BAD_REQUEST,
-            LambdaError::ServiceException(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -33,8 +30,7 @@ impl LambdaError {
         match self {
             LambdaError::ResourceNotFoundException(m)
             | LambdaError::ResourceConflictException(m)
-            | LambdaError::InvalidParameterValueException(m)
-            | LambdaError::ServiceException(m) => m,
+            | LambdaError::InvalidParameterValueException(m) => m,
         }
     }
 }
