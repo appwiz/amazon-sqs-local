@@ -1,6 +1,6 @@
 # aws-inmemory-services
 
-In-memory implementations of nineteen AWS services written in Rust: Amazon S3, Amazon SNS, Amazon SQS, Amazon DynamoDB, AWS Lambda, Amazon Data Firehose, Amazon MemoryDB, Amazon Cognito, Amazon API Gateway, AWS KMS, AWS Secrets Manager, Amazon Kinesis Data Streams, Amazon EventBridge, AWS Step Functions, AWS Systems Manager Parameter Store, Amazon CloudWatch Logs, Amazon SES, AWS Service Catalog, and AWS Config. All services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
+In-memory implementations of twenty AWS services written in Rust: Amazon S3, Amazon SNS, Amazon SQS, Amazon DynamoDB, AWS Lambda, Amazon Data Firehose, Amazon MemoryDB, Amazon Cognito, Amazon API Gateway, AWS KMS, AWS Secrets Manager, Amazon Kinesis Data Streams, Amazon EventBridge, AWS Step Functions, AWS Systems Manager Parameter Store, Amazon CloudWatch Logs, Amazon SES, AWS Service Catalog, AWS Config, and Amazon EFS. All services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
 
 All state is held in memory — there is no disk persistence. Restarting the server clears all data.
 
@@ -46,6 +46,7 @@ All services start on their default ports:
 | SES | `9300` |
 | Service Catalog | `9400` |
 | Config | `9500` |
+| EFS | `9600` |
 
 ### CLI Options
 
@@ -70,6 +71,7 @@ All services start on their default ports:
 | `--ses-port` | `9300` | Port for the SES service |
 | `--servicecatalog-port` | `9400` | Port for the Service Catalog service |
 | `--config-port` | `9500` | Port for the Config service |
+| `--efs-port` | `9600` | Port for the EFS service |
 | `--region` | `us-east-1` | AWS region used in ARNs |
 | `--account-id` | `000000000000` | AWS account ID used in ARNs |
 
@@ -2368,6 +2370,138 @@ AWS Config uses the **AWS JSON 1.1** protocol:
 
 ---
 
+## EFS Service
+
+### Usage with the AWS CLI
+
+```bash
+# Create a file system
+aws efs create-file-system \
+  --creation-token my-fs \
+  --tags Key=Name,Value=MyFileSystem \
+  --endpoint-url http://localhost:9600 \
+  --no-sign-request
+
+# Describe file systems
+aws efs describe-file-systems \
+  --endpoint-url http://localhost:9600 \
+  --no-sign-request
+
+# Create a mount target
+aws efs create-mount-target \
+  --file-system-id fs-abc123 \
+  --subnet-id subnet-12345678 \
+  --endpoint-url http://localhost:9600 \
+  --no-sign-request
+
+# Create an access point
+aws efs create-access-point \
+  --client-token my-ap \
+  --file-system-id fs-abc123 \
+  --posix-user Uid=1000,Gid=1000 \
+  --root-directory "Path=/export/data,CreationInfo={OwnerUid=1000,OwnerGid=1000,Permissions=755}" \
+  --endpoint-url http://localhost:9600 \
+  --no-sign-request
+
+# Set lifecycle configuration
+aws efs put-lifecycle-configuration \
+  --file-system-id fs-abc123 \
+  --lifecycle-policies TransitionToIA=AFTER_30_DAYS \
+  --endpoint-url http://localhost:9600 \
+  --no-sign-request
+
+# Tag a resource
+aws efs tag-resource \
+  --resource-id fs-abc123 \
+  --tags Key=Env,Value=Production \
+  --endpoint-url http://localhost:9600 \
+  --no-sign-request
+
+# Delete mount target, then file system
+aws efs delete-mount-target \
+  --mount-target-id fsmt-abc123 \
+  --endpoint-url http://localhost:9600 \
+  --no-sign-request
+
+aws efs delete-file-system \
+  --file-system-id fs-abc123 \
+  --endpoint-url http://localhost:9600 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+Amazon EFS uses a **REST API** with JSON — the HTTP method and path determine the operation:
+
+- **File Systems**: `POST/GET /2015-02-01/file-systems`, `PUT/DELETE /2015-02-01/file-systems/{FileSystemId}`
+- **Mount Targets**: `POST/GET /2015-02-01/mount-targets`, `DELETE /2015-02-01/mount-targets/{MountTargetId}`
+- **Access Points**: `POST/GET /2015-02-01/access-points`, `DELETE /2015-02-01/access-points/{AccessPointId}`
+- **Tags**: `POST/DELETE/GET /2015-02-01/resource-tags/{ResourceId}`
+- **Lifecycle**: `PUT/GET /2015-02-01/file-systems/{FileSystemId}/lifecycle-configuration`
+
+### Supported Operations (15)
+
+#### File System Management
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| CreateFileSystem | POST | `/2015-02-01/file-systems` |
+| DescribeFileSystems | GET | `/2015-02-01/file-systems` |
+| UpdateFileSystem | PUT | `/2015-02-01/file-systems/{FileSystemId}` |
+| DeleteFileSystem | DELETE | `/2015-02-01/file-systems/{FileSystemId}` |
+
+#### Mount Targets
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| CreateMountTarget | POST | `/2015-02-01/mount-targets` |
+| DescribeMountTargets | GET | `/2015-02-01/mount-targets` |
+| DeleteMountTarget | DELETE | `/2015-02-01/mount-targets/{MountTargetId}` |
+
+#### Access Points
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| CreateAccessPoint | POST | `/2015-02-01/access-points` |
+| DescribeAccessPoints | GET | `/2015-02-01/access-points` |
+| DeleteAccessPoint | DELETE | `/2015-02-01/access-points/{AccessPointId}` |
+
+#### Tagging
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| TagResource | POST | `/2015-02-01/resource-tags/{ResourceId}` |
+| UntagResource | DELETE | `/2015-02-01/resource-tags/{ResourceId}` |
+| ListTagsForResource | GET | `/2015-02-01/resource-tags/{ResourceId}` |
+
+#### Lifecycle Configuration
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| PutLifecycleConfiguration | PUT | `/2015-02-01/file-systems/{FileSystemId}/lifecycle-configuration` |
+| DescribeLifecycleConfiguration | GET | `/2015-02-01/file-systems/{FileSystemId}/lifecycle-configuration` |
+
+### EFS Error Response Format
+
+```json
+{
+  "ErrorCode": "FileSystemNotFound",
+  "Message": "File system 'fs-abc123' does not exist."
+}
+```
+
+| HTTP Status | Code | Description |
+|-------------|------|-------------|
+| 404 | FileSystemNotFound | File system does not exist |
+| 409 | FileSystemAlreadyExists | Duplicate creation token |
+| 409 | FileSystemInUse | File system has mount targets |
+| 404 | MountTargetNotFound | Mount target does not exist |
+| 409 | MountTargetConflict | Duplicate mount target in subnet |
+| 404 | AccessPointNotFound | Access point does not exist |
+| 400 | BadRequest | Malformed request |
+
+---
+
 ## Running Tests
 
 The integration test suites use the AWS CLI to exercise all API operations:
@@ -2429,6 +2563,9 @@ bash tests/servicecatalog_integration.sh
 
 # Run Config tests (21 assertions)
 bash tests/config_integration.sh
+
+# Run EFS tests (36 assertions)
+bash tests/efs_integration.sh
 ```
 
 Each script builds the binary, starts the server on isolated ports, runs all test cases, and reports pass/fail counts.
@@ -2470,6 +2607,9 @@ This is a local development tool, not a production replacement. Key differences:
 - **Config recording is simulated** -- `StartConfigurationRecorder` and `StopConfigurationRecorder` toggle a flag but do not actually monitor or record resource configuration changes.
 - **Config rules do not evaluate** -- `PutConfigRule` creates rules but they do not automatically evaluate resources. Use `PutEvaluations` to manually submit compliance results.
 - **Config has single recorder/channel limit** -- only one configuration recorder and one delivery channel are allowed per account, matching AWS behavior.
+- **EFS file systems are immediately available** -- `CreateFileSystem` returns a file system in `available` state without the real provisioning delay.
+- **EFS mount targets are simulated** -- mount targets are created with synthetic IP addresses, ENIs, and availability zone metadata. No actual NFS endpoints are started.
+- **EFS does not enforce storage** -- `SizeInBytes` always reports zero. No actual file storage occurs.
 
 ## References
 
@@ -2548,3 +2688,7 @@ This is a local development tool, not a production replacement. Key differences:
 ### AWS Config
 - [Developer Guide](https://docs.aws.amazon.com/config/latest/developerguide/config-dg.pdf)
 - [API Reference](https://docs.aws.amazon.com/config/latest/APIReference/config-api.pdf)
+
+### Amazon EFS
+- [Developer Guide](https://docs.aws.amazon.com/efs/latest/ug/efs-ug.pdf)
+- [API Reference](https://docs.aws.amazon.com/efs/latest/ug/api-reference.html)
