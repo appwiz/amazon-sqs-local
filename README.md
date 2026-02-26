@@ -1,6 +1,6 @@
 # aws-inmemory-services
 
-In-memory implementations of twenty AWS services written in Rust: Amazon S3, Amazon SNS, Amazon SQS, Amazon DynamoDB, AWS Lambda, Amazon Data Firehose, Amazon MemoryDB, Amazon Cognito, Amazon API Gateway, AWS KMS, AWS Secrets Manager, Amazon Kinesis Data Streams, Amazon EventBridge, AWS Step Functions, AWS Systems Manager Parameter Store, Amazon CloudWatch Logs, Amazon SES, AWS Service Catalog, AWS Config, and Amazon EFS. All services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
+In-memory implementations of twenty-one AWS services written in Rust: Amazon S3, Amazon SNS, Amazon SQS, Amazon DynamoDB, AWS Lambda, Amazon Data Firehose, Amazon MemoryDB, Amazon Cognito, Amazon API Gateway, AWS KMS, AWS Secrets Manager, Amazon Kinesis Data Streams, Amazon EventBridge, AWS Step Functions, AWS Systems Manager Parameter Store, Amazon CloudWatch Logs, Amazon SES, AWS Service Catalog, AWS Config, Amazon EFS, and AWS AppSync. All services run as a single binary on separate ports, are compatible with the AWS CLI and SDKs, and require no external dependencies.
 
 All state is held in memory — there is no disk persistence. Restarting the server clears all data.
 
@@ -47,6 +47,7 @@ All services start on their default ports:
 | Service Catalog | `9400` |
 | Config | `9500` |
 | EFS | `9600` |
+| AppSync | `9700` |
 
 ### CLI Options
 
@@ -72,6 +73,7 @@ All services start on their default ports:
 | `--servicecatalog-port` | `9400` | Port for the Service Catalog service |
 | `--config-port` | `9500` | Port for the Config service |
 | `--efs-port` | `9600` | Port for the EFS service |
+| `--appsync-port` | `9700` | Port for the AppSync service |
 | `--region` | `us-east-1` | AWS region used in ARNs |
 | `--account-id` | `000000000000` | AWS account ID used in ARNs |
 
@@ -2502,6 +2504,147 @@ Amazon EFS uses a **REST API** with JSON — the HTTP method and path determine 
 
 ---
 
+## AppSync Service
+
+### Usage with the AWS CLI
+
+Point the AWS CLI at the local endpoint with `--endpoint-url` and skip signature authentication:
+
+```bash
+# Create a GraphQL API
+aws appsync create-graphql-api \
+  --name MyApi \
+  --authentication-type API_KEY \
+  --tags Env=Test \
+  --endpoint-url http://localhost:9700 \
+  --no-sign-request
+
+# Get a GraphQL API
+aws appsync get-graphql-api \
+  --api-id abc123 \
+  --endpoint-url http://localhost:9700 \
+  --no-sign-request
+
+# List all GraphQL APIs
+aws appsync list-graphql-apis \
+  --endpoint-url http://localhost:9700 \
+  --no-sign-request
+
+# Update a GraphQL API
+aws appsync update-graphql-api \
+  --api-id abc123 \
+  --name UpdatedApi \
+  --authentication-type AWS_IAM \
+  --endpoint-url http://localhost:9700 \
+  --no-sign-request
+
+# Create an API key
+aws appsync create-api-key \
+  --api-id abc123 \
+  --endpoint-url http://localhost:9700 \
+  --no-sign-request
+
+# Create a data source
+aws appsync create-data-source \
+  --api-id abc123 \
+  --name MyDynamoDS \
+  --type AMAZON_DYNAMODB \
+  --endpoint-url http://localhost:9700 \
+  --no-sign-request
+
+# Start schema creation
+aws appsync start-schema-creation \
+  --api-id abc123 \
+  --definition "$(echo -n 'type Query { hello: String }' | base64)" \
+  --endpoint-url http://localhost:9700 \
+  --no-sign-request
+
+# Tag a resource
+aws appsync tag-resource \
+  --resource-arn arn:aws:appsync:us-east-1:000000000000:apis/abc123 \
+  --tags Project=MyProject \
+  --endpoint-url http://localhost:9700 \
+  --no-sign-request
+
+# Delete a GraphQL API
+aws appsync delete-graphql-api \
+  --api-id abc123 \
+  --endpoint-url http://localhost:9700 \
+  --no-sign-request
+```
+
+### Wire Protocol
+
+AWS AppSync uses a **REST API** with JSON — the HTTP method and path determine the operation:
+
+- **GraphQL APIs**: `POST/GET /v1/apis`, `POST/GET/DELETE /v1/apis/{apiId}`
+- **API Keys**: `POST/GET /v1/apis/{apiId}/apikeys`, `POST/DELETE /v1/apis/{apiId}/apikeys/{id}`
+- **Data Sources**: `POST/GET /v1/apis/{apiId}/datasources`, `GET/POST/DELETE /v1/apis/{apiId}/datasources/{name}`
+- **Schema**: `POST/GET /v1/apis/{apiId}/schemacreation`
+- **Tags**: `POST/DELETE/GET /v1/tags/{resourceArn}`
+
+### Supported Operations (20)
+
+#### GraphQL API Management
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| CreateGraphqlApi | POST | `/v1/apis` |
+| GetGraphqlApi | GET | `/v1/apis/{apiId}` |
+| ListGraphqlApis | GET | `/v1/apis` |
+| UpdateGraphqlApi | POST | `/v1/apis/{apiId}` |
+| DeleteGraphqlApi | DELETE | `/v1/apis/{apiId}` |
+
+#### API Keys
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| CreateApiKey | POST | `/v1/apis/{apiId}/apikeys` |
+| ListApiKeys | GET | `/v1/apis/{apiId}/apikeys` |
+| UpdateApiKey | POST | `/v1/apis/{apiId}/apikeys/{id}` |
+| DeleteApiKey | DELETE | `/v1/apis/{apiId}/apikeys/{id}` |
+
+#### Data Sources
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| CreateDataSource | POST | `/v1/apis/{apiId}/datasources` |
+| GetDataSource | GET | `/v1/apis/{apiId}/datasources/{name}` |
+| ListDataSources | GET | `/v1/apis/{apiId}/datasources` |
+| UpdateDataSource | POST | `/v1/apis/{apiId}/datasources/{name}` |
+| DeleteDataSource | DELETE | `/v1/apis/{apiId}/datasources/{name}` |
+
+#### Schema
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| StartSchemaCreation | POST | `/v1/apis/{apiId}/schemacreation` |
+| GetSchemaCreationStatus | GET | `/v1/apis/{apiId}/schemacreation` |
+
+#### Tagging
+
+| Operation | Method | Path |
+|-----------|--------|------|
+| TagResource | POST | `/v1/tags/{resourceArn}` |
+| UntagResource | DELETE | `/v1/tags/{resourceArn}` |
+| ListTagsForResource | GET | `/v1/tags/{resourceArn}` |
+
+### AppSync Error Response Format
+
+```json
+{
+  "message": "GraphQL API 'abc123' not found."
+}
+```
+
+| HTTP Status | Code | Description |
+|-------------|------|-------------|
+| 404 | NotFoundException | Resource does not exist |
+| 400 | BadRequestException | Malformed request |
+| 409 | ConcurrentModificationException | Duplicate resource |
+
+---
+
 ## Running Tests
 
 The integration test suites use the AWS CLI to exercise all API operations:
@@ -2566,6 +2709,9 @@ bash tests/config_integration.sh
 
 # Run EFS tests (36 assertions)
 bash tests/efs_integration.sh
+
+# Run AppSync tests (41 assertions)
+bash tests/appsync_integration.sh
 ```
 
 Each script builds the binary, starts the server on isolated ports, runs all test cases, and reports pass/fail counts.
@@ -2610,6 +2756,8 @@ This is a local development tool, not a production replacement. Key differences:
 - **EFS file systems are immediately available** -- `CreateFileSystem` returns a file system in `available` state without the real provisioning delay.
 - **EFS mount targets are simulated** -- mount targets are created with synthetic IP addresses, ENIs, and availability zone metadata. No actual NFS endpoints are started.
 - **EFS does not enforce storage** -- `SizeInBytes` always reports zero. No actual file storage occurs.
+- **AppSync GraphQL APIs are simulated** -- APIs are created with synthetic URIs and metadata but no actual GraphQL endpoint is running. Schema creation immediately succeeds without validation. Use this for API compatibility testing.
+- **AppSync does not execute queries** -- the service manages API configuration (data sources, API keys, schemas) but does not process GraphQL queries or mutations.
 
 ## References
 
@@ -2692,3 +2840,7 @@ This is a local development tool, not a production replacement. Key differences:
 ### Amazon EFS
 - [Developer Guide](https://docs.aws.amazon.com/efs/latest/ug/efs-ug.pdf)
 - [API Reference](https://docs.aws.amazon.com/efs/latest/ug/api-reference.html)
+
+### AWS AppSync
+- [Developer Guide](https://docs.aws.amazon.com/appsync/latest/devguide/appsync-dg.pdf)
+- [API Reference](https://docs.aws.amazon.com/appsync/latest/APIReference/appsync-api.pdf)

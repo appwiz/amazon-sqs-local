@@ -3,6 +3,7 @@ use std::sync::Arc;
 use clap::Parser;
 
 mod apigateway;
+mod appsync;
 mod cloudwatchlogs;
 mod cognito;
 mod config;
@@ -26,7 +27,7 @@ mod stepfunctions;
 #[derive(Parser)]
 #[command(
     name = "aws-inmemory-services",
-    about = "Local AWS services: S3, SNS, SQS, DynamoDB, Lambda, Firehose, MemoryDB, Cognito, API Gateway, KMS, Secrets Manager, Kinesis, EventBridge, Step Functions, SSM Parameter Store, CloudWatch Logs, SES, Service Catalog, Config, EFS"
+    about = "Local AWS services: S3, SNS, SQS, DynamoDB, Lambda, Firehose, MemoryDB, Cognito, API Gateway, KMS, Secrets Manager, Kinesis, EventBridge, Step Functions, SSM Parameter Store, CloudWatch Logs, SES, Service Catalog, Config, EFS, AppSync"
 )]
 struct Args {
     #[arg(long, default_value = "9000")]
@@ -69,6 +70,8 @@ struct Args {
     config_port: u16,
     #[arg(long, default_value = "9600")]
     efs_port: u16,
+    #[arg(long, default_value = "9700")]
+    appsync_port: u16,
     #[arg(long, default_value = "us-east-1")]
     region: String,
     #[arg(long, default_value = "000000000000")]
@@ -160,6 +163,10 @@ async fn main() {
         args.account_id.clone(),
         args.region.clone(),
     ));
+    let appsync_state = Arc::new(appsync::state::AppSyncState::new(
+        args.account_id.clone(),
+        args.region.clone(),
+    ));
 
     let s3_app = s3::server::create_router(s3_state);
     let sns_app = sns::server::create_router(sns_state);
@@ -181,6 +188,7 @@ async fn main() {
     let servicecatalog_app = servicecatalog::server::create_router(servicecatalog_state);
     let config_app = config::server::create_router(config_state);
     let efs_app = efs::server::create_router(efs_state);
+    let appsync_app = appsync::server::create_router(appsync_state);
 
     macro_rules! spawn_service {
         ($app:expr, $port:expr, $name:expr) => {{
@@ -220,6 +228,7 @@ async fn main() {
         spawn_service!(servicecatalog_app, args.servicecatalog_port, "Service Catalog");
     let config_handle = spawn_service!(config_app, args.config_port, "Config");
     let efs_handle = spawn_service!(efs_app, args.efs_port, "EFS");
+    let appsync_handle = spawn_service!(appsync_app, args.appsync_port, "AppSync");
 
     tokio::select! {
         r = s3_handle => r.unwrap(),
@@ -242,5 +251,6 @@ async fn main() {
         r = servicecatalog_handle => r.unwrap(),
         r = config_handle => r.unwrap(),
         r = efs_handle => r.unwrap(),
+        r = appsync_handle => r.unwrap(),
     }
 }
