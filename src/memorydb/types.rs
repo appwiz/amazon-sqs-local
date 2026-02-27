@@ -4,7 +4,7 @@ use super::cluster::*;
 
 // --- CreateCluster ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateClusterRequest {
     pub cluster_name: String,
@@ -52,7 +52,7 @@ pub struct CreateClusterResponse {
 
 // --- DeleteCluster ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteClusterRequest {
     pub cluster_name: String,
@@ -87,7 +87,7 @@ pub struct DescribeClustersResponse {
 
 // --- UpdateCluster ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UpdateClusterRequest {
     pub cluster_name: String,
@@ -122,7 +122,7 @@ pub struct UpdateClusterResponse {
 
 // --- CreateSubnetGroup ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateSubnetGroupRequest {
     pub subnet_group_name: String,
@@ -142,7 +142,7 @@ pub struct CreateSubnetGroupResponse {
 
 // --- DeleteSubnetGroup ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteSubnetGroupRequest {
     pub subnet_group_name: String,
@@ -177,7 +177,7 @@ pub struct DescribeSubnetGroupsResponse {
 
 // --- CreateUser ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AuthenticationMode {
     #[serde(rename = "Type")]
@@ -186,7 +186,7 @@ pub struct AuthenticationMode {
     pub passwords: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateUserRequest {
     pub user_name: String,
@@ -204,7 +204,7 @@ pub struct CreateUserResponse {
 
 // --- DeleteUser ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteUserRequest {
     pub user_name: String,
@@ -239,7 +239,7 @@ pub struct DescribeUsersResponse {
 
 // --- UpdateUser ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UpdateUserRequest {
     pub user_name: String,
@@ -257,7 +257,7 @@ pub struct UpdateUserResponse {
 
 // --- CreateACL ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateAclRequest {
     #[serde(rename = "ACLName")]
@@ -277,7 +277,7 @@ pub struct CreateAclResponse {
 
 // --- DeleteACL ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteAclRequest {
     #[serde(rename = "ACLName")]
@@ -316,7 +316,7 @@ pub struct DescribeAclsResponse {
 
 // --- UpdateACL ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UpdateAclRequest {
     #[serde(rename = "ACLName")]
@@ -336,7 +336,7 @@ pub struct UpdateAclResponse {
 
 // --- CreateSnapshot ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateSnapshotRequest {
     pub cluster_name: String,
@@ -353,7 +353,7 @@ pub struct CreateSnapshotResponse {
 
 // --- DeleteSnapshot ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteSnapshotRequest {
     pub snapshot_name: String,
@@ -390,7 +390,7 @@ pub struct DescribeSnapshotsResponse {
 
 // --- TagResource ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct TagResourceRequest {
     pub resource_arn: String,
@@ -405,7 +405,7 @@ pub struct TagResourceResponse {
 
 // --- UntagResource ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UntagResourceRequest {
     pub resource_arn: String,
@@ -420,7 +420,7 @@ pub struct UntagResourceResponse {
 
 // --- ListTags ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ListTagsRequest {
     pub resource_arn: String,

@@ -104,7 +104,7 @@ pub struct CopyObjectResult {
 
 // --- DeleteObjects (batch) ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(rename = "Delete")]
 pub struct DeleteRequest {
     #[serde(rename = "Object")]
@@ -113,7 +113,7 @@ pub struct DeleteRequest {
     pub quiet: Option<bool>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct DeleteObjectEntry {
     #[serde(rename = "Key")]
     pub key: String,
@@ -198,14 +198,14 @@ pub struct InitiateMultipartUploadResult {
     pub upload_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(rename = "CompleteMultipartUpload")]
 pub struct CompleteMultipartUploadRequest {
     #[serde(rename = "Part")]
     pub parts: Vec<CompletePart>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct CompletePart {
     #[serde(rename = "PartNumber")]
     pub part_number: i32,

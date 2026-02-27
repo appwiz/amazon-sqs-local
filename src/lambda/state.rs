@@ -697,3 +697,164 @@ impl LambdaState {
         })
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = LambdaState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_list_functions() {
+        let state = LambdaState::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.list_functions().await;
+        assert!(result.is_ok());
+    }
+    #[tokio::test]
+    async fn test_delete_function_not_found() {
+        let state = LambdaState::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.delete_function("nonexistent").await;
+        assert!(result.is_err());
+    }
+
+    fn make_state() -> LambdaState {
+        LambdaState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    fn make_create_fn_req(name: &str) -> CreateFunctionRequest {
+        CreateFunctionRequest {
+            function_name: name.to_string(),
+            role: "arn:aws:iam::123456789012:role/lambda-role".to_string(),
+            code: FunctionCode { zip_file: Some("base64data".to_string()) },
+            runtime: Some("python3.9".to_string()),
+            handler: Some("index.handler".to_string()),
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_function() {
+        let state = make_state();
+        let result = state.create_function(make_create_fn_req("my-fn")).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().function_name, "my-fn");
+    }
+
+    #[tokio::test]
+    async fn test_create_function_duplicate() {
+        let state = make_state();
+        state.create_function(make_create_fn_req("dup")).await.unwrap();
+        assert!(state.create_function(make_create_fn_req("dup")).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_function() {
+        let state = make_state();
+        state.create_function(make_create_fn_req("fn1")).await.unwrap();
+        let result = state.get_function("fn1").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_function_not_found() {
+        let state = make_state();
+        assert!(state.get_function("nope").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_function_success() {
+        let state = make_state();
+        state.create_function(make_create_fn_req("fn1")).await.unwrap();
+        assert!(state.delete_function("fn1").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_functions_with_items() {
+        let state = make_state();
+        state.create_function(make_create_fn_req("fn1")).await.unwrap();
+        state.create_function(make_create_fn_req("fn2")).await.unwrap();
+        let result = state.list_functions().await.unwrap();
+        assert_eq!(result.functions.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_update_function_code() {
+        let state = make_state();
+        state.create_function(make_create_fn_req("fn1")).await.unwrap();
+        let result = state.update_function_code("fn1", UpdateFunctionCodeRequest::default()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_function_configuration() {
+        let state = make_state();
+        state.create_function(make_create_fn_req("fn1")).await.unwrap();
+        let req = UpdateFunctionConfigurationRequest {
+            description: Some("updated desc".to_string()),
+            ..Default::default()
+        };
+        let result = state.update_function_configuration("fn1", req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_invoke() {
+        let state = make_state();
+        state.create_function(make_create_fn_req("fn1")).await.unwrap();
+        let result = state.invoke("fn1", None).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_publish_version() {
+        let state = make_state();
+        state.create_function(make_create_fn_req("fn1")).await.unwrap();
+        let result = state.publish_version("fn1", PublishVersionRequest::default()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_and_list_aliases() {
+        let state = make_state();
+        state.create_function(make_create_fn_req("fn1")).await.unwrap();
+        let version = state.publish_version("fn1", PublishVersionRequest::default()).await.unwrap();
+        let req = CreateAliasRequest {
+            name: "prod".to_string(),
+            function_version: version.version,
+            ..Default::default()
+        };
+        assert!(state.create_alias("fn1", req).await.is_ok());
+        let aliases = state.list_aliases("fn1").await.unwrap();
+        assert_eq!(aliases.aliases.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_tag_and_list_tags() {
+        let state = make_state();
+        let config = state.create_function(make_create_fn_req("fn1")).await.unwrap();
+        let arn = config.function_arn;
+        let mut tags = std::collections::HashMap::new();
+        tags.insert("env".to_string(), "test".to_string());
+        state.tag_resource(&arn, tags).await.unwrap();
+        let result = state.list_tags(&arn).await.unwrap();
+        assert!(result.tags.contains_key("env"));
+    }
+
+    #[tokio::test]
+    async fn test_add_and_get_policy() {
+        let state = make_state();
+        state.create_function(make_create_fn_req("fn1")).await.unwrap();
+        let req = AddPermissionRequest {
+            statement_id: "stmt1".to_string(),
+            action: "lambda:InvokeFunction".to_string(),
+            principal: "s3.amazonaws.com".to_string(),
+            ..Default::default()
+        };
+        assert!(state.add_permission("fn1", req).await.is_ok());
+        let policy = state.get_policy("fn1").await;
+        assert!(policy.is_ok());
+    }
+}

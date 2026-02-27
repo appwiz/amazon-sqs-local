@@ -61,3 +61,45 @@ impl IntoResponse for EfsError {
         resp
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_filesystemnotfound_error_code() {
+        let err = EfsError::FileSystemNotFound("test".to_string());
+        assert_eq!(err.error_code(), "FileSystemNotFound");
+    }
+    #[test]
+    fn test_filesysteminuse_error_code() {
+        let err = EfsError::FileSystemInUse("test".to_string());
+        assert_eq!(err.error_code(), "FileSystemInUse");
+    }
+    #[test]
+    fn test_mounttargetnotfound_error_code() {
+        let err = EfsError::MountTargetNotFound("test".to_string());
+        assert_eq!(err.error_code(), "MountTargetNotFound");
+    }
+    #[test]
+    fn test_message() {
+        let err = EfsError::FileSystemNotFound("hello".to_string());
+        assert_eq!(err.message(), "hello");
+    }
+    #[test]
+    fn test_filesystemnotfound_status() {
+        let err = EfsError::FileSystemNotFound("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::NOT_FOUND);
+    }
+    #[test]
+    fn test_filesysteminuse_status() {
+        let err = EfsError::FileSystemInUse("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::CONFLICT);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = EfsError::FileSystemNotFound("test".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error() || resp.status().is_server_error());
+    }
+}

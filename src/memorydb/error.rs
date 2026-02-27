@@ -85,3 +85,45 @@ impl IntoResponse for MemoryDbError {
         (self.status_code(), axum::Json(body)).into_response()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clusteralreadyexistsfault_error_code() {
+        let err = MemoryDbError::ClusterAlreadyExistsFault("test".to_string());
+        assert_eq!(err.error_code(), "ClusterAlreadyExistsFault");
+    }
+    #[test]
+    fn test_clusternotfoundfault_error_code() {
+        let err = MemoryDbError::ClusterNotFoundFault("test".to_string());
+        assert_eq!(err.error_code(), "ClusterNotFoundFault");
+    }
+    #[test]
+    fn test_subnetgroupalreadyexistsfault_error_code() {
+        let err = MemoryDbError::SubnetGroupAlreadyExistsFault("test".to_string());
+        assert_eq!(err.error_code(), "SubnetGroupAlreadyExistsFault");
+    }
+    #[test]
+    fn test_message() {
+        let err = MemoryDbError::ClusterAlreadyExistsFault("hello".to_string());
+        assert_eq!(err.message(), "hello");
+    }
+    #[test]
+    fn test_clusteralreadyexistsfault_status() {
+        let err = MemoryDbError::ClusterAlreadyExistsFault("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::CONFLICT);
+    }
+    #[test]
+    fn test_clusternotfoundfault_status() {
+        let err = MemoryDbError::ClusterNotFoundFault("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::NOT_FOUND);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = MemoryDbError::ClusterAlreadyExistsFault("test".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error() || resp.status().is_server_error());
+    }
+}

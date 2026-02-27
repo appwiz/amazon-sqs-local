@@ -12,7 +12,7 @@ use super::state::LambdaState;
 use super::types::*;
 
 fn json_response<T: serde::Serialize>(status: StatusCode, value: &T) -> Response {
-    (status, Json(serde_json::to_value(value).unwrap())).into_response()
+    (status, Json(value)).into_response()
 }
 
 // --- Function handlers ---
@@ -315,4 +315,419 @@ pub fn create_router(state: Arc<LambdaState>) -> Router {
                 .get(list_tags_handler),
         )
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    fn new_state() -> Arc<LambdaState> {
+        Arc::new(LambdaState::new("123456789012".to_string(), "us-east-1".to_string()))
+    }
+
+    async fn extract_body(resp: axum::response::Response) -> serde_json::Value {
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        serde_json::from_slice(&body).unwrap()
+    }
+
+    fn create_function_body() -> String {
+        r#"{"FunctionName": "my-func", "Role": "arn:aws:iam::123456789012:role/role", "Code": {"ZipFile": "UEsDBBQ="}, "Runtime": "python3.9", "Handler": "index.handler"}"#.to_string()
+    }
+
+    #[tokio::test]
+    async fn test_list_functions_empty() {
+        let app = create_router(new_state());
+        let req = Request::builder()
+            .method("GET")
+            .uri("/2015-03-31/functions")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_create_function() {
+        let app = create_router(new_state());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions")
+            .header("content-type", "application/json")
+            .body(Body::from(create_function_body()))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let json = extract_body(resp).await;
+        assert_eq!(json["FunctionName"], "my-func");
+        assert!(json["FunctionArn"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_get_function() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions")
+            .header("content-type", "application/json")
+            .body(Body::from(create_function_body()))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/2015-03-31/functions/my-func")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_get_function_not_found() {
+        let app = create_router(new_state());
+        let req = Request::builder()
+            .method("GET")
+            .uri("/2015-03-31/functions/nonexistent")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_delete_function() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions")
+            .header("content-type", "application/json")
+            .body(Body::from(create_function_body()))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("DELETE")
+            .uri("/2015-03-31/functions/my-func")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+        // Verify deleted
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/2015-03-31/functions/my-func")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_update_function_code() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions")
+            .header("content-type", "application/json")
+            .body(Body::from(create_function_body()))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/2015-03-31/functions/my-func/code")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"ZipFile": "UEsDBBQ="}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_update_function_configuration() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions")
+            .header("content-type", "application/json")
+            .body(Body::from(create_function_body()))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/2015-03-31/functions/my-func/configuration")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"Description": "updated"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_invoke_function() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions")
+            .header("content-type", "application/json")
+            .body(Body::from(create_function_body()))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions/my-func/invocations")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"key": "value"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert!(resp.status().is_success());
+    }
+
+    #[tokio::test]
+    async fn test_add_permission_and_get_policy() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions")
+            .header("content-type", "application/json")
+            .body(Body::from(create_function_body()))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions/my-func/policy")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"StatementId": "stmt1", "Action": "lambda:InvokeFunction", "Principal": "s3.amazonaws.com"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        // Get policy
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri("/2015-03-31/functions/my-func/policy")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Remove permission
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("DELETE")
+            .uri("/2015-03-31/functions/my-func/policy/stmt1")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn test_publish_and_list_versions() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions")
+            .header("content-type", "application/json")
+            .body(Body::from(create_function_body()))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions/my-func/versions")
+            .header("content-type", "application/json")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/2015-03-31/functions/my-func/versions")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_create_and_list_aliases() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions")
+            .header("content-type", "application/json")
+            .body(Body::from(create_function_body()))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        // Publish a version first
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions/my-func/versions")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        let json = extract_body(resp).await;
+        let version = json["Version"].as_str().unwrap().to_string();
+
+        // Create alias
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions/my-func/aliases")
+            .header("content-type", "application/json")
+            .body(Body::from(format!(r#"{{"Name": "prod", "FunctionVersion": "{}"}}"#, version)))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        // Get alias
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri("/2015-03-31/functions/my-func/aliases/prod")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // List aliases
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri("/2015-03-31/functions/my-func/aliases")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Delete alias
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("DELETE")
+            .uri("/2015-03-31/functions/my-func/aliases/prod")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn test_create_and_list_event_source_mappings() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions")
+            .header("content-type", "application/json")
+            .body(Body::from(create_function_body()))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/event-source-mappings")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"EventSourceArn": "arn:aws:sqs:us-east-1:123456789012:my-queue", "FunctionName": "my-func"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::ACCEPTED);
+        let json = extract_body(resp).await;
+        let uuid = json["UUID"].as_str().unwrap().to_string();
+
+        // List
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri("/2015-03-31/event-source-mappings")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Delete
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("DELETE")
+            .uri(format!("/2015-03-31/event-source-mappings/{}", uuid))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::ACCEPTED);
+    }
+
+    #[tokio::test]
+    async fn test_tag_and_list_tags() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/2015-03-31/functions")
+            .header("content-type", "application/json")
+            .body(Body::from(create_function_body()))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        let json = extract_body(resp).await;
+        let arn = json["FunctionArn"].as_str().unwrap().to_string();
+
+        // Tag
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri(format!("/2017-03-31/tags/{}", arn))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"Tags": {"env": "test"}}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+        // List tags
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/2017-03-31/tags/{}", arn))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Untag
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("DELETE")
+            .uri(format!("/2017-03-31/tags/{}?tagKeys=env", arn))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    }
 }

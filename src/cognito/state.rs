@@ -1086,3 +1086,296 @@ fn group_to_type(group: &Group) -> GroupType {
         last_modified_date: group.last_modified_date,
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = CognitoState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_delete_user_pool_not_found() {
+        let state = CognitoState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = DeleteUserPoolRequest::default();
+        let result = state.delete_user_pool(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_update_user_pool() {
+        let state = CognitoState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = UpdateUserPoolRequest::default();
+        let _ = state.update_user_pool(req).await;
+    }
+    #[tokio::test]
+    async fn test_delete_group_not_found() {
+        let state = CognitoState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = DeleteGroupRequest::default();
+        let result = state.delete_group(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_get_group_not_found() {
+        let state = CognitoState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = GetGroupRequest::default();
+        let result = state.get_group(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_sign_up() {
+        let state = CognitoState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = SignUpRequest::default();
+        let _ = state.sign_up(req).await;
+    }
+
+    fn make_state() -> CognitoState {
+        CognitoState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    async fn create_pool(state: &CognitoState) -> String {
+        let req = CreateUserPoolRequest {
+            pool_name: "test-pool".to_string(),
+            ..Default::default()
+        };
+        let resp = state.create_user_pool(req).await.unwrap();
+        resp.user_pool.id
+    }
+
+    #[tokio::test]
+    async fn test_create_user_pool_success() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        assert!(!pool_id.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_describe_user_pool_success() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        let req = DescribeUserPoolRequest { user_pool_id: pool_id.clone() };
+        let result = state.describe_user_pool(req).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().user_pool.name, "test-pool");
+    }
+
+    #[tokio::test]
+    async fn test_describe_user_pool_not_found() {
+        let state = make_state();
+        let req = DescribeUserPoolRequest { user_pool_id: "nonexistent".to_string() };
+        assert!(state.describe_user_pool(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_user_pools() {
+        let state = make_state();
+        create_pool(&state).await;
+        let req = ListUserPoolsRequest::default();
+        let result = state.list_user_pools(req).await.unwrap();
+        assert_eq!(result.user_pools.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_user_pool_success() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        let req = DeleteUserPoolRequest { user_pool_id: pool_id };
+        assert!(state.delete_user_pool(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_user_pool_success() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        let req = UpdateUserPoolRequest {
+            user_pool_id: pool_id,
+            auto_verified_attributes: Some(vec!["email".to_string()]),
+            ..Default::default()
+        };
+        assert!(state.update_user_pool(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_admin_create_user() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        let req = AdminCreateUserRequest {
+            user_pool_id: pool_id.clone(),
+            username: "testuser".to_string(),
+            ..Default::default()
+        };
+        let result = state.admin_create_user(req).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().user.username, "testuser");
+    }
+
+    #[tokio::test]
+    async fn test_admin_get_user() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        state.admin_create_user(AdminCreateUserRequest {
+            user_pool_id: pool_id.clone(),
+            username: "u1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = AdminGetUserRequest { user_pool_id: pool_id, username: "u1".to_string() };
+        let result = state.admin_get_user(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_admin_get_user_not_found() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        let req = AdminGetUserRequest { user_pool_id: pool_id, username: "nope".to_string() };
+        assert!(state.admin_get_user(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_admin_delete_user() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        state.admin_create_user(AdminCreateUserRequest {
+            user_pool_id: pool_id.clone(),
+            username: "u1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = AdminDeleteUserRequest { user_pool_id: pool_id, username: "u1".to_string() };
+        assert!(state.admin_delete_user(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_admin_enable_disable_user() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        state.admin_create_user(AdminCreateUserRequest {
+            user_pool_id: pool_id.clone(),
+            username: "u1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(state.admin_disable_user(AdminDisableUserRequest { user_pool_id: pool_id.clone(), username: "u1".to_string() }).await.is_ok());
+        assert!(state.admin_enable_user(AdminEnableUserRequest { user_pool_id: pool_id, username: "u1".to_string() }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_admin_set_user_password() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        state.admin_create_user(AdminCreateUserRequest {
+            user_pool_id: pool_id.clone(),
+            username: "u1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = AdminSetUserPasswordRequest {
+            user_pool_id: pool_id,
+            username: "u1".to_string(),
+            password: "newpass".to_string(),
+            permanent: true,
+        };
+        assert!(state.admin_set_user_password(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_users() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        state.admin_create_user(AdminCreateUserRequest {
+            user_pool_id: pool_id.clone(),
+            username: "u1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = ListUsersRequest { user_pool_id: pool_id, ..Default::default() };
+        let result = state.list_users(req).await.unwrap();
+        assert_eq!(result.users.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_create_and_describe_group() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        let req = CreateGroupRequest {
+            user_pool_id: pool_id.clone(),
+            group_name: "admins".to_string(),
+            ..Default::default()
+        };
+        assert!(state.create_group(req).await.is_ok());
+
+        let req = GetGroupRequest { user_pool_id: pool_id, group_name: "admins".to_string() };
+        let result = state.get_group(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_groups() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        state.create_group(CreateGroupRequest {
+            user_pool_id: pool_id.clone(),
+            group_name: "g1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = ListGroupsRequest { user_pool_id: pool_id, ..Default::default() };
+        let result = state.list_groups(req).await.unwrap();
+        assert_eq!(result.groups.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_create_user_pool_client() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        let req = CreateUserPoolClientRequest {
+            user_pool_id: pool_id,
+            client_name: "my-app".to_string(),
+            ..Default::default()
+        };
+        let result = state.create_user_pool_client(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_user_pool_clients() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        state.create_user_pool_client(CreateUserPoolClientRequest {
+            user_pool_id: pool_id.clone(),
+            client_name: "app".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = ListUserPoolClientsRequest { user_pool_id: pool_id, ..Default::default() };
+        let result = state.list_user_pool_clients(req).await.unwrap();
+        assert_eq!(result.user_pool_clients.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_admin_add_remove_user_to_group() {
+        let state = make_state();
+        let pool_id = create_pool(&state).await;
+        state.admin_create_user(AdminCreateUserRequest {
+            user_pool_id: pool_id.clone(),
+            username: "u1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        state.create_group(CreateGroupRequest {
+            user_pool_id: pool_id.clone(),
+            group_name: "g1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(state.admin_add_user_to_group(AdminAddUserToGroupRequest {
+            user_pool_id: pool_id.clone(),
+            username: "u1".to_string(),
+            group_name: "g1".to_string(),
+        }).await.is_ok());
+        let groups = state.admin_list_groups_for_user(AdminListGroupsForUserRequest {
+            user_pool_id: pool_id.clone(),
+            username: "u1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(groups.groups.len(), 1);
+        assert!(state.admin_remove_user_from_group(AdminRemoveUserFromGroupRequest {
+            user_pool_id: pool_id.clone(),
+            username: "u1".to_string(),
+            group_name: "g1".to_string(),
+        }).await.is_ok());
+    }
+}

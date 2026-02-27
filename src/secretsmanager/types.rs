@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateSecretRequest {
     #[serde(rename = "Name")]
     pub name: String,
@@ -27,7 +27,7 @@ pub struct CreateSecretResponse {
     pub version_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GetSecretValueRequest {
     #[serde(rename = "SecretId")]
     pub secret_id: String,
@@ -57,7 +57,7 @@ pub struct GetSecretValueResponse {
     pub created_date: f64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutSecretValueRequest {
     #[serde(rename = "SecretId")]
     pub secret_id: String,
@@ -83,7 +83,7 @@ pub struct PutSecretValueResponse {
     pub version_stages: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeSecretRequest {
     #[serde(rename = "SecretId")]
     pub secret_id: String,
@@ -113,7 +113,7 @@ pub struct DescribeSecretResponse {
     pub version_ids_to_stages: HashMap<String, Vec<String>>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListSecretsRequest {
 }
 
@@ -143,7 +143,7 @@ pub struct SecretListEntry {
     pub tags: Vec<Tag>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UpdateSecretRequest {
     #[serde(rename = "SecretId")]
     pub secret_id: String,
@@ -167,7 +167,7 @@ pub struct UpdateSecretResponse {
     pub version_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteSecretRequest {
     #[serde(rename = "SecretId")]
     pub secret_id: String,
@@ -187,7 +187,7 @@ pub struct DeleteSecretResponse {
     pub deletion_date: f64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct RestoreSecretRequest {
     #[serde(rename = "SecretId")]
     pub secret_id: String,
@@ -201,7 +201,7 @@ pub struct RestoreSecretResponse {
     pub name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct TagResourceRequest {
     #[serde(rename = "SecretId")]
     pub secret_id: String,
@@ -209,7 +209,7 @@ pub struct TagResourceRequest {
     pub tags: Vec<Tag>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UntagResourceRequest {
     #[serde(rename = "SecretId")]
     pub secret_id: String,
@@ -217,7 +217,7 @@ pub struct UntagResourceRequest {
     pub tag_keys: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListSecretVersionIdsRequest {
     #[serde(rename = "SecretId")]
     pub secret_id: String,

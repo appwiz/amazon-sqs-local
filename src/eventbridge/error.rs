@@ -43,3 +43,45 @@ impl IntoResponse for EventBridgeError {
         (self.status_code(), axum::Json(body)).into_response()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resourcenotfoundexception_error_code() {
+        let err = EventBridgeError::ResourceNotFoundException("test".to_string());
+        assert_eq!(err.error_code(), "ResourceNotFoundException");
+    }
+    #[test]
+    fn test_resourcealreadyexistsexception_error_code() {
+        let err = EventBridgeError::ResourceAlreadyExistsException("test".to_string());
+        assert_eq!(err.error_code(), "ResourceAlreadyExistsException");
+    }
+    #[test]
+    fn test_invalidaction_error_code() {
+        let err = EventBridgeError::InvalidAction("test".to_string());
+        assert_eq!(err.error_code(), "InvalidAction");
+    }
+    #[test]
+    fn test_message() {
+        let err = EventBridgeError::ResourceNotFoundException("hello".to_string());
+        assert_eq!(err.message(), "hello");
+    }
+    #[test]
+    fn test_resourcenotfoundexception_status() {
+        let err = EventBridgeError::ResourceNotFoundException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::NOT_FOUND);
+    }
+    #[test]
+    fn test_resourcealreadyexistsexception_status() {
+        let err = EventBridgeError::ResourceAlreadyExistsException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = EventBridgeError::ResourceNotFoundException("test".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error() || resp.status().is_server_error());
+    }
+}

@@ -24,7 +24,7 @@ pub struct BatchResultErrorEntry {
 
 // --- CreateQueue ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateQueueRequest {
     pub queue_name: String,
@@ -42,7 +42,7 @@ pub struct CreateQueueResponse {
 
 // --- DeleteQueue ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteQueueRequest {
     pub queue_url: String,
@@ -50,7 +50,7 @@ pub struct DeleteQueueRequest {
 
 // --- GetQueueUrl ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct GetQueueUrlRequest {
     pub queue_name: String,
@@ -88,7 +88,7 @@ pub struct ListQueuesResponse {
 
 // --- GetQueueAttributes ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct GetQueueAttributesRequest {
     pub queue_url: String,
@@ -104,7 +104,7 @@ pub struct GetQueueAttributesResponse {
 
 // --- SetQueueAttributes ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct SetQueueAttributesRequest {
     pub queue_url: String,
@@ -113,7 +113,7 @@ pub struct SetQueueAttributesRequest {
 
 // --- PurgeQueue ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct PurgeQueueRequest {
     pub queue_url: String,
@@ -121,7 +121,7 @@ pub struct PurgeQueueRequest {
 
 // --- SendMessage ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct SendMessageRequest {
     pub queue_url: String,
@@ -157,7 +157,7 @@ pub struct SendMessageResponse {
 
 // --- SendMessageBatch ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct SendMessageBatchRequest {
     pub queue_url: String,
@@ -208,7 +208,7 @@ pub struct SendMessageBatchResultEntry {
 
 // --- ReceiveMessage ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ReceiveMessageRequest {
     pub queue_url: String,
@@ -253,7 +253,7 @@ pub struct ReceiveMessageResult {
 
 // --- DeleteMessage ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteMessageRequest {
     pub queue_url: String,
@@ -262,7 +262,7 @@ pub struct DeleteMessageRequest {
 
 // --- DeleteMessageBatch ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteMessageBatchRequest {
     pub queue_url: String,
@@ -291,7 +291,7 @@ pub struct DeleteMessageBatchResultEntry {
 
 // --- ChangeMessageVisibility ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ChangeMessageVisibilityRequest {
     pub queue_url: String,
@@ -301,7 +301,7 @@ pub struct ChangeMessageVisibilityRequest {
 
 // --- ChangeMessageVisibilityBatch ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ChangeMessageVisibilityBatchRequest {
     pub queue_url: String,
@@ -331,7 +331,7 @@ pub struct ChangeMessageVisibilityBatchResultEntry {
 
 // --- TagQueue ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct TagQueueRequest {
     pub queue_url: String,
@@ -340,7 +340,7 @@ pub struct TagQueueRequest {
 
 // --- UntagQueue ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UntagQueueRequest {
     pub queue_url: String,
@@ -349,7 +349,7 @@ pub struct UntagQueueRequest {
 
 // --- ListQueueTags ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ListQueueTagsRequest {
     pub queue_url: String,
@@ -364,7 +364,7 @@ pub struct ListQueueTagsResponse {
 
 // --- AddPermission ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AddPermissionRequest {
     pub queue_url: String,
@@ -376,7 +376,7 @@ pub struct AddPermissionRequest {
 
 // --- RemovePermission ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct RemovePermissionRequest {
     pub queue_url: String,
@@ -385,7 +385,7 @@ pub struct RemovePermissionRequest {
 
 // --- ListDeadLetterSourceQueues ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ListDeadLetterSourceQueuesRequest {
     pub queue_url: String,
@@ -405,7 +405,7 @@ pub struct ListDeadLetterSourceQueuesResponse {
 
 // --- StartMessageMoveTask ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct StartMessageMoveTaskRequest {
     pub source_arn: String,
@@ -423,7 +423,7 @@ pub struct StartMessageMoveTaskResponse {
 
 // --- CancelMessageMoveTask ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CancelMessageMoveTaskRequest {
     pub task_handle: String,
@@ -437,7 +437,7 @@ pub struct CancelMessageMoveTaskResponse {
 
 // --- ListMessageMoveTasks ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ListMessageMoveTasksRequest {
     pub source_arn: String,

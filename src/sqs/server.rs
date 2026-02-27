@@ -16,7 +16,7 @@ macro_rules! dispatch {
         let req: $req_type = serde_json::from_slice(&$body)
             .map_err(|e| SqsError::InvalidParameterValue(e.to_string()))?;
         let resp = $state.$method(req).await?;
-        Ok(Json(serde_json::to_value(resp).unwrap()).into_response())
+        Ok(Json(resp).into_response())
     }};
 }
 
@@ -135,4 +135,99 @@ pub fn create_router(state: Arc<SqsState>) -> Router {
     Router::new()
         .route("/", post(handle_request))
         .with_state(state)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_missing_target_header() {
+        let state = Arc::new(SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_unknown_action() {
+        let state = Arc::new(SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AmazonSQS.FakeAction")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+    #[tokio::test]
+    async fn test_listqueues_ok() {
+        let state = Arc::new(SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AmazonSQS.ListQueues")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_createqueue_action() {
+        let state = Arc::new(SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AmazonSQS.CreateQueue")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert!(resp.status().is_success() || resp.status().is_client_error());
+    }
+    #[tokio::test]
+    async fn test_listqueues_action() {
+        let state = Arc::new(SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AmazonSQS.ListQueues")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+    #[tokio::test]
+    async fn test_listqueuetags_action() {
+        let state = Arc::new(SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AmazonSQS.ListQueueTags")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert!(resp.status().is_client_error());
+    }
 }

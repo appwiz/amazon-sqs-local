@@ -143,7 +143,7 @@ pub struct RecordDetail {
 
 // --- CreatePortfolio ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreatePortfolioRequest {
     #[serde(rename = "DisplayName")]
     pub display_name: String,
@@ -165,7 +165,7 @@ pub struct CreatePortfolioResponse {
 
 // --- DeletePortfolio ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeletePortfolioRequest {
     #[serde(rename = "Id")]
     pub id: String,
@@ -173,7 +173,7 @@ pub struct DeletePortfolioRequest {
 
 // --- DescribePortfolio ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribePortfolioRequest {
     #[serde(rename = "Id")]
     pub id: String,
@@ -193,7 +193,7 @@ pub struct DescribePortfolioResponse {
 
 // --- ListPortfolios ---
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListPortfoliosRequest {
     #[serde(rename = "PageSize")]
     #[serde(default)]
@@ -211,7 +211,7 @@ pub struct ListPortfoliosResponse {
 
 // --- UpdatePortfolio ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UpdatePortfolioRequest {
     #[serde(rename = "Id")]
     pub id: String,
@@ -237,7 +237,7 @@ pub struct UpdatePortfolioResponse {
 
 // --- CreateProduct ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct ProvisioningArtifactParameters {
     #[serde(rename = "Name")]
     pub name: Option<String>,
@@ -247,7 +247,7 @@ pub struct ProvisioningArtifactParameters {
     pub artifact_type: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateProductRequest {
     #[serde(rename = "Name")]
     pub name: String,
@@ -283,7 +283,7 @@ pub struct CreateProductResponse {
 
 // --- DeleteProduct ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteProductRequest {
     #[serde(rename = "Id")]
     pub id: String,
@@ -291,7 +291,7 @@ pub struct DeleteProductRequest {
 
 // --- DescribeProduct ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeProductRequest {
     #[serde(rename = "Id")]
     pub id: Option<String>,
@@ -313,7 +313,7 @@ pub struct DescribeProductResponse {
 
 // --- UpdateProduct ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UpdateProductRequest {
     #[serde(rename = "Id")]
     pub id: String,
@@ -347,7 +347,7 @@ pub struct UpdateProductResponse {
 
 // --- SearchProducts ---
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct SearchProductsRequest {
     #[serde(rename = "Filters")]
     #[serde(default)]
@@ -368,7 +368,7 @@ pub struct SearchProductsResponse {
 
 // --- AssociateProductWithPortfolio ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct AssociateProductWithPortfolioRequest {
     #[serde(rename = "ProductId")]
     pub product_id: String,
@@ -378,7 +378,7 @@ pub struct AssociateProductWithPortfolioRequest {
 
 // --- DisassociateProductFromPortfolio ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DisassociateProductFromPortfolioRequest {
     #[serde(rename = "ProductId")]
     pub product_id: String,
@@ -388,7 +388,7 @@ pub struct DisassociateProductFromPortfolioRequest {
 
 // --- ProvisionProduct ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ProvisionProductRequest {
     #[serde(rename = "ProvisionedProductName")]
     pub provisioned_product_name: String,
@@ -408,7 +408,7 @@ pub struct ProvisionProductResponse {
 
 // --- DescribeProvisionedProduct ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeProvisionedProductRequest {
     #[serde(rename = "Id")]
     pub id: Option<String>,
@@ -426,7 +426,7 @@ pub struct DescribeProvisionedProductResponse {
 
 // --- SearchProvisionedProducts ---
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct SearchProvisionedProductsRequest {
     #[serde(rename = "PageSize")]
     #[serde(default)]
@@ -446,7 +446,7 @@ pub struct SearchProvisionedProductsResponse {
 
 // --- TerminateProvisionedProduct ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct TerminateProvisionedProductRequest {
     #[serde(rename = "ProvisionedProductId")]
     pub provisioned_product_id: Option<String>,

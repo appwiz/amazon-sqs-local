@@ -1019,3 +1019,564 @@ impl ErrorMessage for SqsError {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100);
+    }
+    #[tokio::test]
+    async fn test_delete_queue_not_found() {
+        let state = SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100);
+        let req = DeleteQueueRequest::default();
+        let result = state.delete_queue(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_purge_queue() {
+        let state = SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100);
+        let req = PurgeQueueRequest::default();
+        let _ = state.purge_queue(req).await;
+    }
+    #[tokio::test]
+    async fn test_delete_message_not_found() {
+        let state = SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100);
+        let req = DeleteMessageRequest::default();
+        let result = state.delete_message(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_tag_queue() {
+        let state = SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100);
+        let req = TagQueueRequest::default();
+        let _ = state.tag_queue(req).await;
+    }
+    #[tokio::test]
+    async fn test_untag_queue() {
+        let state = SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100);
+        let req = UntagQueueRequest::default();
+        let _ = state.untag_queue(req).await;
+    }
+    #[tokio::test]
+    async fn test_add_permission() {
+        let state = SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100);
+        let req = AddPermissionRequest::default();
+        let _ = state.add_permission(req).await;
+    }
+    #[tokio::test]
+    async fn test_remove_permission() {
+        let state = SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100);
+        let req = RemovePermissionRequest::default();
+        let _ = state.remove_permission(req).await;
+    }
+
+    fn make_state() -> SqsState {
+        SqsState::new("123456789012".to_string(), "us-east-1".to_string(), 4100)
+    }
+
+    async fn create_queue(state: &SqsState, name: &str) -> String {
+        let req = CreateQueueRequest {
+            queue_name: name.to_string(),
+            ..Default::default()
+        };
+        state.create_queue(req).await.unwrap().queue_url
+    }
+
+    #[tokio::test]
+    async fn test_create_queue_success() {
+        let state = make_state();
+        let url = create_queue(&state, "my-queue").await;
+        assert!(url.contains("my-queue"));
+    }
+
+    #[tokio::test]
+    async fn test_create_queue_duplicate() {
+        let state = make_state();
+        create_queue(&state, "dup").await;
+        // Creating same queue again should succeed (idempotent)
+        let result = state.create_queue(CreateQueueRequest { queue_name: "dup".to_string(), ..Default::default() }).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_queue_success() {
+        let state = make_state();
+        let url = create_queue(&state, "del-q").await;
+        let req = DeleteQueueRequest { queue_url: url };
+        assert!(state.delete_queue(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_queue_url_success() {
+        let state = make_state();
+        create_queue(&state, "findme").await;
+        let req = GetQueueUrlRequest { queue_name: "findme".to_string(), ..Default::default() };
+        let result = state.get_queue_url(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_queue_url_not_found() {
+        let state = make_state();
+        let req = GetQueueUrlRequest { queue_name: "nope".to_string(), ..Default::default() };
+        assert!(state.get_queue_url(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_queues() {
+        let state = make_state();
+        create_queue(&state, "q1").await;
+        create_queue(&state, "q2").await;
+        let req = ListQueuesRequest::default();
+        let result = state.list_queues(req).await.unwrap();
+        assert_eq!(result.queue_urls.unwrap_or_default().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_send_and_receive_message() {
+        let state = make_state();
+        let url = create_queue(&state, "msg-q").await;
+        let send_req = SendMessageRequest {
+            queue_url: url.clone(),
+            message_body: "hello".to_string(),
+            ..Default::default()
+        };
+        let send_result = state.send_message(send_req).await;
+        assert!(send_result.is_ok());
+
+        let recv_req = ReceiveMessageRequest {
+            queue_url: url,
+            max_number_of_messages: Some(10),
+            ..Default::default()
+        };
+        let recv_result = state.receive_message(recv_req).await.unwrap();
+        assert_eq!(recv_result.messages.unwrap_or_default().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_send_message_queue_not_found() {
+        let state = make_state();
+        let req = SendMessageRequest {
+            queue_url: "http://bad-url".to_string(),
+            message_body: "test".to_string(),
+            ..Default::default()
+        };
+        assert!(state.send_message(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_queue_attributes() {
+        let state = make_state();
+        let url = create_queue(&state, "attr-q").await;
+        let req = GetQueueAttributesRequest {
+            queue_url: url,
+            attribute_names: Some(vec!["All".to_string()]),
+        };
+        let result = state.get_queue_attributes(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_set_queue_attributes() {
+        let state = make_state();
+        let url = create_queue(&state, "set-q").await;
+        let mut attributes = std::collections::HashMap::new();
+        attributes.insert("VisibilityTimeout".to_string(), "60".to_string());
+        let req = SetQueueAttributesRequest { queue_url: url, attributes };
+        assert!(state.set_queue_attributes(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_purge_queue_success() {
+        let state = make_state();
+        let url = create_queue(&state, "purge-q").await;
+        state.send_message(SendMessageRequest {
+            queue_url: url.clone(),
+            message_body: "msg".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(state.purge_queue(PurgeQueueRequest { queue_url: url }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_tag_and_list_queue_tags() {
+        let state = make_state();
+        let url = create_queue(&state, "tag-q").await;
+        let mut tags = std::collections::HashMap::new();
+        tags.insert("env".to_string(), "test".to_string());
+        state.tag_queue(TagQueueRequest { queue_url: url.clone(), tags }).await.unwrap();
+        let result = state.list_queue_tags(ListQueueTagsRequest { queue_url: url.clone() }).await.unwrap();
+        assert!(result.tags.is_some());
+        state.untag_queue(UntagQueueRequest { queue_url: url, tag_keys: vec!["env".to_string()] }).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_send_message_batch() {
+        let state = make_state();
+        let url = create_queue(&state, "batch-q").await;
+        let req = SendMessageBatchRequest {
+            queue_url: url,
+            entries: vec![
+                SendMessageBatchEntry {
+                    id: "1".to_string(),
+                    message_body: "msg1".to_string(),
+                    delay_seconds: None,
+                    message_attributes: None,
+                    message_system_attributes: None,
+                    message_deduplication_id: None,
+                    message_group_id: None,
+                },
+                SendMessageBatchEntry {
+                    id: "2".to_string(),
+                    message_body: "msg2".to_string(),
+                    delay_seconds: None,
+                    message_attributes: None,
+                    message_system_attributes: None,
+                    message_deduplication_id: None,
+                    message_group_id: None,
+                },
+            ],
+        };
+        let result = state.send_message_batch(req).await;
+        assert!(result.is_ok());
+    }
+
+    // --- Comprehensive additional tests ---
+
+    #[tokio::test]
+    async fn test_receive_message_empty_queue() {
+        let state = make_state();
+        let url = create_queue(&state, "empty-q").await;
+        let result = state.receive_message(ReceiveMessageRequest {
+            queue_url: url,
+            max_number_of_messages: Some(10),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(result.messages.is_none() || result.messages.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_receive_message_queue_not_found() {
+        let state = make_state();
+        let result = state.receive_message(ReceiveMessageRequest {
+            queue_url: "http://localhost:4100/123456789012/nope".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_send_receive_delete_message_lifecycle() {
+        let state = make_state();
+        let url = create_queue(&state, "lifecycle-q").await;
+
+        // Send
+        state.send_message(SendMessageRequest {
+            queue_url: url.clone(),
+            message_body: "test-body".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+
+        // Receive
+        let recv = state.receive_message(ReceiveMessageRequest {
+            queue_url: url.clone(),
+            max_number_of_messages: Some(1),
+            visibility_timeout: Some(0),
+            ..Default::default()
+        }).await.unwrap();
+        let msgs = recv.messages.unwrap();
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0].body, "test-body");
+
+        // Delete
+        let receipt = msgs[0].receipt_handle.clone();
+        let del_result = state.delete_message(DeleteMessageRequest {
+            queue_url: url.clone(),
+            receipt_handle: receipt,
+        }).await;
+        assert!(del_result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_change_message_visibility() {
+        let state = make_state();
+        let url = create_queue(&state, "vis-q").await;
+        state.send_message(SendMessageRequest {
+            queue_url: url.clone(),
+            message_body: "msg".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+
+        let recv = state.receive_message(ReceiveMessageRequest {
+            queue_url: url.clone(),
+            max_number_of_messages: Some(1),
+            ..Default::default()
+        }).await.unwrap();
+        let receipt = recv.messages.unwrap()[0].receipt_handle.clone();
+
+        let result = state.change_message_visibility(ChangeMessageVisibilityRequest {
+            queue_url: url,
+            receipt_handle: receipt,
+            visibility_timeout: 300,
+        }).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_change_message_visibility_queue_not_found() {
+        let state = make_state();
+        let result = state.change_message_visibility(ChangeMessageVisibilityRequest {
+            queue_url: "http://localhost:4100/123456789012/nope".to_string(),
+            receipt_handle: "bad-handle".to_string(),
+            visibility_timeout: 60,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_queue_attributes_not_found() {
+        let state = make_state();
+        let result = state.get_queue_attributes(GetQueueAttributesRequest {
+            queue_url: "http://localhost:4100/123456789012/nope".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_queue_attributes_not_found() {
+        let state = make_state();
+        let result = state.set_queue_attributes(SetQueueAttributesRequest {
+            queue_url: "http://localhost:4100/123456789012/nope".to_string(),
+            attributes: HashMap::new(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_purge_queue_not_found() {
+        let state = make_state();
+        let result = state.purge_queue(PurgeQueueRequest {
+            queue_url: "http://localhost:4100/123456789012/nope".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_add_and_remove_permission() {
+        let state = make_state();
+        let url = create_queue(&state, "perm-q").await;
+
+        let result = state.add_permission(AddPermissionRequest {
+            queue_url: url.clone(),
+            label: "my-label".to_string(),
+            aws_account_ids: vec!["111111111111".to_string()],
+            actions: vec!["SendMessage".to_string()],
+        }).await;
+        assert!(result.is_ok());
+
+        // Duplicate label should fail
+        let dup = state.add_permission(AddPermissionRequest {
+            queue_url: url.clone(),
+            label: "my-label".to_string(),
+            aws_account_ids: vec!["222222222222".to_string()],
+            actions: vec!["ReceiveMessage".to_string()],
+        }).await;
+        assert!(dup.is_err());
+
+        // Remove
+        let rem = state.remove_permission(RemovePermissionRequest {
+            queue_url: url.clone(),
+            label: "my-label".to_string(),
+        }).await;
+        assert!(rem.is_ok());
+
+        // Remove non-existent
+        let rem2 = state.remove_permission(RemovePermissionRequest {
+            queue_url: url,
+            label: "nope".to_string(),
+        }).await;
+        assert!(rem2.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_queue_tags_empty() {
+        let state = make_state();
+        let url = create_queue(&state, "notags-q").await;
+        let result = state.list_queue_tags(ListQueueTagsRequest { queue_url: url }).await.unwrap();
+        assert!(result.tags.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_list_queue_tags_not_found() {
+        let state = make_state();
+        let result = state.list_queue_tags(ListQueueTagsRequest {
+            queue_url: "http://localhost:4100/123456789012/nope".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_queues_with_prefix() {
+        let state = make_state();
+        create_queue(&state, "prod-queue1").await;
+        create_queue(&state, "prod-queue2").await;
+        create_queue(&state, "dev-queue").await;
+        let result = state.list_queues(ListQueuesRequest {
+            queue_name_prefix: Some("prod".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.queue_urls.unwrap_or_default().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_delete_message_batch() {
+        let state = make_state();
+        let url = create_queue(&state, "delbatch-q").await;
+        state.send_message(SendMessageRequest {
+            queue_url: url.clone(),
+            message_body: "msg1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        state.send_message(SendMessageRequest {
+            queue_url: url.clone(),
+            message_body: "msg2".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+
+        let recv = state.receive_message(ReceiveMessageRequest {
+            queue_url: url.clone(),
+            max_number_of_messages: Some(10),
+            visibility_timeout: Some(0),
+            ..Default::default()
+        }).await.unwrap();
+        let msgs = recv.messages.unwrap();
+        assert_eq!(msgs.len(), 2);
+
+        let result = state.delete_message_batch(DeleteMessageBatchRequest {
+            queue_url: url,
+            entries: vec![
+                DeleteMessageBatchEntry { id: "1".to_string(), receipt_handle: msgs[0].receipt_handle.clone() },
+                DeleteMessageBatchEntry { id: "2".to_string(), receipt_handle: msgs[1].receipt_handle.clone() },
+            ],
+        }).await.unwrap();
+        assert_eq!(result.successful.len(), 2);
+        assert!(result.failed.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_change_message_visibility_batch() {
+        let state = make_state();
+        let url = create_queue(&state, "visbatch-q").await;
+        state.send_message(SendMessageRequest {
+            queue_url: url.clone(),
+            message_body: "msg".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+
+        let recv = state.receive_message(ReceiveMessageRequest {
+            queue_url: url.clone(),
+            max_number_of_messages: Some(1),
+            ..Default::default()
+        }).await.unwrap();
+        let receipt = recv.messages.unwrap()[0].receipt_handle.clone();
+
+        let result = state.change_message_visibility_batch(ChangeMessageVisibilityBatchRequest {
+            queue_url: url,
+            entries: vec![ChangeMessageVisibilityBatchEntry {
+                id: "1".to_string(),
+                receipt_handle: receipt,
+                visibility_timeout: 120,
+            }],
+        }).await.unwrap();
+        assert_eq!(result.successful.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_send_message_with_attributes() {
+        let state = make_state();
+        let url = create_queue(&state, "attrs-q").await;
+        let mut msg_attrs = HashMap::new();
+        msg_attrs.insert("myattr".to_string(), MessageAttributeValue {
+            data_type: "String".to_string(),
+            string_value: Some("myval".to_string()),
+            binary_value: None,
+        });
+        let result = state.send_message(SendMessageRequest {
+            queue_url: url,
+            message_body: "body".to_string(),
+            message_attributes: Some(msg_attrs),
+            ..Default::default()
+        }).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_set_queue_attributes_visibility_timeout() {
+        let state = make_state();
+        let url = create_queue(&state, "setattr-q").await;
+        let mut attrs = HashMap::new();
+        attrs.insert("VisibilityTimeout".to_string(), "120".to_string());
+        state.set_queue_attributes(SetQueueAttributesRequest {
+            queue_url: url.clone(),
+            attributes: attrs,
+        }).await.unwrap();
+
+        let result = state.get_queue_attributes(GetQueueAttributesRequest {
+            queue_url: url,
+            attribute_names: Some(vec!["VisibilityTimeout".to_string()]),
+        }).await.unwrap();
+        assert_eq!(result.attributes.get("VisibilityTimeout").unwrap(), "120");
+    }
+
+    #[tokio::test]
+    async fn test_create_fifo_queue() {
+        let state = make_state();
+        let mut attrs = HashMap::new();
+        attrs.insert("FifoQueue".to_string(), "true".to_string());
+        let req = CreateQueueRequest {
+            queue_name: "my-queue.fifo".to_string(),
+            attributes: Some(attrs),
+            ..Default::default()
+        };
+        let result = state.create_queue(req).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().queue_url.contains("my-queue.fifo"));
+    }
+
+    #[tokio::test]
+    async fn test_list_dead_letter_source_queues() {
+        let state = make_state();
+        let dlq_url = create_queue(&state, "my-dlq").await;
+        // Get the DLQ ARN
+        let dlq_attrs = state.get_queue_attributes(GetQueueAttributesRequest {
+            queue_url: dlq_url.clone(),
+            attribute_names: Some(vec!["QueueArn".to_string()]),
+        }).await.unwrap();
+        let dlq_arn = dlq_attrs.attributes.get("QueueArn").unwrap().clone();
+
+        // Create source queue with redrive policy
+        let redrive = serde_json::json!({
+            "deadLetterTargetArn": dlq_arn,
+            "maxReceiveCount": 3
+        }).to_string();
+        let mut attrs = HashMap::new();
+        attrs.insert("RedrivePolicy".to_string(), redrive);
+        let src_req = CreateQueueRequest {
+            queue_name: "source-q".to_string(),
+            attributes: Some(attrs),
+            ..Default::default()
+        };
+        state.create_queue(src_req).await.unwrap();
+
+        let result = state.list_dead_letter_source_queues(ListDeadLetterSourceQueuesRequest {
+            queue_url: dlq_url,
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.queue_urls.len(), 1);
+    }
+}

@@ -818,3 +818,146 @@ fn stage_to_output(stage: &Stage) -> StageOutput {
         tags: stage.tags.clone(),
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = ApiGatewayState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_get_rest_apis() {
+        let state = ApiGatewayState::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.get_rest_apis().await;
+        assert!(result.is_ok());
+    }
+
+    fn make_state() -> ApiGatewayState {
+        ApiGatewayState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    async fn create_api(state: &ApiGatewayState) -> String {
+        let req = CreateRestApiRequest {
+            name: "test-api".to_string(),
+            ..Default::default()
+        };
+        state.create_rest_api(req).await.unwrap().id
+    }
+
+    #[tokio::test]
+    async fn test_create_rest_api() {
+        let state = make_state();
+        let id = create_api(&state).await;
+        assert!(!id.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_rest_api() {
+        let state = make_state();
+        let id = create_api(&state).await;
+        let result = state.get_rest_api(&id).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name, "test-api");
+    }
+
+    #[tokio::test]
+    async fn test_get_rest_api_not_found() {
+        let state = make_state();
+        assert!(state.get_rest_api("nope").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_rest_api() {
+        let state = make_state();
+        let id = create_api(&state).await;
+        assert!(state.delete_rest_api(&id).await.is_ok());
+        assert!(state.get_rest_api(&id).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_resources() {
+        let state = make_state();
+        let id = create_api(&state).await;
+        let result = state.get_resources(&id).await;
+        assert!(result.is_ok());
+        // Should have root resource
+        assert!(!result.unwrap().items.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_create_resource() {
+        let state = make_state();
+        let api_id = create_api(&state).await;
+        let resources = state.get_resources(&api_id).await.unwrap();
+        let root_id = &resources.items[0].id;
+        let req = CreateResourceRequest { path_part: "users".to_string() };
+        let result = state.create_resource(&api_id, root_id, req).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().path_part.unwrap(), "users");
+    }
+
+    #[tokio::test]
+    async fn test_put_method() {
+        let state = make_state();
+        let api_id = create_api(&state).await;
+        let resources = state.get_resources(&api_id).await.unwrap();
+        let root_id = &resources.items[0].id;
+        let req = PutMethodRequest { authorization_type: "NONE".to_string(), ..Default::default() };
+        let result = state.put_method(&api_id, root_id, "GET", req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_put_integration() {
+        let state = make_state();
+        let api_id = create_api(&state).await;
+        let resources = state.get_resources(&api_id).await.unwrap();
+        let root_id = resources.items[0].id.clone();
+        let method_req = PutMethodRequest { authorization_type: "NONE".to_string(), ..Default::default() };
+        state.put_method(&api_id, &root_id, "GET", method_req).await.unwrap();
+        let int_req = PutIntegrationRequest { integration_type: "HTTP".to_string(), uri: Some("http://example.com".to_string()), ..Default::default() };
+        let result = state.put_integration(&api_id, &root_id, "GET", int_req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_deployment_and_stage() {
+        let state = make_state();
+        let api_id = create_api(&state).await;
+        let dep_req = CreateDeploymentRequest { description: Some("test deploy".to_string()), ..Default::default() };
+        let dep = state.create_deployment(&api_id, dep_req).await;
+        assert!(dep.is_ok());
+        let dep_id = dep.unwrap().id;
+        let stage_req = CreateStageRequest { stage_name: "prod".to_string(), deployment_id: dep_id.clone(), ..Default::default() };
+        let stage = state.create_stage(&api_id, stage_req).await;
+        assert!(stage.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_stages() {
+        let state = make_state();
+        let api_id = create_api(&state).await;
+        let dep_req = CreateDeploymentRequest::default();
+        let dep = state.create_deployment(&api_id, dep_req).await.unwrap();
+        let stage_req = CreateStageRequest { stage_name: "dev".to_string(), deployment_id: dep.id.clone(), ..Default::default() };
+        state.create_stage(&api_id, stage_req).await.unwrap();
+        let result = state.get_stages(&api_id).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().item.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_tag_resource() {
+        let state = make_state();
+        let api_id = create_api(&state).await;
+        let mut tags = std::collections::HashMap::new();
+        tags.insert("env".to_string(), "test".to_string());
+        let tag_req = TagResourceRequest { tags };
+        assert!(state.tag_resource(&api_id, tag_req).await.is_ok());
+        let result = state.get_tags(&api_id).await.unwrap();
+        assert_eq!(result.len(), 1);
+    }
+}

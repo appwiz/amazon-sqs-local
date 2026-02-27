@@ -178,7 +178,7 @@ pub struct AccessPointDescription {
 
 // --- Request types ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateFileSystemRequest {
     #[serde(rename = "CreationToken")]
     pub creation_token: String,
@@ -196,7 +196,7 @@ pub struct CreateFileSystemRequest {
     pub tags: Option<Vec<Tag>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UpdateFileSystemRequest {
     #[serde(rename = "ThroughputMode")]
     pub throughput_mode: Option<String>,
@@ -204,7 +204,7 @@ pub struct UpdateFileSystemRequest {
     pub provisioned_throughput_in_mibps: Option<f64>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateMountTargetRequest {
     #[serde(rename = "FileSystemId")]
     pub file_system_id: String,
@@ -216,7 +216,7 @@ pub struct CreateMountTargetRequest {
     pub _security_groups: Option<Vec<String>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateAccessPointRequest {
     #[serde(rename = "ClientToken")]
     pub client_token: String,
@@ -230,19 +230,19 @@ pub struct CreateAccessPointRequest {
     pub root_directory: Option<RootDirectory>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct TagResourceRequest {
     #[serde(rename = "Tags")]
     pub tags: Vec<Tag>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UntagResourceRequest {
     #[serde(rename = "TagKeys")]
     pub tag_keys: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutLifecycleConfigurationRequest {
     #[serde(rename = "LifecyclePolicies")]
     pub lifecycle_policies: Vec<LifecyclePolicy>,

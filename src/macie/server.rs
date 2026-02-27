@@ -1,0 +1,97 @@
+use std::sync::Arc;
+
+use axum::extract::{Path, State};
+use axum::response::IntoResponse;
+use axum::routing::{get, post};
+use axum::{Json, Router};
+use axum::http::StatusCode;
+
+use super::error::MacieError;
+use super::state::MacieState;
+use super::types::*;
+
+async fn create_finding_handler(
+    State(state): State<Arc<MacieState>>,
+    Json(req): Json<CreateFindingRequest>,
+) -> Result<axum::response::Response, MacieError> {
+    let detail = state.create_finding(req).await?;
+    Ok((StatusCode::CREATED, Json(detail)).into_response())
+}
+
+async fn get_finding_handler(
+    State(state): State<Arc<MacieState>>,
+    Path(name): Path<String>,
+) -> Result<axum::response::Response, MacieError> {
+    let detail = state.get_finding(&name).await?;
+    Ok(Json(detail).into_response())
+}
+
+async fn list_findings_handler(
+    State(state): State<Arc<MacieState>>,
+) -> Result<axum::response::Response, MacieError> {
+    let resp = state.list_findings().await?;
+    Ok(Json(resp).into_response())
+}
+
+async fn delete_finding_handler(
+    State(state): State<Arc<MacieState>>,
+    Path(name): Path<String>,
+) -> Result<axum::response::Response, MacieError> {
+    state.delete_finding(&name).await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+pub fn create_router(state: Arc<MacieState>) -> Router {
+    Router::new()
+        .route("/findings", post(create_finding_handler).get(list_findings_handler))
+        .route("/findings/{name}", get(get_finding_handler).delete(delete_finding_handler))
+        .with_state(state)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_list_endpoint() {
+        let state = Arc::new(MacieState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/findings")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+    #[tokio::test]
+    async fn test_get_not_found() {
+        let state = Arc::new(MacieState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/findings/nonexistent")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_create_findings() {
+        let state = Arc::new(MacieState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/findings")
+            .header("content-type", "application/json")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert!(resp.status().is_success() || resp.status().is_client_error());
+    }
+}

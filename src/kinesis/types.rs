@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateStreamRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: String,
@@ -16,7 +16,7 @@ pub struct StreamModeDetails {
     pub stream_mode: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteStreamRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,
@@ -24,7 +24,7 @@ pub struct DeleteStreamRequest {
     pub stream_arn: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeStreamRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,
@@ -87,7 +87,7 @@ pub struct SequenceNumberRange {
     pub ending_sequence_number: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeStreamSummaryRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,
@@ -121,7 +121,7 @@ pub struct StreamDescriptionSummary {
     pub enhanced_monitoring: Vec<serde_json::Value>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListStreamsRequest {
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
@@ -140,7 +140,7 @@ pub struct ListStreamsResponse {
     pub next_token: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutRecordRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,
@@ -162,7 +162,7 @@ pub struct PutRecordResponse {
     pub encryption_type: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutRecordsRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,
@@ -172,7 +172,7 @@ pub struct PutRecordsRequest {
     pub records: Vec<PutRecordsRequestEntry>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutRecordsRequestEntry {
     #[serde(rename = "Data")]
     pub data: String,
@@ -198,7 +198,7 @@ pub struct PutRecordsResultEntry {
     pub sequence_number: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GetShardIteratorRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,
@@ -218,7 +218,7 @@ pub struct GetShardIteratorResponse {
     pub shard_iterator: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GetRecordsRequest {
     #[serde(rename = "ShardIterator")]
     pub shard_iterator: String,
@@ -251,7 +251,7 @@ pub struct Record {
     pub encryption_type: String,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListShardsRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,
@@ -268,7 +268,7 @@ pub struct ListShardsResponse {
     pub next_token: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct AddTagsToStreamRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,
@@ -278,7 +278,7 @@ pub struct AddTagsToStreamRequest {
     pub tags: std::collections::HashMap<String, String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct RemoveTagsFromStreamRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,
@@ -288,7 +288,7 @@ pub struct RemoveTagsFromStreamRequest {
     pub tag_keys: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListTagsForStreamRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,
@@ -314,7 +314,7 @@ pub struct Tag {
     pub value: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct IncreaseStreamRetentionPeriodRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,
@@ -324,7 +324,7 @@ pub struct IncreaseStreamRetentionPeriodRequest {
     pub retention_period_hours: u32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DecreaseStreamRetentionPeriodRequest {
     #[serde(rename = "StreamName")]
     pub stream_name: Option<String>,

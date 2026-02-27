@@ -71,7 +71,7 @@ pub struct SchemaInfo {
 
 // --- Request types ---
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateGraphqlApiRequest {
     #[serde(rename = "name")]
     pub name: String,
@@ -85,7 +85,7 @@ pub struct CreateGraphqlApiRequest {
     pub api_type: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UpdateGraphqlApiRequest {
     #[serde(rename = "name")]
     pub name: String,
@@ -95,7 +95,7 @@ pub struct UpdateGraphqlApiRequest {
     pub xray_enabled: Option<bool>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateApiKeyRequest {
     #[serde(rename = "description")]
     pub description: Option<String>,
@@ -103,7 +103,7 @@ pub struct CreateApiKeyRequest {
     pub expires: Option<i64>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UpdateApiKeyRequest {
     #[serde(rename = "description")]
     pub description: Option<String>,
@@ -111,7 +111,7 @@ pub struct UpdateApiKeyRequest {
     pub expires: Option<i64>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateDataSourceRequest {
     #[serde(rename = "name")]
     pub name: String,
@@ -123,7 +123,7 @@ pub struct CreateDataSourceRequest {
     pub service_role_arn: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UpdateDataSourceRequest {
     #[serde(rename = "type")]
     pub ds_type: String,
@@ -133,13 +133,13 @@ pub struct UpdateDataSourceRequest {
     pub service_role_arn: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct StartSchemaCreationRequest {
     #[serde(rename = "definition")]
     pub _definition: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct TagResourceRequest {
     #[serde(rename = "tags")]
     pub tags: std::collections::HashMap<String, String>,

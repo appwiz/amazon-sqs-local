@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 // --- CreateFunction ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateFunctionRequest {
     pub function_name: String,
@@ -29,7 +29,7 @@ pub struct CreateFunctionRequest {
     pub architectures: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct FunctionCode {
     #[serde(default)]
@@ -97,7 +97,7 @@ pub struct ListFunctionsResponse {
 
 // --- UpdateFunctionCode ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UpdateFunctionCodeRequest {
     #[serde(default)]
@@ -106,7 +106,7 @@ pub struct UpdateFunctionCodeRequest {
 
 // --- UpdateFunctionConfiguration ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UpdateFunctionConfigurationRequest {
     #[serde(default)]
@@ -127,7 +127,7 @@ pub struct UpdateFunctionConfigurationRequest {
 
 // --- AddPermission ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AddPermissionRequest {
     pub statement_id: String,
@@ -152,7 +152,7 @@ pub struct GetPolicyResponse {
 
 // --- PublishVersion ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct PublishVersionRequest {
     #[serde(default)]
@@ -161,7 +161,7 @@ pub struct PublishVersionRequest {
 
 // --- CreateAlias ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateAliasRequest {
     pub name: String,
@@ -172,7 +172,7 @@ pub struct CreateAliasRequest {
     pub routing_config: Option<AliasRoutingConfigRequest>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AliasRoutingConfigRequest {
     #[serde(default)]
@@ -212,7 +212,7 @@ pub struct ListVersionsResponse {
 
 // --- EventSourceMapping ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateEventSourceMappingRequest {
     pub event_source_arn: String,
@@ -243,7 +243,7 @@ pub struct ListEventSourceMappingsResponse {
 
 // --- TagResource ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct TagResourceRequest {
     pub tags: HashMap<String, String>,

@@ -52,3 +52,70 @@ impl IntoResponse for SecretsManagerError {
         (self.status_code(), axum::Json(body)).into_response()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resourcenotfoundexception_error_code() {
+        let err = SecretsManagerError::ResourceNotFoundException("test".to_string());
+        assert_eq!(err.error_code(), "ResourceNotFoundException");
+    }
+    #[test]
+    fn test_resourceexistsexception_error_code() {
+        let err = SecretsManagerError::ResourceExistsException("test".to_string());
+        assert_eq!(err.error_code(), "ResourceExistsException");
+    }
+    #[test]
+    fn test_invalidparameterexception_error_code() {
+        let err = SecretsManagerError::InvalidParameterException("test".to_string());
+        assert_eq!(err.error_code(), "InvalidParameterException");
+    }
+    #[test]
+    fn test_invalidrequestexception_error_code() {
+        let err = SecretsManagerError::InvalidRequestException("test".to_string());
+        assert_eq!(err.error_code(), "InvalidRequestException");
+    }
+    #[test]
+    fn test_invalidaction_error_code() {
+        let err = SecretsManagerError::InvalidAction("test".to_string());
+        assert_eq!(err.error_code(), "InvalidAction");
+    }
+    #[test]
+    fn test_message() {
+        let err = SecretsManagerError::ResourceNotFoundException("hello world".to_string());
+        assert_eq!(err.message(), "hello world");
+    }
+    #[test]
+    fn test_resourcenotfoundexception_status() {
+        let err = SecretsManagerError::ResourceNotFoundException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_resourceexistsexception_status() {
+        let err = SecretsManagerError::ResourceExistsException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_invalidparameterexception_status() {
+        let err = SecretsManagerError::InvalidParameterException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_invalidrequestexception_status() {
+        let err = SecretsManagerError::InvalidRequestException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_invalidaction_status() {
+        let err = SecretsManagerError::InvalidAction("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = SecretsManagerError::ResourceNotFoundException("test error".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error());
+    }
+}

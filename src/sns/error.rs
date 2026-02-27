@@ -76,3 +76,60 @@ fn xml_escape(s: &str) -> String {
         .replace('"', "&quot;")
         .replace('\'', "&apos;")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_notfound_error_code() {
+        let err = SnsError::NotFound("test".to_string());
+        assert_eq!(err.error_code(), "NotFound");
+    }
+    #[test]
+    fn test_invalidparameter_error_code() {
+        let err = SnsError::InvalidParameter("test".to_string());
+        assert_eq!(err.error_code(), "InvalidParameter");
+    }
+    #[test]
+    fn test_taglimitexceeded_error_code() {
+        let err = SnsError::TagLimitExceeded("test".to_string());
+        assert_eq!(err.error_code(), "TagLimitExceeded");
+    }
+    #[test]
+    fn test_invalidaction_error_code() {
+        let err = SnsError::InvalidAction("test".to_string());
+        assert_eq!(err.error_code(), "InvalidAction");
+    }
+    #[test]
+    fn test_message() {
+        let err = SnsError::NotFound("hello world".to_string());
+        assert_eq!(err.message(), "hello world");
+    }
+    #[test]
+    fn test_notfound_status() {
+        let err = SnsError::NotFound("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::NOT_FOUND);
+    }
+    #[test]
+    fn test_invalidparameter_status() {
+        let err = SnsError::InvalidParameter("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_taglimitexceeded_status() {
+        let err = SnsError::TagLimitExceeded("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_invalidaction_status() {
+        let err = SnsError::InvalidAction("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = SnsError::NotFound("test error".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error());
+    }
+}

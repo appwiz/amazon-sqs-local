@@ -577,3 +577,419 @@ pub fn create_router(state: Arc<SnsState>) -> Router {
         .route("/", post(handle_request))
         .with_state(state)
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_missing_action() {
+        let state = Arc::new(SnsState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(Body::from(""))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_ne!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_unknown_action() {
+        let state = Arc::new(SnsState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(Body::from("Action=FakeAction"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_ne!(resp.status(), StatusCode::OK);
+    }
+
+    fn new_state() -> Arc<SnsState> {
+        Arc::new(SnsState::new("123456789012".to_string(), "us-east-1".to_string()))
+    }
+
+    fn sns_req(body: &str) -> Request<Body> {
+        Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(Body::from(body.to_string()))
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_create_topic() {
+        let app = create_router(new_state());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=test-topic")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("TopicArn"));
+        assert!(body_str.contains("test-topic"));
+    }
+
+    #[tokio::test]
+    async fn test_create_topic_missing_name() {
+        let app = create_router(new_state());
+        let resp = app.oneshot(sns_req("Action=CreateTopic")).await.unwrap();
+        assert_ne!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_list_topics() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        app.oneshot(sns_req("Action=CreateTopic&Name=topic1")).await.unwrap();
+
+        let app = create_router(state);
+        let resp = app.oneshot(sns_req("Action=ListTopics")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("topic1"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_topic() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=del-me")).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        // Extract ARN from response
+        let arn_start = body_str.find("<TopicArn>").unwrap() + 10;
+        let arn_end = body_str.find("</TopicArn>").unwrap();
+        let arn = &body_str[arn_start..arn_end];
+
+        let app = create_router(state);
+        let resp = app
+            .oneshot(sns_req(&format!("Action=DeleteTopic&TopicArn={}", arn)))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_get_topic_attributes() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=attr-topic")).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let arn_start = body_str.find("<TopicArn>").unwrap() + 10;
+        let arn_end = body_str.find("</TopicArn>").unwrap();
+        let arn = &body_str[arn_start..arn_end];
+
+        let app = create_router(state);
+        let resp = app
+            .oneshot(sns_req(&format!("Action=GetTopicAttributes&TopicArn={}", arn)))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("Attributes"));
+    }
+
+    #[tokio::test]
+    async fn test_set_topic_attributes() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=set-attr")).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let arn_start = body_str.find("<TopicArn>").unwrap() + 10;
+        let arn_end = body_str.find("</TopicArn>").unwrap();
+        let arn = &body_str[arn_start..arn_end];
+
+        let app = create_router(state);
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=SetTopicAttributes&TopicArn={}&AttributeName=DisplayName&AttributeValue=MyTopic",
+                arn
+            )))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_subscribe_and_list_subscriptions() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=sub-topic")).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let arn_start = body_str.find("<TopicArn>").unwrap() + 10;
+        let arn_end = body_str.find("</TopicArn>").unwrap();
+        let arn = body_str[arn_start..arn_end].to_string();
+
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=Subscribe&TopicArn={}&Protocol=email&Endpoint=test@example.com",
+                arn
+            )))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("SubscriptionArn"));
+
+        // List subscriptions
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=ListSubscriptions")).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // List subscriptions by topic
+        let app = create_router(state);
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=ListSubscriptionsByTopic&TopicArn={}",
+                arn
+            )))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_unsubscribe() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=unsub-topic")).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let arn_start = body_str.find("<TopicArn>").unwrap() + 10;
+        let arn_end = body_str.find("</TopicArn>").unwrap();
+        let topic_arn = body_str[arn_start..arn_end].to_string();
+
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=Subscribe&TopicArn={}&Protocol=sqs&Endpoint=arn:aws:sqs:us-east-1:123456789012:myqueue",
+                topic_arn
+            )))
+            .await
+            .unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let sub_start = body_str.find("<SubscriptionArn>").unwrap() + 17;
+        let sub_end = body_str.find("</SubscriptionArn>").unwrap();
+        let sub_arn = &body_str[sub_start..sub_end];
+
+        let app = create_router(state);
+        let resp = app
+            .oneshot(sns_req(&format!("Action=Unsubscribe&SubscriptionArn={}", sub_arn)))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_publish() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=pub-topic")).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let arn_start = body_str.find("<TopicArn>").unwrap() + 10;
+        let arn_end = body_str.find("</TopicArn>").unwrap();
+        let arn = &body_str[arn_start..arn_end];
+
+        let app = create_router(state);
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=Publish&TopicArn={}&Message=hello",
+                arn
+            )))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("MessageId"));
+    }
+
+    #[tokio::test]
+    async fn test_publish_batch() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=batch-topic")).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let arn_start = body_str.find("<TopicArn>").unwrap() + 10;
+        let arn_end = body_str.find("</TopicArn>").unwrap();
+        let arn = &body_str[arn_start..arn_end];
+
+        let app = create_router(state);
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=PublishBatch&TopicArn={}&PublishBatchRequestEntries.member.1.Id=msg1&PublishBatchRequestEntries.member.1.Message=hello",
+                arn
+            )))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("Successful"));
+    }
+
+    #[tokio::test]
+    async fn test_tag_and_list_tags() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=tag-topic")).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let arn_start = body_str.find("<TopicArn>").unwrap() + 10;
+        let arn_end = body_str.find("</TopicArn>").unwrap();
+        let arn = body_str[arn_start..arn_end].to_string();
+
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=TagResource&ResourceArn={}&Tags.member.1.Key=env&Tags.member.1.Value=prod",
+                arn
+            )))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(sns_req(&format!("Action=ListTagsForResource&ResourceArn={}", arn)))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("env"));
+
+        // Untag
+        let app = create_router(state);
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=UntagResource&ResourceArn={}&TagKeys.member.1=env",
+                arn
+            )))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_confirm_subscription() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=confirm-topic")).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let arn_start = body_str.find("<TopicArn>").unwrap() + 10;
+        let arn_end = body_str.find("</TopicArn>").unwrap();
+        let arn = body_str[arn_start..arn_end].to_string();
+
+        // Subscribe first so there is a subscription to confirm
+        let app = create_router(state.clone());
+        app.oneshot(sns_req(&format!(
+            "Action=Subscribe&TopicArn={}&Protocol=sqs&Endpoint=arn:aws:sqs:us-east-1:123456789012:q",
+            arn
+        )))
+        .await
+        .unwrap();
+
+        let app = create_router(state);
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=ConfirmSubscription&TopicArn={}&Token=fake-token",
+                arn
+            )))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_get_subscription_attributes() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=gsa-topic")).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let arn_start = body_str.find("<TopicArn>").unwrap() + 10;
+        let arn_end = body_str.find("</TopicArn>").unwrap();
+        let topic_arn = body_str[arn_start..arn_end].to_string();
+
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=Subscribe&TopicArn={}&Protocol=sqs&Endpoint=arn:aws:sqs:us-east-1:123456789012:q",
+                topic_arn
+            )))
+            .await
+            .unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let sub_start = body_str.find("<SubscriptionArn>").unwrap() + 17;
+        let sub_end = body_str.find("</SubscriptionArn>").unwrap();
+        let sub_arn = &body_str[sub_start..sub_end];
+
+        let app = create_router(state);
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=GetSubscriptionAttributes&SubscriptionArn={}",
+                sub_arn
+            )))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_set_subscription_attributes() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app.oneshot(sns_req("Action=CreateTopic&Name=ssa-topic")).await.unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let arn_start = body_str.find("<TopicArn>").unwrap() + 10;
+        let arn_end = body_str.find("</TopicArn>").unwrap();
+        let topic_arn = body_str[arn_start..arn_end].to_string();
+
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=Subscribe&TopicArn={}&Protocol=sqs&Endpoint=arn:aws:sqs:us-east-1:123456789012:q2",
+                topic_arn
+            )))
+            .await
+            .unwrap();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        let sub_start = body_str.find("<SubscriptionArn>").unwrap() + 17;
+        let sub_end = body_str.find("</SubscriptionArn>").unwrap();
+        let sub_arn = body_str[sub_start..sub_end].to_string();
+
+        let app = create_router(state);
+        let resp = app
+            .oneshot(sns_req(&format!(
+                "Action=SetSubscriptionAttributes&SubscriptionArn={}&AttributeName=RawMessageDelivery&AttributeValue=true",
+                sub_arn
+            )))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+}

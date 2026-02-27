@@ -759,3 +759,796 @@ impl ServiceCatalogState {
         Ok(TerminateProvisionedProductResponse { record_detail })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_state() -> ServiceCatalogState {
+        ServiceCatalogState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = make_state();
+    }
+
+    #[tokio::test]
+    async fn test_create_portfolio() {
+        let state = make_state();
+        let req = CreatePortfolioRequest {
+            display_name: "My Portfolio".to_string(),
+            provider_name: "My Provider".to_string(),
+            ..Default::default()
+        };
+        let result = state.create_portfolio(req).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().portfolio_detail.display_name, "My Portfolio");
+    }
+
+    #[tokio::test]
+    async fn test_describe_portfolio() {
+        let state = make_state();
+        let resp = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p1".to_string(),
+            provider_name: "prov".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let id = resp.portfolio_detail.id;
+        let result = state.describe_portfolio(DescribePortfolioRequest { id }).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_portfolio_not_found() {
+        let state = make_state();
+        assert!(state.describe_portfolio(DescribePortfolioRequest { id: "nope".to_string() }).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_portfolios() {
+        let state = make_state();
+        state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p1".to_string(),
+            provider_name: "prov".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.list_portfolios(ListPortfoliosRequest::default()).await.unwrap();
+        assert_eq!(result.portfolio_details.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_portfolio() {
+        let state = make_state();
+        let resp = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p1".to_string(),
+            provider_name: "prov".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(state.delete_portfolio(DeletePortfolioRequest { id: resp.portfolio_detail.id }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_portfolio() {
+        let state = make_state();
+        let resp = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p1".to_string(),
+            provider_name: "prov".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = UpdatePortfolioRequest {
+            id: resp.portfolio_detail.id,
+            display_name: Some("updated".to_string()),
+            ..Default::default()
+        };
+        let result = state.update_portfolio(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_product() {
+        let state = make_state();
+        let req = CreateProductRequest {
+            name: "My Product".to_string(),
+            owner: "Me".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        };
+        let result = state.create_product(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_product() {
+        let state = make_state();
+        let resp = state.create_product(CreateProductRequest {
+            name: "prod1".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let product_id = resp.product_view_detail.product_view_summary.product_id;
+        let result = state.describe_product(DescribeProductRequest { id: Some(product_id), ..Default::default() }).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_product() {
+        let state = make_state();
+        let resp = state.create_product(CreateProductRequest {
+            name: "prod1".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let product_id = resp.product_view_detail.product_view_summary.product_id;
+        assert!(state.delete_product(DeleteProductRequest { id: product_id }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_search_products() {
+        let state = make_state();
+        state.create_product(CreateProductRequest {
+            name: "prod1".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.search_products(SearchProductsRequest::default()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_associate_product_with_portfolio() {
+        let state = make_state();
+        let portfolio = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p1".to_string(),
+            provider_name: "prov".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let product = state.create_product(CreateProductRequest {
+            name: "prod1".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = AssociateProductWithPortfolioRequest {
+            product_id: product.product_view_detail.product_view_summary.product_id,
+            portfolio_id: portfolio.portfolio_detail.id,
+        };
+        assert!(state.associate_product_with_portfolio(req).await.is_ok());
+    }
+
+    // --- Extended coverage: portfolio operations ---
+
+    #[tokio::test]
+    async fn test_delete_portfolio_not_found() {
+        let state = make_state();
+        let result = state.delete_portfolio(DeletePortfolioRequest { id: "nope".to_string() }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_portfolio_with_associations_fails() {
+        let state = make_state();
+        let portfolio = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p1".to_string(),
+            provider_name: "prov".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let product = state.create_product(CreateProductRequest {
+            name: "prod1".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        state.associate_product_with_portfolio(AssociateProductWithPortfolioRequest {
+            product_id: product.product_view_detail.product_view_summary.product_id,
+            portfolio_id: portfolio.portfolio_detail.id.clone(),
+        }).await.unwrap();
+        let result = state.delete_portfolio(DeletePortfolioRequest { id: portfolio.portfolio_detail.id }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_create_portfolio_with_tags() {
+        let state = make_state();
+        let result = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p1".to_string(),
+            provider_name: "prov".to_string(),
+            tags: Some(vec![Tag { key: "env".to_string(), value: "prod".to_string() }]),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.tags.len(), 1);
+        assert_eq!(result.tags[0].key, "env");
+    }
+
+    #[tokio::test]
+    async fn test_list_portfolios_empty() {
+        let state = make_state();
+        let result = state.list_portfolios(ListPortfoliosRequest::default()).await.unwrap();
+        assert!(result.portfolio_details.is_empty());
+        assert!(result.next_page_token.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_list_portfolios_pagination() {
+        let state = make_state();
+        for i in 0..3 {
+            state.create_portfolio(CreatePortfolioRequest {
+                display_name: format!("p{}", i),
+                provider_name: "prov".to_string(),
+                ..Default::default()
+            }).await.unwrap();
+        }
+        let result = state.list_portfolios(ListPortfoliosRequest { page_size: Some(2) }).await.unwrap();
+        assert_eq!(result.portfolio_details.len(), 2);
+        assert!(result.next_page_token.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_update_portfolio_not_found() {
+        let state = make_state();
+        let result = state.update_portfolio(UpdatePortfolioRequest {
+            id: "nope".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_portfolio_all_fields() {
+        let state = make_state();
+        let resp = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p1".to_string(),
+            provider_name: "prov".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.update_portfolio(UpdatePortfolioRequest {
+            id: resp.portfolio_detail.id,
+            display_name: Some("updated".to_string()),
+            description: Some("desc".to_string()),
+            provider_name: Some("new-prov".to_string()),
+            add_tags: Some(vec![Tag { key: "k".to_string(), value: "v".to_string() }]),
+            remove_tags: None,
+        }).await.unwrap();
+        assert_eq!(result.portfolio_detail.display_name, "updated");
+        assert_eq!(result.portfolio_detail.description.as_deref(), Some("desc"));
+        assert_eq!(result.portfolio_detail.provider_name, "new-prov");
+        assert_eq!(result.tags.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_update_portfolio_remove_tags() {
+        let state = make_state();
+        let resp = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p1".to_string(),
+            provider_name: "prov".to_string(),
+            tags: Some(vec![Tag { key: "env".to_string(), value: "prod".to_string() }]),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.update_portfolio(UpdatePortfolioRequest {
+            id: resp.portfolio_detail.id,
+            remove_tags: Some(vec!["env".to_string()]),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(result.tags.is_empty());
+    }
+
+    // --- Extended coverage: product operations ---
+
+    #[tokio::test]
+    async fn test_delete_product_not_found() {
+        let state = make_state();
+        let result = state.delete_product(DeleteProductRequest { id: "nope".to_string() }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_product_removes_associations() {
+        let state = make_state();
+        let portfolio = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p1".to_string(),
+            provider_name: "prov".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let product = state.create_product(CreateProductRequest {
+            name: "prod1".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let pid = product.product_view_detail.product_view_summary.product_id.clone();
+        state.associate_product_with_portfolio(AssociateProductWithPortfolioRequest {
+            product_id: pid.clone(),
+            portfolio_id: portfolio.portfolio_detail.id.clone(),
+        }).await.unwrap();
+        state.delete_product(DeleteProductRequest { id: pid }).await.unwrap();
+        // Portfolio should be deletable now since associations were cleaned up
+        assert!(state.delete_portfolio(DeletePortfolioRequest { id: portfolio.portfolio_detail.id }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_product_by_name() {
+        let state = make_state();
+        state.create_product(CreateProductRequest {
+            name: "my-product".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.describe_product(DescribeProductRequest {
+            id: None,
+            name: Some("my-product".to_string()),
+        }).await.unwrap();
+        assert_eq!(result.product_view_summary.name, "my-product");
+    }
+
+    #[tokio::test]
+    async fn test_describe_product_by_name_not_found() {
+        let state = make_state();
+        let result = state.describe_product(DescribeProductRequest {
+            id: None,
+            name: Some("nonexistent".to_string()),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_product_no_id_or_name() {
+        let state = make_state();
+        let result = state.describe_product(DescribeProductRequest {
+            id: None,
+            name: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_product_not_found() {
+        let state = make_state();
+        let result = state.describe_product(DescribeProductRequest {
+            id: Some("nope".to_string()),
+            name: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_create_product_with_provisioning_artifact() {
+        let state = make_state();
+        let result = state.create_product(CreateProductRequest {
+            name: "prod1".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            provisioning_artifact_parameters: Some(ProvisioningArtifactParameters {
+                name: Some("v1".to_string()),
+                description: Some("first".to_string()),
+                artifact_type: Some("CLOUD_FORMATION_TEMPLATE".to_string()),
+            }),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.provisioning_artifact_detail.name.as_deref(), Some("v1"));
+        assert_eq!(result.provisioning_artifact_detail.description.as_deref(), Some("first"));
+    }
+
+    #[tokio::test]
+    async fn test_update_product_not_found() {
+        let state = make_state();
+        let result = state.update_product(UpdateProductRequest {
+            id: "nope".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_product_all_fields() {
+        let state = make_state();
+        let resp = state.create_product(CreateProductRequest {
+            name: "prod1".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let pid = resp.product_view_detail.product_view_summary.product_id;
+        let result = state.update_product(UpdateProductRequest {
+            id: pid,
+            name: Some("updated".to_string()),
+            owner: Some("new-owner".to_string()),
+            description: Some("desc".to_string()),
+            distributor: Some("dist".to_string()),
+            support_description: Some("sd".to_string()),
+            support_email: Some("e@e.com".to_string()),
+            support_url: Some("https://e.com".to_string()),
+            add_tags: Some(vec![Tag { key: "k".to_string(), value: "v".to_string() }]),
+            remove_tags: None,
+        }).await.unwrap();
+        assert_eq!(result.product_view_detail.product_view_summary.name, "updated");
+        assert_eq!(result.product_view_detail.product_view_summary.owner, "new-owner");
+        assert_eq!(result.tags.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_update_product_remove_tags() {
+        let state = make_state();
+        let resp = state.create_product(CreateProductRequest {
+            name: "prod1".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            tags: Some(vec![Tag { key: "env".to_string(), value: "prod".to_string() }]),
+            ..Default::default()
+        }).await.unwrap();
+        let pid = resp.product_view_detail.product_view_summary.product_id;
+        let result = state.update_product(UpdateProductRequest {
+            id: pid,
+            remove_tags: Some(vec!["env".to_string()]),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(result.tags.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_search_products_with_filter() {
+        let state = make_state();
+        state.create_product(CreateProductRequest {
+            name: "alpha-product".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        state.create_product(CreateProductRequest {
+            name: "beta-service".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let mut filters = HashMap::new();
+        filters.insert("FullTextSearch".to_string(), vec!["alpha".to_string()]);
+        let result = state.search_products(SearchProductsRequest {
+            filters: Some(filters),
+            page_size: None,
+        }).await.unwrap();
+        assert_eq!(result.product_view_summaries.len(), 1);
+        assert_eq!(result.product_view_summaries[0].name, "alpha-product");
+    }
+
+    #[tokio::test]
+    async fn test_search_products_pagination() {
+        let state = make_state();
+        for i in 0..3 {
+            state.create_product(CreateProductRequest {
+                name: format!("prod{}", i),
+                owner: "owner".to_string(),
+                product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+                ..Default::default()
+            }).await.unwrap();
+        }
+        let result = state.search_products(SearchProductsRequest {
+            filters: None,
+            page_size: Some(2),
+        }).await.unwrap();
+        assert_eq!(result.product_view_summaries.len(), 2);
+        assert!(result.next_page_token.is_some());
+    }
+
+    // --- Extended coverage: association operations ---
+
+    #[tokio::test]
+    async fn test_associate_portfolio_not_found() {
+        let state = make_state();
+        let product = state.create_product(CreateProductRequest {
+            name: "p".to_string(),
+            owner: "o".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.associate_product_with_portfolio(AssociateProductWithPortfolioRequest {
+            product_id: product.product_view_detail.product_view_summary.product_id,
+            portfolio_id: "nope".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_associate_product_not_found() {
+        let state = make_state();
+        let portfolio = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p".to_string(),
+            provider_name: "prov".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.associate_product_with_portfolio(AssociateProductWithPortfolioRequest {
+            product_id: "nope".to_string(),
+            portfolio_id: portfolio.portfolio_detail.id,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_associate_duplicate() {
+        let state = make_state();
+        let portfolio = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p".to_string(),
+            provider_name: "prov".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let product = state.create_product(CreateProductRequest {
+            name: "prod".to_string(),
+            owner: "o".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let pid = product.product_view_detail.product_view_summary.product_id;
+        let pfid = portfolio.portfolio_detail.id;
+        state.associate_product_with_portfolio(AssociateProductWithPortfolioRequest {
+            product_id: pid.clone(),
+            portfolio_id: pfid.clone(),
+        }).await.unwrap();
+        let result = state.associate_product_with_portfolio(AssociateProductWithPortfolioRequest {
+            product_id: pid,
+            portfolio_id: pfid,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disassociate_product_from_portfolio() {
+        let state = make_state();
+        let portfolio = state.create_portfolio(CreatePortfolioRequest {
+            display_name: "p".to_string(),
+            provider_name: "prov".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let product = state.create_product(CreateProductRequest {
+            name: "prod".to_string(),
+            owner: "o".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let pid = product.product_view_detail.product_view_summary.product_id;
+        let pfid = portfolio.portfolio_detail.id;
+        state.associate_product_with_portfolio(AssociateProductWithPortfolioRequest {
+            product_id: pid.clone(),
+            portfolio_id: pfid.clone(),
+        }).await.unwrap();
+        assert!(state.disassociate_product_from_portfolio(DisassociateProductFromPortfolioRequest {
+            product_id: pid,
+            portfolio_id: pfid,
+        }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_disassociate_not_found() {
+        let state = make_state();
+        let result = state.disassociate_product_from_portfolio(DisassociateProductFromPortfolioRequest {
+            product_id: "a".to_string(),
+            portfolio_id: "b".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    // --- Extended coverage: provisioned product operations ---
+
+    #[tokio::test]
+    async fn test_provision_product() {
+        let state = make_state();
+        let product = state.create_product(CreateProductRequest {
+            name: "prod1".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let pid = product.product_view_detail.product_view_summary.product_id;
+        let result = state.provision_product(ProvisionProductRequest {
+            provisioned_product_name: "my-pp".to_string(),
+            product_id: Some(pid),
+            product_name: None,
+            provisioning_artifact_id: None,
+        }).await.unwrap();
+        assert_eq!(result.record_detail.record_type, "PROVISION_PRODUCT");
+        assert_eq!(result.record_detail.status, "SUCCEEDED");
+    }
+
+    #[tokio::test]
+    async fn test_provision_product_by_name() {
+        let state = make_state();
+        state.create_product(CreateProductRequest {
+            name: "my-prod".to_string(),
+            owner: "owner".to_string(),
+            product_type: "CLOUD_FORMATION_TEMPLATE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.provision_product(ProvisionProductRequest {
+            provisioned_product_name: "my-pp".to_string(),
+            product_id: None,
+            product_name: Some("my-prod".to_string()),
+            provisioning_artifact_id: None,
+        }).await.unwrap();
+        assert!(result.record_detail.product_id.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_provision_product_not_found() {
+        let state = make_state();
+        let result = state.provision_product(ProvisionProductRequest {
+            provisioned_product_name: "pp".to_string(),
+            product_id: Some("nope".to_string()),
+            product_name: None,
+            provisioning_artifact_id: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_provision_product_by_name_not_found() {
+        let state = make_state();
+        let result = state.provision_product(ProvisionProductRequest {
+            provisioned_product_name: "pp".to_string(),
+            product_id: None,
+            product_name: Some("nope".to_string()),
+            provisioning_artifact_id: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_provision_product_no_product_ref() {
+        let state = make_state();
+        let result = state.provision_product(ProvisionProductRequest {
+            provisioned_product_name: "pp".to_string(),
+            product_id: None,
+            product_name: None,
+            provisioning_artifact_id: None,
+        }).await;
+        assert!(result.is_ok()); // product_id is optional
+    }
+
+    #[tokio::test]
+    async fn test_describe_provisioned_product_by_id() {
+        let state = make_state();
+        let pp = state.provision_product(ProvisionProductRequest {
+            provisioned_product_name: "my-pp".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let pp_id = pp.record_detail.provisioned_product_id.unwrap();
+        let result = state.describe_provisioned_product(DescribeProvisionedProductRequest {
+            id: Some(pp_id),
+            name: None,
+        }).await.unwrap();
+        assert_eq!(result.provisioned_product_detail.name, "my-pp");
+    }
+
+    #[tokio::test]
+    async fn test_describe_provisioned_product_by_name() {
+        let state = make_state();
+        state.provision_product(ProvisionProductRequest {
+            provisioned_product_name: "my-pp".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.describe_provisioned_product(DescribeProvisionedProductRequest {
+            id: None,
+            name: Some("my-pp".to_string()),
+        }).await.unwrap();
+        assert_eq!(result.provisioned_product_detail.name, "my-pp");
+    }
+
+    #[tokio::test]
+    async fn test_describe_provisioned_product_not_found() {
+        let state = make_state();
+        let result = state.describe_provisioned_product(DescribeProvisionedProductRequest {
+            id: Some("nope".to_string()),
+            name: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_provisioned_product_by_name_not_found() {
+        let state = make_state();
+        let result = state.describe_provisioned_product(DescribeProvisionedProductRequest {
+            id: None,
+            name: Some("nope".to_string()),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_provisioned_product_no_id_or_name() {
+        let state = make_state();
+        let result = state.describe_provisioned_product(DescribeProvisionedProductRequest {
+            id: None,
+            name: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_search_provisioned_products() {
+        let state = make_state();
+        state.provision_product(ProvisionProductRequest {
+            provisioned_product_name: "pp1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        state.provision_product(ProvisionProductRequest {
+            provisioned_product_name: "pp2".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.search_provisioned_products(SearchProvisionedProductsRequest::default()).await.unwrap();
+        assert_eq!(result.provisioned_products.len(), 2);
+        assert_eq!(result.total_results_count, 2);
+    }
+
+    #[tokio::test]
+    async fn test_search_provisioned_products_pagination() {
+        let state = make_state();
+        for i in 0..3 {
+            state.provision_product(ProvisionProductRequest {
+                provisioned_product_name: format!("pp{}", i),
+                ..Default::default()
+            }).await.unwrap();
+        }
+        let result = state.search_provisioned_products(SearchProvisionedProductsRequest { page_size: Some(2) }).await.unwrap();
+        assert_eq!(result.provisioned_products.len(), 2);
+        assert!(result.next_page_token.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_terminate_provisioned_product_by_id() {
+        let state = make_state();
+        let pp = state.provision_product(ProvisionProductRequest {
+            provisioned_product_name: "pp1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let pp_id = pp.record_detail.provisioned_product_id.unwrap();
+        let result = state.terminate_provisioned_product(TerminateProvisionedProductRequest {
+            provisioned_product_id: Some(pp_id),
+            provisioned_product_name: None,
+        }).await.unwrap();
+        assert_eq!(result.record_detail.record_type, "TERMINATE_PROVISIONED_PRODUCT");
+    }
+
+    #[tokio::test]
+    async fn test_terminate_provisioned_product_by_name() {
+        let state = make_state();
+        state.provision_product(ProvisionProductRequest {
+            provisioned_product_name: "pp1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.terminate_provisioned_product(TerminateProvisionedProductRequest {
+            provisioned_product_id: None,
+            provisioned_product_name: Some("pp1".to_string()),
+        }).await.unwrap();
+        assert_eq!(result.record_detail.record_type, "TERMINATE_PROVISIONED_PRODUCT");
+    }
+
+    #[tokio::test]
+    async fn test_terminate_provisioned_product_not_found_by_id() {
+        let state = make_state();
+        let result = state.terminate_provisioned_product(TerminateProvisionedProductRequest {
+            provisioned_product_id: Some("nope".to_string()),
+            provisioned_product_name: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_terminate_provisioned_product_not_found_by_name() {
+        let state = make_state();
+        let result = state.terminate_provisioned_product(TerminateProvisionedProductRequest {
+            provisioned_product_id: None,
+            provisioned_product_name: Some("nope".to_string()),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_terminate_provisioned_product_no_id_or_name() {
+        let state = make_state();
+        let result = state.terminate_provisioned_product(TerminateProvisionedProductRequest {
+            provisioned_product_id: None,
+            provisioned_product_name: None,
+        }).await;
+        assert!(result.is_err());
+    }
+}

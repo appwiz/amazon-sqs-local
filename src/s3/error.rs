@@ -94,3 +94,45 @@ impl IntoResponse for S3Error {
             .into_response()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_nosuchbucket_error_code() {
+        let err = S3Error::NoSuchBucket("test".to_string());
+        assert_eq!(err.error_code(), "NoSuchBucket");
+    }
+    #[test]
+    fn test_nosuchkey_error_code() {
+        let err = S3Error::NoSuchKey("test".to_string());
+        assert_eq!(err.error_code(), "NoSuchKey");
+    }
+    #[test]
+    fn test_bucketalreadyownedbyyou_error_code() {
+        let err = S3Error::BucketAlreadyOwnedByYou("test".to_string());
+        assert_eq!(err.error_code(), "BucketAlreadyOwnedByYou");
+    }
+    #[test]
+    fn test_message() {
+        let err = S3Error::NoSuchBucket("hello".to_string());
+        assert_eq!(err.message(), "hello");
+    }
+    #[test]
+    fn test_nosuchbucket_status() {
+        let err = S3Error::NoSuchBucket("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::NOT_FOUND);
+    }
+    #[test]
+    fn test_nosuchkey_status() {
+        let err = S3Error::NoSuchKey("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::NOT_FOUND);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = S3Error::NoSuchBucket("test".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error() || resp.status().is_server_error());
+    }
+}

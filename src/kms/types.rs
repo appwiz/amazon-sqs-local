@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateKeyRequest {
     #[serde(rename = "Description")]
     pub description: Option<String>,
@@ -42,7 +42,7 @@ pub struct KeyMetadata {
     pub multi_region: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeKeyRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -54,7 +54,7 @@ pub struct DescribeKeyResponse {
     pub key_metadata: KeyMetadata,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListKeysRequest {
     #[serde(rename = "Limit")]
     pub limit: Option<usize>,
@@ -79,7 +79,7 @@ pub struct KeyListEntry {
     pub key_arn: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ScheduleKeyDeletionRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -99,7 +99,7 @@ pub struct ScheduleKeyDeletionResponse {
     pub pending_window_in_days: u32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CancelKeyDeletionRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -111,19 +111,19 @@ pub struct CancelKeyDeletionResponse {
     pub key_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct EnableKeyRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DisableKeyRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct EncryptRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -143,7 +143,7 @@ pub struct EncryptResponse {
     pub encryption_algorithm: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DecryptRequest {
     #[serde(rename = "CiphertextBlob")]
     pub ciphertext_blob: String, // base64
@@ -163,7 +163,7 @@ pub struct DecryptResponse {
     pub encryption_algorithm: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GenerateDataKeyRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -183,7 +183,7 @@ pub struct GenerateDataKeyResponse {
     pub ciphertext_blob: String, // base64
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GenerateDataKeyWithoutPlaintextRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -201,7 +201,7 @@ pub struct GenerateDataKeyWithoutPlaintextResponse {
     pub ciphertext_blob: String, // base64
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GenerateRandomRequest {
     #[serde(rename = "NumberOfBytes")]
     pub number_of_bytes: Option<usize>,
@@ -213,7 +213,7 @@ pub struct GenerateRandomResponse {
     pub plaintext: String, // base64
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct SignRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -233,7 +233,7 @@ pub struct SignResponse {
     pub signing_algorithm: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct VerifyRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -255,7 +255,7 @@ pub struct VerifyResponse {
     pub signing_algorithm: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct TagResourceRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -263,7 +263,7 @@ pub struct TagResourceRequest {
     pub tags: Vec<Tag>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UntagResourceRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -271,7 +271,7 @@ pub struct UntagResourceRequest {
     pub tag_keys: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListResourceTagsRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -295,7 +295,7 @@ pub struct Tag {
     pub tag_value: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateAliasRequest {
     #[serde(rename = "AliasName")]
     pub alias_name: String,
@@ -303,13 +303,13 @@ pub struct CreateAliasRequest {
     pub target_key_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteAliasRequest {
     #[serde(rename = "AliasName")]
     pub alias_name: String,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListAliasesRequest {
     #[serde(rename = "KeyId")]
     pub key_id: Option<String>,
@@ -335,7 +335,7 @@ pub struct AliasListEntry {
     pub target_key_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GetKeyPolicyRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,
@@ -347,7 +347,7 @@ pub struct GetKeyPolicyResponse {
     pub policy: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutKeyPolicyRequest {
     #[serde(rename = "KeyId")]
     pub key_id: String,

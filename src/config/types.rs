@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 // --- Shared types ---
 
 // ConfigurationRecorder uses camelCase for its members
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct ConfigurationRecorder {
     #[serde(default)]
     pub name: Option<String>,
@@ -29,7 +29,7 @@ pub struct RecordingGroup {
 }
 
 // DeliveryChannel uses camelCase for its members
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct DeliveryChannel {
     #[serde(default)]
     pub name: Option<String>,
@@ -61,7 +61,7 @@ pub struct ConfigurationRecorderStatus {
 }
 
 // ConfigRule uses PascalCase for its members
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct ConfigRule {
     #[serde(rename = "ConfigRuleName")]
     pub config_rule_name: String,
@@ -103,11 +103,13 @@ pub struct Scope {
     pub tag_value: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct Source {
     #[serde(rename = "Owner")]
+    #[serde(default)]
     pub owner: String,
     #[serde(rename = "SourceIdentifier")]
+    #[serde(default)]
     pub source_identifier: String,
     #[serde(rename = "SourceDetails")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -226,14 +228,14 @@ pub struct ComplianceContributorCount {
 // --- Request/Response types (top-level fields are always PascalCase) ---
 
 // 1. PutConfigurationRecorder
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutConfigurationRecorderRequest {
     #[serde(rename = "ConfigurationRecorder")]
     pub configuration_recorder: ConfigurationRecorder,
 }
 
 // 2. DescribeConfigurationRecorders
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeConfigurationRecordersRequest {
     #[serde(rename = "ConfigurationRecorderNames")]
     pub configuration_recorder_names: Option<Vec<String>>,
@@ -246,14 +248,14 @@ pub struct DescribeConfigurationRecordersResponse {
 }
 
 // 3. DeleteConfigurationRecorder
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteConfigurationRecorderRequest {
     #[serde(rename = "ConfigurationRecorderName")]
     pub configuration_recorder_name: String,
 }
 
 // 4. DescribeConfigurationRecorderStatus
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeConfigurationRecorderStatusRequest {
     #[serde(rename = "ConfigurationRecorderNames")]
     pub configuration_recorder_names: Option<Vec<String>>,
@@ -266,28 +268,28 @@ pub struct DescribeConfigurationRecorderStatusResponse {
 }
 
 // 5. StartConfigurationRecorder
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct StartConfigurationRecorderRequest {
     #[serde(rename = "ConfigurationRecorderName")]
     pub configuration_recorder_name: String,
 }
 
 // 6. StopConfigurationRecorder
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct StopConfigurationRecorderRequest {
     #[serde(rename = "ConfigurationRecorderName")]
     pub configuration_recorder_name: String,
 }
 
 // 7. PutDeliveryChannel
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutDeliveryChannelRequest {
     #[serde(rename = "DeliveryChannel")]
     pub delivery_channel: DeliveryChannel,
 }
 
 // 8. DescribeDeliveryChannels
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeDeliveryChannelsRequest {
     #[serde(rename = "DeliveryChannelNames")]
     pub delivery_channel_names: Option<Vec<String>>,
@@ -300,14 +302,14 @@ pub struct DescribeDeliveryChannelsResponse {
 }
 
 // 9. DeleteDeliveryChannel
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteDeliveryChannelRequest {
     #[serde(rename = "DeliveryChannelName")]
     pub delivery_channel_name: String,
 }
 
 // 10. PutConfigRule
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutConfigRuleRequest {
     #[serde(rename = "ConfigRule")]
     pub config_rule: ConfigRule,
@@ -316,7 +318,7 @@ pub struct PutConfigRuleRequest {
 }
 
 // 11. DescribeConfigRules
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeConfigRulesRequest {
     #[serde(rename = "ConfigRuleNames")]
     pub config_rule_names: Option<Vec<String>>,
@@ -332,14 +334,14 @@ pub struct DescribeConfigRulesResponse {
 }
 
 // 12. DeleteConfigRule
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteConfigRuleRequest {
     #[serde(rename = "ConfigRuleName")]
     pub config_rule_name: String,
 }
 
 // 13. PutEvaluations
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutEvaluationsRequest {
     #[serde(rename = "Evaluations")]
     pub evaluations: Vec<Evaluation>,
@@ -354,7 +356,7 @@ pub struct PutEvaluationsResponse {
 }
 
 // 14. GetComplianceDetailsByConfigRule
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GetComplianceDetailsByConfigRuleRequest {
     #[serde(rename = "ConfigRuleName")]
     pub config_rule_name: String,
@@ -374,7 +376,7 @@ pub struct GetComplianceDetailsByConfigRuleResponse {
 }
 
 // 15. DescribeComplianceByConfigRule
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeComplianceByConfigRuleRequest {
     #[serde(rename = "ConfigRuleNames")]
     pub config_rule_names: Option<Vec<String>>,
@@ -392,7 +394,7 @@ pub struct DescribeComplianceByConfigRuleResponse {
 }
 
 // 16. DescribeComplianceByResource
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeComplianceByResourceRequest {
     #[serde(rename = "ResourceType")]
     pub resource_type: Option<String>,
@@ -414,7 +416,7 @@ pub struct DescribeComplianceByResourceResponse {
 }
 
 // 17. TagResource
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct TagResourceRequest {
     #[serde(rename = "ResourceArn")]
     pub resource_arn: String,
@@ -423,7 +425,7 @@ pub struct TagResourceRequest {
 }
 
 // 18. UntagResource
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UntagResourceRequest {
     #[serde(rename = "ResourceArn")]
     pub resource_arn: String,
@@ -432,7 +434,7 @@ pub struct UntagResourceRequest {
 }
 
 // 19. ListTagsForResource
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListTagsForResourceRequest {
     #[serde(rename = "ResourceArn")]
     pub resource_arn: String,

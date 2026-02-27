@@ -561,3 +561,628 @@ impl SnsState {
         Ok(ListTagsForResourceResponse { tags })
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = SnsState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_delete_topic_not_found() {
+        let state = SnsState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = DeleteTopicRequest::default();
+        let result = state.delete_topic(req).await;
+        assert!(result.is_ok());
+    }
+    #[tokio::test]
+    async fn test_unsubscribe() {
+        let state = SnsState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = UnsubscribeRequest::default();
+        let _ = state.unsubscribe(req).await;
+    }
+    #[tokio::test]
+    async fn test_tag_resource() {
+        let state = SnsState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = TagResourceRequest::default();
+        let _ = state.tag_resource(req).await;
+    }
+    #[tokio::test]
+    async fn test_untag_resource() {
+        let state = SnsState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = UntagResourceRequest::default();
+        let _ = state.untag_resource(req).await;
+    }
+
+    fn make_state() -> SnsState {
+        SnsState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    async fn create_topic(state: &SnsState, name: &str) -> String {
+        let req = CreateTopicRequest { name: name.to_string(), ..Default::default() };
+        state.create_topic(req).await.unwrap().topic_arn
+    }
+
+    #[tokio::test]
+    async fn test_create_topic() {
+        let state = make_state();
+        let arn = create_topic(&state, "my-topic").await;
+        assert!(arn.contains("my-topic"));
+    }
+
+    #[tokio::test]
+    async fn test_create_topic_idempotent() {
+        let state = make_state();
+        let arn1 = create_topic(&state, "t1").await;
+        let arn2 = create_topic(&state, "t1").await;
+        assert_eq!(arn1, arn2);
+    }
+
+    #[tokio::test]
+    async fn test_delete_topic() {
+        let state = make_state();
+        let arn = create_topic(&state, "del").await;
+        assert!(state.delete_topic(DeleteTopicRequest { topic_arn: arn }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_topics() {
+        let state = make_state();
+        create_topic(&state, "t1").await;
+        create_topic(&state, "t2").await;
+        let result = state.list_topics(ListTopicsRequest::default()).await.unwrap();
+        assert_eq!(result.topics.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_get_topic_attributes() {
+        let state = make_state();
+        let arn = create_topic(&state, "t1").await;
+        let result = state.get_topic_attributes(GetTopicAttributesRequest { topic_arn: arn }).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_topic_attributes_not_found() {
+        let state = make_state();
+        let req = GetTopicAttributesRequest { topic_arn: "arn:fake".to_string() };
+        assert!(state.get_topic_attributes(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_subscribe_and_list() {
+        let state = make_state();
+        let arn = create_topic(&state, "t1").await;
+        let req = SubscribeRequest {
+            topic_arn: arn.clone(),
+            protocol: "email".to_string(),
+            endpoint: Some("test@example.com".to_string()),
+            ..Default::default()
+        };
+        let result = state.subscribe(req).await;
+        assert!(result.is_ok());
+
+        let subs = state.list_subscriptions(ListSubscriptionsRequest::default()).await.unwrap();
+        assert_eq!(subs.subscriptions.len(), 1);
+
+        let by_topic = state.list_subscriptions_by_topic(ListSubscriptionsByTopicRequest { topic_arn: arn, ..Default::default() }).await.unwrap();
+        assert_eq!(by_topic.subscriptions.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_publish() {
+        let state = make_state();
+        let arn = create_topic(&state, "t1").await;
+        let req = PublishRequest {
+            topic_arn: Some(arn),
+            message: "hello".to_string(),
+            ..Default::default()
+        };
+        let result = state.publish(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_publish_no_target() {
+        let state = make_state();
+        let req = PublishRequest { message: "hello".to_string(), ..Default::default() };
+        assert!(state.publish(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_tag_and_list_tags() {
+        let state = make_state();
+        let arn = create_topic(&state, "tagged").await;
+        state.tag_resource(TagResourceRequest {
+            resource_arn: arn.clone(),
+            tags: vec![TagJson { key: "env".to_string(), value: "test".to_string() }],
+        }).await.unwrap();
+        let result = state.list_tags_for_resource(ListTagsForResourceRequest { resource_arn: arn }).await.unwrap();
+        assert_eq!(result.tags.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_set_topic_attributes() {
+        let state = make_state();
+        let arn = create_topic(&state, "t1").await;
+        let req = SetTopicAttributesRequest {
+            topic_arn: arn,
+            attribute_name: "DisplayName".to_string(),
+            attribute_value: Some("My Topic".to_string()),
+        };
+        assert!(state.set_topic_attributes(req).await.is_ok());
+    }
+
+    // --- Comprehensive additional tests ---
+
+    #[tokio::test]
+    async fn test_create_topic_empty_name() {
+        let state = make_state();
+        let result = state.create_topic(CreateTopicRequest {
+            name: "".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_create_fifo_topic() {
+        let state = make_state();
+        let mut attrs = HashMap::new();
+        attrs.insert("FifoTopic".to_string(), "true".to_string());
+        let result = state.create_topic(CreateTopicRequest {
+            name: "my-topic.fifo".to_string(),
+            attributes: Some(attrs),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(result.topic_arn.contains("my-topic.fifo"));
+    }
+
+    #[tokio::test]
+    async fn test_create_fifo_topic_without_suffix() {
+        let state = make_state();
+        let mut attrs = HashMap::new();
+        attrs.insert("FifoTopic".to_string(), "true".to_string());
+        let result = state.create_topic(CreateTopicRequest {
+            name: "no-suffix".to_string(),
+            attributes: Some(attrs),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_create_topic_with_tags() {
+        let state = make_state();
+        let result = state.create_topic(CreateTopicRequest {
+            name: "tagged-topic".to_string(),
+            tags: Some(vec![TagJson { key: "env".to_string(), value: "test".to_string() }]),
+            ..Default::default()
+        }).await.unwrap();
+        let tags = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_arn: result.topic_arn,
+        }).await.unwrap();
+        assert_eq!(tags.tags.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_set_topic_attributes_invalid() {
+        let state = make_state();
+        let arn = create_topic(&state, "t1").await;
+        let result = state.set_topic_attributes(SetTopicAttributesRequest {
+            topic_arn: arn,
+            attribute_name: "InvalidAttributeName".to_string(),
+            attribute_value: Some("val".to_string()),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_topic_attributes_not_found() {
+        let state = make_state();
+        let result = state.set_topic_attributes(SetTopicAttributesRequest {
+            topic_arn: "arn:fake".to_string(),
+            attribute_name: "DisplayName".to_string(),
+            attribute_value: Some("val".to_string()),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_subscribe_not_found_topic() {
+        let state = make_state();
+        let result = state.subscribe(SubscribeRequest {
+            topic_arn: "arn:fake".to_string(),
+            protocol: "email".to_string(),
+            endpoint: Some("test@example.com".to_string()),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_unsubscribe_success() {
+        let state = make_state();
+        let arn = create_topic(&state, "unsub-topic").await;
+        let sub = state.subscribe(SubscribeRequest {
+            topic_arn: arn,
+            protocol: "email".to_string(),
+            endpoint: Some("test@example.com".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.unsubscribe(UnsubscribeRequest {
+            subscription_arn: sub.subscription_arn,
+        }).await;
+        assert!(result.is_ok());
+
+        let subs = state.list_subscriptions(ListSubscriptionsRequest::default()).await.unwrap();
+        assert!(subs.subscriptions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_unsubscribe_not_found() {
+        let state = make_state();
+        let result = state.unsubscribe(UnsubscribeRequest {
+            subscription_arn: "arn:fake:sub".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_confirm_subscription() {
+        let state = make_state();
+        let arn = create_topic(&state, "confirm-topic").await;
+        state.subscribe(SubscribeRequest {
+            topic_arn: arn.clone(),
+            protocol: "email".to_string(),
+            endpoint: Some("test@example.com".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.confirm_subscription(ConfirmSubscriptionRequest {
+            topic_arn: arn,
+            _token: "token123".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_confirm_subscription_no_subs() {
+        let state = make_state();
+        let arn = create_topic(&state, "empty-confirm").await;
+        let result = state.confirm_subscription(ConfirmSubscriptionRequest {
+            topic_arn: arn,
+            _token: "token".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_confirm_subscription_topic_not_found() {
+        let state = make_state();
+        let result = state.confirm_subscription(ConfirmSubscriptionRequest {
+            topic_arn: "arn:fake".to_string(),
+            _token: "token".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_subscription_attributes() {
+        let state = make_state();
+        let arn = create_topic(&state, "sub-attrs").await;
+        let sub = state.subscribe(SubscribeRequest {
+            topic_arn: arn,
+            protocol: "sqs".to_string(),
+            endpoint: Some("arn:aws:sqs:us-east-1:123456789012:my-queue".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.get_subscription_attributes(GetSubscriptionAttributesRequest {
+            subscription_arn: sub.subscription_arn,
+        }).await;
+        assert!(result.is_ok());
+        let attrs = result.unwrap().attributes;
+        assert!(attrs.contains_key("Protocol"));
+    }
+
+    #[tokio::test]
+    async fn test_get_subscription_attributes_not_found() {
+        let state = make_state();
+        let result = state.get_subscription_attributes(GetSubscriptionAttributesRequest {
+            subscription_arn: "arn:fake".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_subscription_attributes() {
+        let state = make_state();
+        let arn = create_topic(&state, "set-sub").await;
+        let sub = state.subscribe(SubscribeRequest {
+            topic_arn: arn,
+            protocol: "sqs".to_string(),
+            endpoint: Some("arn:aws:sqs:us-east-1:123456789012:my-queue".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.set_subscription_attributes(SetSubscriptionAttributesRequest {
+            subscription_arn: sub.subscription_arn,
+            attribute_name: "RawMessageDelivery".to_string(),
+            attribute_value: Some("true".to_string()),
+        }).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_set_subscription_attributes_invalid() {
+        let state = make_state();
+        let arn = create_topic(&state, "inv-sub").await;
+        let sub = state.subscribe(SubscribeRequest {
+            topic_arn: arn,
+            protocol: "sqs".to_string(),
+            endpoint: Some("arn:aws:sqs:us-east-1:123456789012:q".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.set_subscription_attributes(SetSubscriptionAttributesRequest {
+            subscription_arn: sub.subscription_arn,
+            attribute_name: "InvalidAttr".to_string(),
+            attribute_value: Some("val".to_string()),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_subscription_attributes_not_found() {
+        let state = make_state();
+        let result = state.set_subscription_attributes(SetSubscriptionAttributesRequest {
+            subscription_arn: "arn:fake".to_string(),
+            attribute_name: "RawMessageDelivery".to_string(),
+            attribute_value: Some("true".to_string()),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_publish_empty_message() {
+        let state = make_state();
+        let arn = create_topic(&state, "empty-msg").await;
+        let result = state.publish(PublishRequest {
+            topic_arn: Some(arn),
+            message: "".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_publish_topic_not_found() {
+        let state = make_state();
+        let result = state.publish(PublishRequest {
+            topic_arn: Some("arn:fake".to_string()),
+            message: "hello".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_publish_fifo_requires_group_id() {
+        let state = make_state();
+        let mut attrs = HashMap::new();
+        attrs.insert("FifoTopic".to_string(), "true".to_string());
+        let resp = state.create_topic(CreateTopicRequest {
+            name: "fifo-pub.fifo".to_string(),
+            attributes: Some(attrs),
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.publish(PublishRequest {
+            topic_arn: Some(resp.topic_arn.clone()),
+            message: "hello".to_string(),
+            message_group_id: None,
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+
+        // With group_id should succeed
+        let result = state.publish(PublishRequest {
+            topic_arn: Some(resp.topic_arn),
+            message: "hello".to_string(),
+            message_group_id: Some("group1".to_string()),
+            ..Default::default()
+        }).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().sequence_number.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_publish_batch_success() {
+        let state = make_state();
+        let arn = create_topic(&state, "batch-pub").await;
+        let result = state.publish_batch(PublishBatchRequest {
+            topic_arn: arn,
+            publish_batch_request_entries: vec![
+                PublishBatchEntry {
+                    id: "1".to_string(),
+                    message: "msg1".to_string(),
+                    _subject: None,
+                    _message_attributes: None,
+                    _message_deduplication_id: None,
+                    message_group_id: None,
+                },
+                PublishBatchEntry {
+                    id: "2".to_string(),
+                    message: "msg2".to_string(),
+                    _subject: None,
+                    _message_attributes: None,
+                    _message_deduplication_id: None,
+                    message_group_id: None,
+                },
+            ],
+        }).await.unwrap();
+        assert_eq!(result.successful.len(), 2);
+        assert!(result.failed.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_publish_batch_empty() {
+        let state = make_state();
+        let arn = create_topic(&state, "batch-empty").await;
+        let result = state.publish_batch(PublishBatchRequest {
+            topic_arn: arn,
+            publish_batch_request_entries: vec![],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_publish_batch_too_many() {
+        let state = make_state();
+        let arn = create_topic(&state, "batch-many").await;
+        let entries: Vec<PublishBatchEntry> = (0..11).map(|i| PublishBatchEntry {
+            id: format!("{}", i),
+            message: format!("msg{}", i),
+            _subject: None,
+            _message_attributes: None,
+            _message_deduplication_id: None,
+            message_group_id: None,
+        }).collect();
+        let result = state.publish_batch(PublishBatchRequest {
+            topic_arn: arn,
+            publish_batch_request_entries: entries,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_publish_batch_with_empty_message() {
+        let state = make_state();
+        let arn = create_topic(&state, "batch-fail").await;
+        let result = state.publish_batch(PublishBatchRequest {
+            topic_arn: arn,
+            publish_batch_request_entries: vec![
+                PublishBatchEntry {
+                    id: "ok".to_string(),
+                    message: "valid".to_string(),
+                    _subject: None,
+                    _message_attributes: None,
+                    _message_deduplication_id: None,
+                    message_group_id: None,
+                },
+                PublishBatchEntry {
+                    id: "bad".to_string(),
+                    message: "".to_string(),
+                    _subject: None,
+                    _message_attributes: None,
+                    _message_deduplication_id: None,
+                    message_group_id: None,
+                },
+            ],
+        }).await.unwrap();
+        assert_eq!(result.successful.len(), 1);
+        assert_eq!(result.failed.len(), 1);
+        assert_eq!(result.failed[0].id, "bad");
+    }
+
+    #[tokio::test]
+    async fn test_publish_batch_topic_not_found() {
+        let state = make_state();
+        let result = state.publish_batch(PublishBatchRequest {
+            topic_arn: "arn:fake".to_string(),
+            publish_batch_request_entries: vec![PublishBatchEntry {
+                id: "1".to_string(),
+                message: "msg".to_string(),
+                _subject: None,
+                _message_attributes: None,
+                _message_deduplication_id: None,
+                message_group_id: None,
+            }],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_untag_resource_success() {
+        let state = make_state();
+        let arn = create_topic(&state, "untag-topic").await;
+        state.tag_resource(TagResourceRequest {
+            resource_arn: arn.clone(),
+            tags: vec![
+                TagJson { key: "a".to_string(), value: "1".to_string() },
+                TagJson { key: "b".to_string(), value: "2".to_string() },
+            ],
+        }).await.unwrap();
+
+        state.untag_resource(UntagResourceRequest {
+            resource_arn: arn.clone(),
+            tag_keys: vec!["a".to_string()],
+        }).await.unwrap();
+
+        let tags = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_arn: arn,
+        }).await.unwrap();
+        assert_eq!(tags.tags.len(), 1);
+        assert_eq!(tags.tags[0].key, "b");
+    }
+
+    #[tokio::test]
+    async fn test_list_tags_for_resource_not_found() {
+        let state = make_state();
+        let result = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_arn: "arn:fake".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_subscriptions_by_topic_not_found() {
+        let state = make_state();
+        let result = state.list_subscriptions_by_topic(ListSubscriptionsByTopicRequest {
+            topic_arn: "arn:fake".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_subscribe_with_attributes() {
+        let state = make_state();
+        let arn = create_topic(&state, "sub-attrs-topic").await;
+        let mut attrs = HashMap::new();
+        attrs.insert("RawMessageDelivery".to_string(), "true".to_string());
+        attrs.insert("FilterPolicy".to_string(), r#"{"color":["red"]}"#.to_string());
+        let sub = state.subscribe(SubscribeRequest {
+            topic_arn: arn,
+            protocol: "sqs".to_string(),
+            endpoint: Some("arn:aws:sqs:us-east-1:123456789012:q".to_string()),
+            attributes: Some(attrs),
+            ..Default::default()
+        }).await.unwrap();
+
+        let sub_attrs = state.get_subscription_attributes(GetSubscriptionAttributesRequest {
+            subscription_arn: sub.subscription_arn,
+        }).await.unwrap();
+        assert_eq!(sub_attrs.attributes.get("RawMessageDelivery").unwrap(), "true");
+    }
+
+    #[tokio::test]
+    async fn test_publish_with_target_arn() {
+        let state = make_state();
+        let arn = create_topic(&state, "target-topic").await;
+        let result = state.publish(PublishRequest {
+            target_arn: Some(arn),
+            message: "hello".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_ok());
+    }
+}

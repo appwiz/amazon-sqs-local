@@ -544,3 +544,152 @@ impl AppSyncState {
             .unwrap_or_default())
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = AppSyncState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_list_graphql_apis() {
+        let state = AppSyncState::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.list_graphql_apis().await;
+        assert!(result.is_ok());
+    }
+
+    fn make_state() -> AppSyncState {
+        AppSyncState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    async fn create_api(state: &AppSyncState) -> GraphqlApi {
+        let req = CreateGraphqlApiRequest {
+            name: "test-api".to_string(),
+            authentication_type: Some("API_KEY".to_string()),
+            ..Default::default()
+        };
+        state.create_graphql_api(req).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_create_graphql_api() {
+        let state = make_state();
+        let api = create_api(&state).await;
+        assert_eq!(api.name, "test-api");
+        assert!(!api.api_id.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_graphql_api() {
+        let state = make_state();
+        let api = create_api(&state).await;
+        let result = state.get_graphql_api(&api.api_id).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_graphql_api_not_found() {
+        let state = make_state();
+        assert!(state.get_graphql_api("nope").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_graphql_api() {
+        let state = make_state();
+        let api = create_api(&state).await;
+        assert!(state.delete_graphql_api(&api.api_id).await.is_ok());
+        assert!(state.get_graphql_api(&api.api_id).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_graphql_api() {
+        let state = make_state();
+        let api = create_api(&state).await;
+        let req = UpdateGraphqlApiRequest {
+            name: "updated-name".to_string(),
+            ..Default::default()
+        };
+        let result = state.update_graphql_api(&api.api_id, req).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name, "updated-name");
+    }
+
+    #[tokio::test]
+    async fn test_create_api_key() {
+        let state = make_state();
+        let api = create_api(&state).await;
+        let req = CreateApiKeyRequest::default();
+        let result = state.create_api_key(&api.api_id, req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_api_keys() {
+        let state = make_state();
+        let api = create_api(&state).await;
+        state.create_api_key(&api.api_id, CreateApiKeyRequest::default()).await.unwrap();
+        let result = state.list_api_keys(&api.api_id).await.unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_create_data_source() {
+        let state = make_state();
+        let api = create_api(&state).await;
+        let req = CreateDataSourceRequest {
+            name: "my-ds".to_string(),
+            ds_type: "NONE".to_string(),
+            ..Default::default()
+        };
+        let result = state.create_data_source(&api.api_id, req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_data_sources() {
+        let state = make_state();
+        let api = create_api(&state).await;
+        state.create_data_source(&api.api_id, CreateDataSourceRequest {
+            name: "ds1".to_string(),
+            ds_type: "NONE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.list_data_sources(&api.api_id).await.unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_data_source() {
+        let state = make_state();
+        let api = create_api(&state).await;
+        state.create_data_source(&api.api_id, CreateDataSourceRequest {
+            name: "ds1".to_string(),
+            ds_type: "NONE".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(state.delete_data_source(&api.api_id, "ds1").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_start_schema_creation() {
+        let state = make_state();
+        let api = create_api(&state).await;
+        let req = StartSchemaCreationRequest { _definition: "type Query { hello: String }".to_string() };
+        let result = state.start_schema_creation(&api.api_id, req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_tag_and_list_tags() {
+        let state = make_state();
+        let api = create_api(&state).await;
+        let mut tags = std::collections::HashMap::new();
+        tags.insert("env".to_string(), "test".to_string());
+        state.tag_resource(&api.arn, TagResourceRequest { tags }).await.unwrap();
+        let result = state.list_tags_for_resource(&api.arn).await.unwrap();
+        assert!(result.contains_key("env"));
+    }
+}

@@ -741,3 +741,214 @@ mod hex {
             .collect()
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = S3State::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_delete_bucket_not_found() {
+        let state = S3State::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.delete_bucket("nonexistent").await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_head_bucket() {
+        let state = S3State::new("123456789012".to_string(), "us-east-1".to_string());
+        let _ = state.head_bucket("test").await;
+    }
+    #[tokio::test]
+    async fn test_list_buckets() {
+        let state = S3State::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.list_buckets().await;
+        assert!(result.is_ok());
+    }
+    #[tokio::test]
+    async fn test_get_bucket_location_not_found() {
+        let state = S3State::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.get_bucket_location("nonexistent").await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_get_bucket_versioning_not_found() {
+        let state = S3State::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.get_bucket_versioning("nonexistent").await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_delete_bucket_tagging_not_found() {
+        let state = S3State::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.delete_bucket_tagging("nonexistent").await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_delete_object_not_found() {
+        let state = S3State::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.delete_object("nonexistent", "key").await;
+        assert!(result.is_err());
+    }
+
+    fn make_state() -> S3State {
+        S3State::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    #[tokio::test]
+    async fn test_create_bucket() {
+        let state = make_state();
+        assert!(state.create_bucket("my-bucket".to_string(), None).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_bucket_duplicate() {
+        let state = make_state();
+        state.create_bucket("dup".to_string(), None).await.unwrap();
+        assert!(state.create_bucket("dup".to_string(), None).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_create_bucket_invalid_name() {
+        let state = make_state();
+        assert!(state.create_bucket("ab".to_string(), None).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_bucket_success() {
+        let state = make_state();
+        state.create_bucket("del-bucket".to_string(), None).await.unwrap();
+        assert!(state.delete_bucket("del-bucket").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_head_bucket_success() {
+        let state = make_state();
+        state.create_bucket("test-bucket".to_string(), None).await.unwrap();
+        assert!(state.head_bucket("test-bucket").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_buckets_with_items() {
+        let state = make_state();
+        state.create_bucket("bucket-a".to_string(), None).await.unwrap();
+        state.create_bucket("bucket-b".to_string(), None).await.unwrap();
+        let result = state.list_buckets().await.unwrap();
+        assert_eq!(result.buckets.bucket.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_get_bucket_location() {
+        let state = make_state();
+        state.create_bucket("loc-bucket".to_string(), None).await.unwrap();
+        let result = state.get_bucket_location("loc-bucket").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_put_and_get_object() {
+        let state = make_state();
+        state.create_bucket("obj-bucket".to_string(), None).await.unwrap();
+        assert!(state.put_object("obj-bucket", "key1".to_string(), b"hello world".to_vec(), Some("text/plain".to_string()), HashMap::new()).await.is_ok());
+
+        let result = state.get_object("obj-bucket", "key1", None).await;
+        assert!(result.is_ok());
+        let (obj, _range) = result.unwrap();
+        assert_eq!(obj.data, b"hello world");
+    }
+
+    #[tokio::test]
+    async fn test_get_object_not_found() {
+        let state = make_state();
+        state.create_bucket("obj-bucket".to_string(), None).await.unwrap();
+        assert!(state.get_object("obj-bucket", "nope", None).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_head_object() {
+        let state = make_state();
+        state.create_bucket("obj-bucket".to_string(), None).await.unwrap();
+        state.put_object("obj-bucket", "key1".to_string(), vec![], None, HashMap::new()).await.unwrap();
+        assert!(state.head_object("obj-bucket", "key1").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_object_success() {
+        let state = make_state();
+        state.create_bucket("obj-bucket".to_string(), None).await.unwrap();
+        state.put_object("obj-bucket", "key1".to_string(), vec![], None, HashMap::new()).await.unwrap();
+        assert!(state.delete_object("obj-bucket", "key1").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_v2() {
+        let state = make_state();
+        state.create_bucket("list-bucket".to_string(), None).await.unwrap();
+        state.put_object("list-bucket", "a/1".to_string(), vec![], None, HashMap::new()).await.unwrap();
+        state.put_object("list-bucket", "a/2".to_string(), vec![], None, HashMap::new()).await.unwrap();
+        let result = state.list_objects_v2("list-bucket", "a/", None, 1000, None, None).await.unwrap();
+        assert_eq!(result.key_count, 2);
+    }
+
+    #[tokio::test]
+    async fn test_copy_object() {
+        let state = make_state();
+        state.create_bucket("src-bucket".to_string(), None).await.unwrap();
+        state.put_object("src-bucket", "key1".to_string(), b"data".to_vec(), None, HashMap::new()).await.unwrap();
+        let result = state.copy_object("src-bucket", "key2".to_string(), "src-bucket", "key1", None, None, HashMap::new()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_put_and_get_bucket_tagging() {
+        let state = make_state();
+        state.create_bucket("tag-bucket".to_string(), None).await.unwrap();
+        let mut tags = HashMap::new();
+        tags.insert("env".to_string(), "test".to_string());
+        assert!(state.put_bucket_tagging("tag-bucket", tags).await.is_ok());
+        let result = state.get_bucket_tagging("tag-bucket").await.unwrap();
+        assert_eq!(result.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_bucket_tagging_success() {
+        let state = make_state();
+        state.create_bucket("tag-bucket".to_string(), None).await.unwrap();
+        let mut tags = HashMap::new();
+        tags.insert("env".to_string(), "test".to_string());
+        state.put_bucket_tagging("tag-bucket", tags).await.unwrap();
+        assert!(state.delete_bucket_tagging("tag-bucket").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_put_bucket_versioning() {
+        let state = make_state();
+        state.create_bucket("ver-bucket".to_string(), None).await.unwrap();
+        assert!(state.put_bucket_versioning("ver-bucket", Some("Enabled".to_string())).await.is_ok());
+        let result = state.get_bucket_versioning("ver-bucket").await.unwrap();
+        assert_eq!(result.as_deref(), Some("Enabled"));
+    }
+
+    #[tokio::test]
+    async fn test_multipart_upload() {
+        let state = make_state();
+        state.create_bucket("mp-bucket".to_string(), None).await.unwrap();
+        let upload = state.create_multipart_upload("mp-bucket", "big-key".to_string(), None, HashMap::new()).await.unwrap();
+        let upload_id = upload.upload_id;
+        assert!(state.upload_part("mp-bucket", "big-key", &upload_id, 1, b"part1".to_vec()).await.is_ok());
+        let complete = state.complete_multipart_upload("mp-bucket", "big-key", &upload_id, vec![]).await;
+        assert!(complete.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_objects() {
+        let state = make_state();
+        state.create_bucket("del-bucket".to_string(), None).await.unwrap();
+        state.put_object("del-bucket", "k1".to_string(), vec![], None, HashMap::new()).await.unwrap();
+        state.put_object("del-bucket", "k2".to_string(), vec![], None, HashMap::new()).await.unwrap();
+        let result = state.delete_objects("del-bucket", vec!["k1".to_string(), "k2".to_string()], false).await;
+        assert!(result.is_ok());
+    }
+}

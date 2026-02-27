@@ -52,3 +52,45 @@ impl IntoResponse for SesError {
         resp
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_notfoundexception_error_code() {
+        let err = SesError::NotFoundException("test".to_string());
+        assert_eq!(err.error_code(), "NotFoundException");
+    }
+    #[test]
+    fn test_alreadyexistsexception_error_code() {
+        let err = SesError::AlreadyExistsException("test".to_string());
+        assert_eq!(err.error_code(), "AlreadyExistsException");
+    }
+    #[test]
+    fn test_badrequestexception_error_code() {
+        let err = SesError::BadRequestException("test".to_string());
+        assert_eq!(err.error_code(), "BadRequestException");
+    }
+    #[test]
+    fn test_message() {
+        let err = SesError::NotFoundException("hello".to_string());
+        assert_eq!(err.message(), "hello");
+    }
+    #[test]
+    fn test_notfoundexception_status() {
+        let err = SesError::NotFoundException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::NOT_FOUND);
+    }
+    #[test]
+    fn test_alreadyexistsexception_status() {
+        let err = SesError::AlreadyExistsException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::CONFLICT);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = SesError::NotFoundException("test".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error() || resp.status().is_server_error());
+    }
+}

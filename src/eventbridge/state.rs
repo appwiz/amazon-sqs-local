@@ -386,3 +386,498 @@ impl EventBridgeState {
         )))
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_delete_event_bus_not_found() {
+        let state = EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = DeleteEventBusRequest::default();
+        let result = state.delete_event_bus(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_put_rule() {
+        let state = EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = PutRuleRequest::default();
+        let _ = state.put_rule(req).await;
+    }
+    #[tokio::test]
+    async fn test_delete_rule_not_found() {
+        let state = EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = DeleteRuleRequest::default();
+        let result = state.delete_rule(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_put_targets() {
+        let state = EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = PutTargetsRequest::default();
+        let _ = state.put_targets(req).await;
+    }
+    #[tokio::test]
+    async fn test_remove_targets() {
+        let state = EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = RemoveTargetsRequest::default();
+        let _ = state.remove_targets(req).await;
+    }
+    #[tokio::test]
+    async fn test_tag_resource() {
+        let state = EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = TagResourceRequest::default();
+        let _ = state.tag_resource(req).await;
+    }
+    #[tokio::test]
+    async fn test_untag_resource() {
+        let state = EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = UntagResourceRequest::default();
+        let _ = state.untag_resource(req).await;
+    }
+
+    fn make_state() -> EventBridgeState {
+        EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    // --- Extended coverage: event bus operations ---
+
+    #[tokio::test]
+    async fn test_create_event_bus() {
+        let state = make_state();
+        let result = state.create_event_bus(CreateEventBusRequest {
+            name: "my-bus".to_string(),
+            tags: None,
+        }).await.unwrap();
+        assert!(result.event_bus_arn.contains("my-bus"));
+    }
+
+    #[tokio::test]
+    async fn test_create_event_bus_duplicate() {
+        let state = make_state();
+        state.create_event_bus(CreateEventBusRequest {
+            name: "my-bus".to_string(),
+            tags: None,
+        }).await.unwrap();
+        let result = state.create_event_bus(CreateEventBusRequest {
+            name: "my-bus".to_string(),
+            tags: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_create_event_bus_with_tags() {
+        let state = make_state();
+        let resp = state.create_event_bus(CreateEventBusRequest {
+            name: "tagged-bus".to_string(),
+            tags: Some(vec![Tag { key: "env".to_string(), value: "test".to_string() }]),
+        }).await.unwrap();
+        let tags = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_arn: resp.event_bus_arn,
+        }).await.unwrap();
+        assert_eq!(tags.tags.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_event_bus() {
+        let state = make_state();
+        state.create_event_bus(CreateEventBusRequest {
+            name: "my-bus".to_string(),
+            tags: None,
+        }).await.unwrap();
+        assert!(state.delete_event_bus(DeleteEventBusRequest { name: "my-bus".to_string() }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_default_event_bus_fails() {
+        let state = make_state();
+        let result = state.delete_event_bus(DeleteEventBusRequest { name: "default".to_string() }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_event_bus_default() {
+        let state = make_state();
+        let result = state.describe_event_bus(DescribeEventBusRequest { name: None }).await.unwrap();
+        assert_eq!(result.name, "default");
+    }
+
+    #[tokio::test]
+    async fn test_describe_event_bus_custom() {
+        let state = make_state();
+        state.create_event_bus(CreateEventBusRequest { name: "custom".to_string(), tags: None }).await.unwrap();
+        let result = state.describe_event_bus(DescribeEventBusRequest { name: Some("custom".to_string()) }).await.unwrap();
+        assert_eq!(result.name, "custom");
+    }
+
+    #[tokio::test]
+    async fn test_describe_event_bus_not_found() {
+        let state = make_state();
+        let result = state.describe_event_bus(DescribeEventBusRequest { name: Some("nope".to_string()) }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_event_buses() {
+        let state = make_state();
+        state.create_event_bus(CreateEventBusRequest { name: "bus-a".to_string(), tags: None }).await.unwrap();
+        state.create_event_bus(CreateEventBusRequest { name: "bus-b".to_string(), tags: None }).await.unwrap();
+        let result = state.list_event_buses(ListEventBusesRequest::default()).await.unwrap();
+        assert_eq!(result.event_buses.len(), 3); // default + 2
+    }
+
+    #[tokio::test]
+    async fn test_list_event_buses_with_prefix() {
+        let state = make_state();
+        state.create_event_bus(CreateEventBusRequest { name: "app-bus".to_string(), tags: None }).await.unwrap();
+        state.create_event_bus(CreateEventBusRequest { name: "test-bus".to_string(), tags: None }).await.unwrap();
+        let result = state.list_event_buses(ListEventBusesRequest {
+            name_prefix: Some("app".to_string()),
+            limit: None,
+        }).await.unwrap();
+        assert_eq!(result.event_buses.len(), 1);
+        assert_eq!(result.event_buses[0].name, "app-bus");
+    }
+
+    // --- Extended coverage: rule operations ---
+
+    #[tokio::test]
+    async fn test_put_rule_with_details() {
+        let state = make_state();
+        let result = state.put_rule(PutRuleRequest {
+            name: "my-rule".to_string(),
+            event_bus_name: None,
+            event_pattern: Some("{\"source\":[\"aws.ec2\"]}".to_string()),
+            schedule_expression: None,
+            state: Some("ENABLED".to_string()),
+            description: Some("test rule".to_string()),
+            tags: Some(vec![Tag { key: "env".to_string(), value: "test".to_string() }]),
+        }).await.unwrap();
+        assert!(result.rule_arn.contains("my-rule"));
+    }
+
+    #[tokio::test]
+    async fn test_put_rule_bus_not_found() {
+        let state = make_state();
+        let result = state.put_rule(PutRuleRequest {
+            name: "rule".to_string(),
+            event_bus_name: Some("nonexistent".to_string()),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_rule() {
+        let state = make_state();
+        state.put_rule(PutRuleRequest {
+            name: "my-rule".to_string(),
+            description: Some("desc".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.describe_rule(DescribeRuleRequest {
+            name: "my-rule".to_string(),
+            event_bus_name: None,
+        }).await.unwrap();
+        assert_eq!(result.name, "my-rule");
+        assert_eq!(result.description.as_deref(), Some("desc"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_rule_not_found() {
+        let state = make_state();
+        let result = state.describe_rule(DescribeRuleRequest {
+            name: "nope".to_string(),
+            event_bus_name: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_rule_bus_not_found() {
+        let state = make_state();
+        let result = state.describe_rule(DescribeRuleRequest {
+            name: "rule".to_string(),
+            event_bus_name: Some("nope".to_string()),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_rules() {
+        let state = make_state();
+        state.put_rule(PutRuleRequest { name: "rule-a".to_string(), ..Default::default() }).await.unwrap();
+        state.put_rule(PutRuleRequest { name: "rule-b".to_string(), ..Default::default() }).await.unwrap();
+        let result = state.list_rules(ListRulesRequest::default()).await.unwrap();
+        assert_eq!(result.rules.len(), 2);
+        assert_eq!(result.rules[0].name, "rule-a");
+    }
+
+    #[tokio::test]
+    async fn test_list_rules_with_prefix() {
+        let state = make_state();
+        state.put_rule(PutRuleRequest { name: "app-rule".to_string(), ..Default::default() }).await.unwrap();
+        state.put_rule(PutRuleRequest { name: "test-rule".to_string(), ..Default::default() }).await.unwrap();
+        let result = state.list_rules(ListRulesRequest {
+            name_prefix: Some("app".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.rules.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_list_rules_bus_not_found() {
+        let state = make_state();
+        let result = state.list_rules(ListRulesRequest {
+            event_bus_name: Some("nope".to_string()),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_rule() {
+        let state = make_state();
+        state.put_rule(PutRuleRequest { name: "my-rule".to_string(), ..Default::default() }).await.unwrap();
+        assert!(state.delete_rule(DeleteRuleRequest { name: "my-rule".to_string(), event_bus_name: None }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_rule_bus_not_found() {
+        let state = make_state();
+        let result = state.delete_rule(DeleteRuleRequest {
+            name: "rule".to_string(),
+            event_bus_name: Some("nope".to_string()),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    // --- Extended coverage: targets ---
+
+    #[tokio::test]
+    async fn test_put_and_list_targets() {
+        let state = make_state();
+        state.put_rule(PutRuleRequest { name: "my-rule".to_string(), ..Default::default() }).await.unwrap();
+        state.put_targets(PutTargetsRequest {
+            rule: "my-rule".to_string(),
+            event_bus_name: None,
+            targets: vec![
+                Target { id: "t1".to_string(), arn: "arn:aws:lambda:us-east-1:123:function:f1".to_string(), role_arn: None, input: None, input_path: None },
+                Target { id: "t2".to_string(), arn: "arn:aws:sqs:us-east-1:123:queue1".to_string(), role_arn: None, input: None, input_path: None },
+            ],
+        }).await.unwrap();
+        let result = state.list_targets_by_rule(ListTargetsByRuleRequest {
+            rule: "my-rule".to_string(),
+            event_bus_name: None,
+        }).await.unwrap();
+        assert_eq!(result.targets.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_put_targets_bus_not_found() {
+        let state = make_state();
+        let result = state.put_targets(PutTargetsRequest {
+            rule: "rule".to_string(),
+            event_bus_name: Some("nope".to_string()),
+            targets: vec![],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_put_targets_rule_not_found() {
+        let state = make_state();
+        let result = state.put_targets(PutTargetsRequest {
+            rule: "nope".to_string(),
+            event_bus_name: None,
+            targets: vec![],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_remove_targets_success() {
+        let state = make_state();
+        state.put_rule(PutRuleRequest { name: "my-rule".to_string(), ..Default::default() }).await.unwrap();
+        state.put_targets(PutTargetsRequest {
+            rule: "my-rule".to_string(),
+            event_bus_name: None,
+            targets: vec![Target { id: "t1".to_string(), arn: "arn".to_string(), role_arn: None, input: None, input_path: None }],
+        }).await.unwrap();
+        state.remove_targets(RemoveTargetsRequest {
+            rule: "my-rule".to_string(),
+            event_bus_name: None,
+            ids: vec!["t1".to_string()],
+        }).await.unwrap();
+        let result = state.list_targets_by_rule(ListTargetsByRuleRequest {
+            rule: "my-rule".to_string(),
+            event_bus_name: None,
+        }).await.unwrap();
+        assert!(result.targets.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_remove_targets_bus_not_found() {
+        let state = make_state();
+        let result = state.remove_targets(RemoveTargetsRequest {
+            rule: "rule".to_string(),
+            event_bus_name: Some("nope".to_string()),
+            ids: vec![],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_remove_targets_rule_not_found() {
+        let state = make_state();
+        let result = state.remove_targets(RemoveTargetsRequest {
+            rule: "nope".to_string(),
+            event_bus_name: None,
+            ids: vec![],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_targets_by_rule_bus_not_found() {
+        let state = make_state();
+        let result = state.list_targets_by_rule(ListTargetsByRuleRequest {
+            rule: "rule".to_string(),
+            event_bus_name: Some("nope".to_string()),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_targets_by_rule_rule_not_found() {
+        let state = make_state();
+        let result = state.list_targets_by_rule(ListTargetsByRuleRequest {
+            rule: "nope".to_string(),
+            event_bus_name: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    // --- Extended coverage: put_events ---
+
+    #[tokio::test]
+    async fn test_put_events_success() {
+        let state = make_state();
+        let result = state.put_events(PutEventsRequest {
+            entries: vec![PutEventsRequestEntry { event_bus_name: None }],
+        }).await.unwrap();
+        assert_eq!(result.failed_entry_count, 0);
+        assert_eq!(result.entries.len(), 1);
+        assert!(result.entries[0].event_id.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_put_events_nonexistent_bus() {
+        let state = make_state();
+        let result = state.put_events(PutEventsRequest {
+            entries: vec![PutEventsRequestEntry { event_bus_name: Some("nope".to_string()) }],
+        }).await.unwrap();
+        assert_eq!(result.failed_entry_count, 1);
+        assert!(result.entries[0].error_code.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_put_events_mixed() {
+        let state = make_state();
+        let result = state.put_events(PutEventsRequest {
+            entries: vec![
+                PutEventsRequestEntry { event_bus_name: None },
+                PutEventsRequestEntry { event_bus_name: Some("nope".to_string()) },
+            ],
+        }).await.unwrap();
+        assert_eq!(result.failed_entry_count, 1);
+        assert_eq!(result.entries.len(), 2);
+    }
+
+    // --- Extended coverage: tag operations ---
+
+    #[tokio::test]
+    async fn test_tag_and_list_tags_for_bus() {
+        let state = make_state();
+        let bus_arn = format!("arn:aws:events:us-east-1:123456789012:event-bus/default");
+        state.tag_resource(TagResourceRequest {
+            resource_arn: bus_arn.clone(),
+            tags: vec![Tag { key: "env".to_string(), value: "prod".to_string() }],
+        }).await.unwrap();
+        let result = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_arn: bus_arn,
+        }).await.unwrap();
+        assert_eq!(result.tags.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_tag_rule() {
+        let state = make_state();
+        let rule_resp = state.put_rule(PutRuleRequest { name: "my-rule".to_string(), ..Default::default() }).await.unwrap();
+        state.tag_resource(TagResourceRequest {
+            resource_arn: rule_resp.rule_arn.clone(),
+            tags: vec![Tag { key: "team".to_string(), value: "infra".to_string() }],
+        }).await.unwrap();
+        let result = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_arn: rule_resp.rule_arn,
+        }).await.unwrap();
+        assert_eq!(result.tags.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_untag_bus() {
+        let state = make_state();
+        let bus_arn = format!("arn:aws:events:us-east-1:123456789012:event-bus/default");
+        state.tag_resource(TagResourceRequest {
+            resource_arn: bus_arn.clone(),
+            tags: vec![
+                Tag { key: "a".to_string(), value: "1".to_string() },
+                Tag { key: "b".to_string(), value: "2".to_string() },
+            ],
+        }).await.unwrap();
+        state.untag_resource(UntagResourceRequest {
+            resource_arn: bus_arn.clone(),
+            tag_keys: vec!["a".to_string()],
+        }).await.unwrap();
+        let result = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_arn: bus_arn,
+        }).await.unwrap();
+        assert_eq!(result.tags.len(), 1);
+        assert_eq!(result.tags[0].key, "b");
+    }
+
+    #[tokio::test]
+    async fn test_tag_resource_not_found() {
+        let state = make_state();
+        let result = state.tag_resource(TagResourceRequest {
+            resource_arn: "arn:fake".to_string(),
+            tags: vec![Tag { key: "k".to_string(), value: "v".to_string() }],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_untag_resource_not_found() {
+        let state = make_state();
+        let result = state.untag_resource(UntagResourceRequest {
+            resource_arn: "arn:fake".to_string(),
+            tag_keys: vec!["k".to_string()],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_tags_for_resource_not_found() {
+        let state = make_state();
+        let result = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_arn: "arn:fake".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+}

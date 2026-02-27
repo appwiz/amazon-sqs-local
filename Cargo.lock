@@ -82,6 +82,7 @@ dependencies = [
  "chrono",
  "clap",
  "form_urlencoded",
+ "http-body-util",
  "md-5",
  "percent-encoding",
  "quick-xml",
@@ -89,6 +90,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tokio",
+ "tower",
  "uuid",
 ]
 

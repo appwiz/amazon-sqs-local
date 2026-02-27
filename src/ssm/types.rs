@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutParameterRequest {
     #[serde(rename = "Name")]
     pub name: String,
@@ -28,7 +28,7 @@ pub struct PutParameterResponse {
     pub tier: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GetParameterRequest {
     #[serde(rename = "Name")]
     pub name: String,
@@ -58,7 +58,7 @@ pub struct Parameter {
     pub data_type: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GetParametersRequest {
     #[serde(rename = "Names")]
     pub names: Vec<String>,
@@ -72,7 +72,7 @@ pub struct GetParametersResponse {
     pub invalid_parameters: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GetParametersByPathRequest {
     #[serde(rename = "Path")]
     pub path: String,
@@ -91,13 +91,13 @@ pub struct GetParametersByPathResponse {
     pub next_token: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteParameterRequest {
     #[serde(rename = "Name")]
     pub name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteParametersRequest {
     #[serde(rename = "Names")]
     pub names: Vec<String>,
@@ -111,7 +111,7 @@ pub struct DeleteParametersResponse {
     pub invalid_parameters: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeParametersRequest {
     #[serde(rename = "MaxResults")]
     pub max_results: Option<usize>,
@@ -147,7 +147,7 @@ pub struct ParameterMetadata {
     pub data_type: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct AddTagsToResourceRequest {
     #[serde(rename = "ResourceId")]
     pub resource_id: String,
@@ -155,7 +155,7 @@ pub struct AddTagsToResourceRequest {
     pub tags: Vec<Tag>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct RemoveTagsFromResourceRequest {
     #[serde(rename = "ResourceId")]
     pub resource_id: String,
@@ -163,7 +163,7 @@ pub struct RemoveTagsFromResourceRequest {
     pub tag_keys: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListTagsForResourceRequest {
     #[serde(rename = "ResourceId")]
     pub resource_id: String,

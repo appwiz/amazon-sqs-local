@@ -50,3 +50,50 @@ impl IntoResponse for AppSyncError {
         resp
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_notfoundexception_error_code() {
+        let err = AppSyncError::NotFoundException("test".to_string());
+        assert_eq!(err.error_code(), "NotFoundException");
+    }
+    #[test]
+    fn test_badrequestexception_error_code() {
+        let err = AppSyncError::BadRequestException("test".to_string());
+        assert_eq!(err.error_code(), "BadRequestException");
+    }
+    #[test]
+    fn test_concurrentmodificationexception_error_code() {
+        let err = AppSyncError::ConcurrentModificationException("test".to_string());
+        assert_eq!(err.error_code(), "ConcurrentModificationException");
+    }
+    #[test]
+    fn test_message() {
+        let err = AppSyncError::NotFoundException("hello world".to_string());
+        assert_eq!(err.message(), "hello world");
+    }
+    #[test]
+    fn test_notfoundexception_status() {
+        let err = AppSyncError::NotFoundException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::NOT_FOUND);
+    }
+    #[test]
+    fn test_badrequestexception_status() {
+        let err = AppSyncError::BadRequestException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_concurrentmodificationexception_status() {
+        let err = AppSyncError::ConcurrentModificationException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::CONFLICT);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = AppSyncError::NotFoundException("test error".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error());
+    }
+}

@@ -324,3 +324,185 @@ impl SfnState {
         Err(SfnError::InvalidArn(format!("Resource not found: {}", req.resource_arn)))
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = SfnState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_delete_state_machine_not_found() {
+        let state = SfnState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = DeleteStateMachineRequest::default();
+        let result = state.delete_state_machine(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_send_task_success() {
+        let state = SfnState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = SendTaskSuccessRequest::default();
+        let _ = state.send_task_success(req).await;
+    }
+    #[tokio::test]
+    async fn test_send_task_failure() {
+        let state = SfnState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = SendTaskFailureRequest::default();
+        let _ = state.send_task_failure(req).await;
+    }
+    #[tokio::test]
+    async fn test_send_task_heartbeat() {
+        let state = SfnState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = SendTaskHeartbeatRequest::default();
+        let _ = state.send_task_heartbeat(req).await;
+    }
+    #[tokio::test]
+    async fn test_tag_resource() {
+        let state = SfnState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = TagResourceRequest::default();
+        let _ = state.tag_resource(req).await;
+    }
+    #[tokio::test]
+    async fn test_untag_resource() {
+        let state = SfnState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = UntagResourceRequest::default();
+        let _ = state.untag_resource(req).await;
+    }
+
+    fn make_state() -> SfnState {
+        SfnState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    async fn create_sm(state: &SfnState) -> String {
+        let req = CreateStateMachineRequest {
+            name: "test-sm".to_string(),
+            definition: r#"{"StartAt":"Hello","States":{"Hello":{"Type":"Pass","End":true}}}"#.to_string(),
+            role_arn: "arn:aws:iam::123456789012:role/sfn-role".to_string(),
+            ..Default::default()
+        };
+        state.create_state_machine(req).await.unwrap().state_machine_arn
+    }
+
+    #[tokio::test]
+    async fn test_create_state_machine() {
+        let state = make_state();
+        let arn = create_sm(&state).await;
+        assert!(arn.contains("test-sm"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_state_machine() {
+        let state = make_state();
+        let arn = create_sm(&state).await;
+        let req = DescribeStateMachineRequest { state_machine_arn: arn };
+        let result = state.describe_state_machine(req).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name, "test-sm");
+    }
+
+    #[tokio::test]
+    async fn test_describe_state_machine_not_found() {
+        let state = make_state();
+        let req = DescribeStateMachineRequest { state_machine_arn: "arn:fake".to_string() };
+        assert!(state.describe_state_machine(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_state_machines() {
+        let state = make_state();
+        create_sm(&state).await;
+        let req = ListStateMachinesRequest::default();
+        let result = state.list_state_machines(req).await.unwrap();
+        assert_eq!(result.state_machines.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_state_machine_success() {
+        let state = make_state();
+        let arn = create_sm(&state).await;
+        let req = DeleteStateMachineRequest { state_machine_arn: arn };
+        assert!(state.delete_state_machine(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_start_execution() {
+        let state = make_state();
+        let arn = create_sm(&state).await;
+        let req = StartExecutionRequest {
+            state_machine_arn: arn,
+            input: Some(r#"{"key":"value"}"#.to_string()),
+            ..Default::default()
+        };
+        let result = state.start_execution(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_execution() {
+        let state = make_state();
+        let sm_arn = create_sm(&state).await;
+        let exec = state.start_execution(StartExecutionRequest {
+            state_machine_arn: sm_arn,
+            ..Default::default()
+        }).await.unwrap();
+        let req = DescribeExecutionRequest { execution_arn: exec.execution_arn };
+        let result = state.describe_execution(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_stop_execution() {
+        let state = make_state();
+        let sm_arn = create_sm(&state).await;
+        let exec = state.start_execution(StartExecutionRequest {
+            state_machine_arn: sm_arn,
+            ..Default::default()
+        }).await.unwrap();
+        let req = StopExecutionRequest { execution_arn: exec.execution_arn };
+        assert!(state.stop_execution(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_executions() {
+        let state = make_state();
+        let sm_arn = create_sm(&state).await;
+        state.start_execution(StartExecutionRequest {
+            state_machine_arn: sm_arn.clone(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = ListExecutionsRequest { state_machine_arn: Some(sm_arn), ..Default::default() };
+        let result = state.list_executions(req).await.unwrap();
+        assert_eq!(result.executions.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_execution_history() {
+        let state = make_state();
+        let sm_arn = create_sm(&state).await;
+        let exec = state.start_execution(StartExecutionRequest {
+            state_machine_arn: sm_arn,
+            ..Default::default()
+        }).await.unwrap();
+        let req = GetExecutionHistoryRequest {
+            execution_arn: exec.execution_arn,
+            ..Default::default()
+        };
+        let result = state.get_execution_history(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_tag_and_list_tags() {
+        let state = make_state();
+        let arn = create_sm(&state).await;
+        state.tag_resource(TagResourceRequest {
+            resource_arn: arn.clone(),
+            tags: vec![Tag { key: "env".to_string(), value: "test".to_string() }],
+        }).await.unwrap();
+        let result = state.list_tags_for_resource(ListTagsForResourceRequest { resource_arn: arn }).await.unwrap();
+        assert_eq!(result.tags.len(), 1);
+    }
+}

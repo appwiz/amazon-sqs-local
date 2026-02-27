@@ -16,7 +16,7 @@ macro_rules! dispatch {
         let req: $req_type = serde_json::from_slice(&$body)
             .map_err(|e| CognitoError::InvalidParameterException(e.to_string()))?;
         let resp = $state.$method(req).await?;
-        Ok(Json(serde_json::to_value(resp).unwrap()).into_response())
+        Ok(Json(resp).into_response())
     }};
 }
 
@@ -196,4 +196,534 @@ pub fn create_router(state: Arc<CognitoState>) -> Router {
     Router::new()
         .route("/", post(handle_request))
         .with_state(state)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_missing_target_header() {
+        let state = Arc::new(CognitoState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_unknown_action() {
+        let state = Arc::new(CognitoState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSCognitoIdentityProviderService.FakeAction")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+    #[tokio::test]
+    async fn test_listuserpools_ok() {
+        let state = Arc::new(CognitoState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSCognitoIdentityProviderService.ListUserPools")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_createuserpool_action() {
+        let state = Arc::new(CognitoState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSCognitoIdentityProviderService.CreateUserPool")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert!(resp.status().is_success() || resp.status().is_client_error());
+    }
+    #[tokio::test]
+    async fn test_creategroup_action() {
+        let state = Arc::new(CognitoState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSCognitoIdentityProviderService.CreateGroup")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert!(resp.status().is_success() || resp.status().is_client_error());
+    }
+    #[tokio::test]
+    async fn test_listuserpools_action() {
+        let state = Arc::new(CognitoState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSCognitoIdentityProviderService.ListUserPools")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+    #[tokio::test]
+    async fn test_listusers_action() {
+        let state = Arc::new(CognitoState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSCognitoIdentityProviderService.ListUsers")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert!(resp.status().is_client_error());
+    }
+    #[tokio::test]
+    async fn test_listgroups_action() {
+        let state = Arc::new(CognitoState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSCognitoIdentityProviderService.ListGroups")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert!(resp.status().is_client_error());
+    }
+
+    fn new_state() -> Arc<CognitoState> {
+        Arc::new(CognitoState::new("123456789012".to_string(), "us-east-1".to_string()))
+    }
+
+    fn cognito_req(action: &str, body: &str) -> Request<Body> {
+        Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", format!("AWSCognitoIdentityProviderService.{}", action))
+            .body(Body::from(body.to_string()))
+            .unwrap()
+    }
+
+    async fn extract_body(resp: axum::response::Response) -> serde_json::Value {
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        serde_json::from_slice(&body).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_create_and_describe_user_pool() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req("CreateUserPool", r#"{"PoolName": "test-pool"}"#))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = extract_body(resp).await;
+        let pool_id = json["UserPool"]["Id"].as_str().unwrap().to_string();
+
+        // Describe
+        let app = create_router(state);
+        let resp = app
+            .oneshot(cognito_req("DescribeUserPool", &format!(r#"{{"UserPoolId": "{}"}}"#, pool_id)))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = extract_body(resp).await;
+        assert_eq!(json["UserPool"]["Name"], "test-pool");
+    }
+
+    #[tokio::test]
+    async fn test_delete_user_pool() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req("CreateUserPool", r#"{"PoolName": "del-pool"}"#))
+            .await
+            .unwrap();
+        let json = extract_body(resp).await;
+        let pool_id = json["UserPool"]["Id"].as_str().unwrap().to_string();
+
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req("DeleteUserPool", &format!(r#"{{"UserPoolId": "{}"}}"#, pool_id)))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Verify deleted
+        let app = create_router(state);
+        let resp = app
+            .oneshot(cognito_req("DescribeUserPool", &format!(r#"{{"UserPoolId": "{}"}}"#, pool_id)))
+            .await
+            .unwrap();
+        assert_ne!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_admin_create_and_get_user() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req("CreateUserPool", r#"{"PoolName": "user-pool"}"#))
+            .await
+            .unwrap();
+        let json = extract_body(resp).await;
+        let pool_id = json["UserPool"]["Id"].as_str().unwrap().to_string();
+
+        // Create user
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "AdminCreateUser",
+                &format!(r#"{{"UserPoolId": "{}", "Username": "testuser"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Get user
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "AdminGetUser",
+                &format!(r#"{{"UserPoolId": "{}", "Username": "testuser"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // List users
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "ListUsers",
+                &format!(r#"{{"UserPoolId": "{}"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Delete user
+        let app = create_router(state);
+        let resp = app
+            .oneshot(cognito_req(
+                "AdminDeleteUser",
+                &format!(r#"{{"UserPoolId": "{}", "Username": "testuser"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_create_and_describe_user_pool_client() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req("CreateUserPool", r#"{"PoolName": "client-pool"}"#))
+            .await
+            .unwrap();
+        let json = extract_body(resp).await;
+        let pool_id = json["UserPool"]["Id"].as_str().unwrap().to_string();
+
+        // Create client
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "CreateUserPoolClient",
+                &format!(r#"{{"UserPoolId": "{}", "ClientName": "my-client"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = extract_body(resp).await;
+        let client_id = json["UserPoolClient"]["ClientId"].as_str().unwrap().to_string();
+
+        // Describe client
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "DescribeUserPoolClient",
+                &format!(r#"{{"UserPoolId": "{}", "ClientId": "{}"}}"#, pool_id, client_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // List clients
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "ListUserPoolClients",
+                &format!(r#"{{"UserPoolId": "{}"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Delete client
+        let app = create_router(state);
+        let resp = app
+            .oneshot(cognito_req(
+                "DeleteUserPoolClient",
+                &format!(r#"{{"UserPoolId": "{}", "ClientId": "{}"}}"#, pool_id, client_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_create_and_get_group() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req("CreateUserPool", r#"{"PoolName": "grp-pool"}"#))
+            .await
+            .unwrap();
+        let json = extract_body(resp).await;
+        let pool_id = json["UserPool"]["Id"].as_str().unwrap().to_string();
+
+        // Create group
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "CreateGroup",
+                &format!(r#"{{"UserPoolId": "{}", "GroupName": "admins"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Get group
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "GetGroup",
+                &format!(r#"{{"UserPoolId": "{}", "GroupName": "admins"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // List groups
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "ListGroups",
+                &format!(r#"{{"UserPoolId": "{}"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Delete group
+        let app = create_router(state);
+        let resp = app
+            .oneshot(cognito_req(
+                "DeleteGroup",
+                &format!(r#"{{"UserPoolId": "{}", "GroupName": "admins"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_admin_add_user_to_group() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req("CreateUserPool", r#"{"PoolName": "aug-pool"}"#))
+            .await
+            .unwrap();
+        let json = extract_body(resp).await;
+        let pool_id = json["UserPool"]["Id"].as_str().unwrap().to_string();
+
+        // Create user
+        let app = create_router(state.clone());
+        app.oneshot(cognito_req(
+            "AdminCreateUser",
+            &format!(r#"{{"UserPoolId": "{}", "Username": "user1"}}"#, pool_id),
+        ))
+        .await
+        .unwrap();
+
+        // Create group
+        let app = create_router(state.clone());
+        app.oneshot(cognito_req(
+            "CreateGroup",
+            &format!(r#"{{"UserPoolId": "{}", "GroupName": "devs"}}"#, pool_id),
+        ))
+        .await
+        .unwrap();
+
+        // Add user to group
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "AdminAddUserToGroup",
+                &format!(r#"{{"UserPoolId": "{}", "Username": "user1", "GroupName": "devs"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // List groups for user
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "AdminListGroupsForUser",
+                &format!(r#"{{"UserPoolId": "{}", "Username": "user1"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // List users in group
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "ListUsersInGroup",
+                &format!(r#"{{"UserPoolId": "{}", "GroupName": "devs"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Remove user from group
+        let app = create_router(state);
+        let resp = app
+            .oneshot(cognito_req(
+                "AdminRemoveUserFromGroup",
+                &format!(r#"{{"UserPoolId": "{}", "Username": "user1", "GroupName": "devs"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_admin_set_user_password() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req("CreateUserPool", r#"{"PoolName": "pwd-pool"}"#))
+            .await
+            .unwrap();
+        let json = extract_body(resp).await;
+        let pool_id = json["UserPool"]["Id"].as_str().unwrap().to_string();
+
+        let app = create_router(state.clone());
+        app.oneshot(cognito_req(
+            "AdminCreateUser",
+            &format!(r#"{{"UserPoolId": "{}", "Username": "pwduser"}}"#, pool_id),
+        ))
+        .await
+        .unwrap();
+
+        let app = create_router(state);
+        let resp = app
+            .oneshot(cognito_req(
+                "AdminSetUserPassword",
+                &format!(r#"{{"UserPoolId": "{}", "Username": "pwduser", "Password": "NewP@ss1!", "Permanent": true}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_admin_enable_disable_user() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req("CreateUserPool", r#"{"PoolName": "ed-pool"}"#))
+            .await
+            .unwrap();
+        let json = extract_body(resp).await;
+        let pool_id = json["UserPool"]["Id"].as_str().unwrap().to_string();
+
+        let app = create_router(state.clone());
+        app.oneshot(cognito_req(
+            "AdminCreateUser",
+            &format!(r#"{{"UserPoolId": "{}", "Username": "eduser"}}"#, pool_id),
+        ))
+        .await
+        .unwrap();
+
+        // Disable
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req(
+                "AdminDisableUser",
+                &format!(r#"{{"UserPoolId": "{}", "Username": "eduser"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Enable
+        let app = create_router(state);
+        let resp = app
+            .oneshot(cognito_req(
+                "AdminEnableUser",
+                &format!(r#"{{"UserPoolId": "{}", "Username": "eduser"}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_update_user_pool() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let resp = app
+            .oneshot(cognito_req("CreateUserPool", r#"{"PoolName": "upd-pool"}"#))
+            .await
+            .unwrap();
+        let json = extract_body(resp).await;
+        let pool_id = json["UserPool"]["Id"].as_str().unwrap().to_string();
+
+        let app = create_router(state);
+        let resp = app
+            .oneshot(cognito_req(
+                "UpdateUserPool",
+                &format!(r#"{{"UserPoolId": "{}", "AutoVerifiedAttributes": ["email"]}}"#, pool_id),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
 }

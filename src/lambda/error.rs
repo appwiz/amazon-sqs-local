@@ -48,3 +48,35 @@ impl IntoResponse for LambdaError {
             .into_response()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_message() {
+        let err = LambdaError::ResourceNotFoundException("hello world".to_string());
+        assert_eq!(err.message(), "hello world");
+    }
+    #[test]
+    fn test_resourcenotfoundexception_status() {
+        let err = LambdaError::ResourceNotFoundException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::NOT_FOUND);
+    }
+    #[test]
+    fn test_resourceconflictexception_status() {
+        let err = LambdaError::ResourceConflictException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::CONFLICT);
+    }
+    #[test]
+    fn test_invalidparametervalueexception_status() {
+        let err = LambdaError::InvalidParameterValueException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = LambdaError::ResourceNotFoundException("test error".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error());
+    }
+}

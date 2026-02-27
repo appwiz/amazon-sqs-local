@@ -583,3 +583,181 @@ impl EfsState {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_state() -> EfsState {
+        EfsState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    async fn create_fs(state: &EfsState) -> FileSystemDescription {
+        let req = CreateFileSystemRequest {
+            creation_token: format!("token-{}", uuid::Uuid::new_v4()),
+            ..Default::default()
+        };
+        state.create_file_system(req).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = make_state();
+    }
+
+    #[tokio::test]
+    async fn test_create_file_system() {
+        let state = make_state();
+        let fs = create_fs(&state).await;
+        assert!(fs.file_system_id.starts_with("fs-"));
+        assert_eq!(fs.life_cycle_state, "available");
+    }
+
+    #[tokio::test]
+    async fn test_create_file_system_idempotent() {
+        let state = make_state();
+        let req = CreateFileSystemRequest {
+            creation_token: "my-token".to_string(),
+            ..Default::default()
+        };
+        let fs1 = state.create_file_system(req.clone()).await.unwrap();
+        let fs2 = state.create_file_system(req).await.unwrap();
+        assert_eq!(fs1.file_system_id, fs2.file_system_id);
+    }
+
+    #[tokio::test]
+    async fn test_describe_file_systems() {
+        let state = make_state();
+        create_fs(&state).await;
+        let result = state.describe_file_systems(None, None).await.unwrap();
+        assert_eq!(result.file_systems.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_describe_file_systems_by_id() {
+        let state = make_state();
+        let fs = create_fs(&state).await;
+        let result = state.describe_file_systems(Some(fs.file_system_id.clone()), None).await.unwrap();
+        assert_eq!(result.file_systems.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_file_system() {
+        let state = make_state();
+        let fs = create_fs(&state).await;
+        assert!(state.delete_file_system(fs.file_system_id.clone()).await.is_ok());
+        let result = state.describe_file_systems(None, None).await.unwrap();
+        assert!(result.file_systems.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_delete_file_system_not_found() {
+        let state = make_state();
+        assert!(state.delete_file_system("fs-nonexistent".to_string()).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_file_system() {
+        let state = make_state();
+        let fs = create_fs(&state).await;
+        let req = UpdateFileSystemRequest {
+            throughput_mode: Some("provisioned".to_string()),
+            provisioned_throughput_in_mibps: Some(100.0),
+        };
+        let result = state.update_file_system(fs.file_system_id.clone(), req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_mount_target() {
+        let state = make_state();
+        let fs = create_fs(&state).await;
+        let req = CreateMountTargetRequest {
+            file_system_id: fs.file_system_id.clone(),
+            subnet_id: "subnet-12345".to_string(),
+            ..Default::default()
+        };
+        let result = state.create_mount_target(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_mount_targets() {
+        let state = make_state();
+        let fs = create_fs(&state).await;
+        state.create_mount_target(CreateMountTargetRequest {
+            file_system_id: fs.file_system_id.clone(),
+            subnet_id: "subnet-12345".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.describe_mount_targets(None, Some(fs.file_system_id.clone())).await.unwrap();
+        assert_eq!(result.mount_targets.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_mount_target() {
+        let state = make_state();
+        let fs = create_fs(&state).await;
+        let mt = state.create_mount_target(CreateMountTargetRequest {
+            file_system_id: fs.file_system_id.clone(),
+            subnet_id: "subnet-12345".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(state.delete_mount_target(mt.mount_target_id.clone()).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_access_point() {
+        let state = make_state();
+        let fs = create_fs(&state).await;
+        let req = CreateAccessPointRequest {
+            client_token: "ap-token".to_string(),
+            file_system_id: fs.file_system_id.clone(),
+            ..Default::default()
+        };
+        let result = state.create_access_point(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_access_points() {
+        let state = make_state();
+        let fs = create_fs(&state).await;
+        state.create_access_point(CreateAccessPointRequest {
+            client_token: "ap-token".to_string(),
+            file_system_id: fs.file_system_id.clone(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.describe_access_points(None, None).await.unwrap();
+        assert_eq!(result.access_points.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_tag_and_list_tags() {
+        let state = make_state();
+        let fs = create_fs(&state).await;
+        let tag_req = TagResourceRequest {
+            tags: vec![Tag { key: "env".to_string(), value: "test".to_string() }],
+        };
+        state.tag_resource(fs.file_system_id.clone(), tag_req).await.unwrap();
+        let result = state.list_tags_for_resource(fs.file_system_id.clone()).await.unwrap();
+        // Tags include the ones from creation plus the new one
+        assert!(result.tags.iter().any(|t| t.key == "env"));
+    }
+
+    #[tokio::test]
+    async fn test_put_lifecycle_configuration() {
+        let state = make_state();
+        let fs = create_fs(&state).await;
+        let req = PutLifecycleConfigurationRequest {
+            lifecycle_policies: vec![LifecyclePolicy {
+                transition_to_ia: Some("AFTER_30_DAYS".to_string()),
+                transition_to_primary_storage_class: None,
+                transition_to_archive: None,
+            }],
+        };
+        assert!(state.put_lifecycle_configuration(fs.file_system_id.clone(), req).await.is_ok());
+        let result = state.describe_lifecycle_configuration(fs.file_system_id.clone()).await.unwrap();
+        assert_eq!(result.lifecycle_policies.len(), 1);
+    }
+}

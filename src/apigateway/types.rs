@@ -28,7 +28,7 @@ pub struct RestApisOutput {
 
 // --- CreateRestApi ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRestApiRequest {
     pub name: String,
@@ -42,7 +42,7 @@ pub struct CreateRestApiRequest {
 
 // --- UpdateRestApi ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateRestApiRequest {
     #[serde(default)]
@@ -84,7 +84,7 @@ pub struct ResourcesOutput {
 
 // --- CreateResource ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateResourceRequest {
     pub path_part: String,
@@ -112,7 +112,7 @@ pub struct MethodOutput {
 
 // --- PutMethod ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PutMethodRequest {
     pub authorization_type: String,
@@ -160,7 +160,7 @@ pub struct IntegrationResponseOutput {
 
 // --- PutIntegration ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PutIntegrationRequest {
     #[serde(rename = "type")]
@@ -194,7 +194,7 @@ pub struct MethodResponseOutput {
 
 // --- PutMethodResponse ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PutMethodResponseRequest {
     #[serde(default)]
@@ -205,7 +205,7 @@ pub struct PutMethodResponseRequest {
 
 // --- PutIntegrationResponse ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PutIntegrationResponseRequest {
     #[serde(default)]
@@ -275,7 +275,7 @@ pub struct StagesOutput {
 
 // --- CreateStage ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateStageRequest {
     pub stage_name: String,
@@ -290,7 +290,7 @@ pub struct CreateStageRequest {
 
 // --- UpdateStage ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateStageRequest {
     #[serde(default)]
@@ -299,7 +299,7 @@ pub struct UpdateStageRequest {
 
 // --- Tag operations ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct TagResourceRequest {
     pub tags: HashMap<String, String>,

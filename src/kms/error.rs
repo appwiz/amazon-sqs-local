@@ -52,3 +52,70 @@ impl IntoResponse for KmsError {
         (self.status_code(), axum::Json(body)).into_response()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_notfoundexception_error_code() {
+        let err = KmsError::NotFoundException("test".to_string());
+        assert_eq!(err.error_code(), "NotFoundException");
+    }
+    #[test]
+    fn test_invalidciphertextexception_error_code() {
+        let err = KmsError::InvalidCiphertextException("test".to_string());
+        assert_eq!(err.error_code(), "InvalidCiphertextException");
+    }
+    #[test]
+    fn test_disabledexception_error_code() {
+        let err = KmsError::DisabledException("test".to_string());
+        assert_eq!(err.error_code(), "DisabledException");
+    }
+    #[test]
+    fn test_invalidparameterexception_error_code() {
+        let err = KmsError::InvalidParameterException("test".to_string());
+        assert_eq!(err.error_code(), "InvalidParameterException");
+    }
+    #[test]
+    fn test_invalidaction_error_code() {
+        let err = KmsError::InvalidAction("test".to_string());
+        assert_eq!(err.error_code(), "InvalidAction");
+    }
+    #[test]
+    fn test_message() {
+        let err = KmsError::NotFoundException("hello world".to_string());
+        assert_eq!(err.message(), "hello world");
+    }
+    #[test]
+    fn test_notfoundexception_status() {
+        let err = KmsError::NotFoundException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::NOT_FOUND);
+    }
+    #[test]
+    fn test_invalidciphertextexception_status() {
+        let err = KmsError::InvalidCiphertextException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_disabledexception_status() {
+        let err = KmsError::DisabledException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_invalidparameterexception_status() {
+        let err = KmsError::InvalidParameterException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_invalidaction_status() {
+        let err = KmsError::InvalidAction("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = KmsError::NotFoundException("test error".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error());
+    }
+}

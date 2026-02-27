@@ -430,3 +430,601 @@ impl KinesisState {
         Ok(())
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = KinesisState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_create_stream() {
+        let state = KinesisState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = CreateStreamRequest::default();
+        let result = state.create_stream(req).await;
+        assert!(result.is_ok());
+    }
+    #[tokio::test]
+    async fn test_delete_stream_not_found() {
+        let state = KinesisState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = DeleteStreamRequest::default();
+        let result = state.delete_stream(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_list_streams_empty() {
+        let state = KinesisState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = ListStreamsRequest::default();
+        let result = state.list_streams(req).await;
+        assert!(result.is_ok());
+    }
+    #[tokio::test]
+    async fn test_put_record() {
+        let state = KinesisState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = PutRecordRequest::default();
+        let _ = state.put_record(req).await;
+    }
+    #[tokio::test]
+    async fn test_put_records() {
+        let state = KinesisState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = PutRecordsRequest::default();
+        let _ = state.put_records(req).await;
+    }
+    #[tokio::test]
+    async fn test_get_records_not_found() {
+        let state = KinesisState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = GetRecordsRequest::default();
+        let result = state.get_records(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_list_shards_empty() {
+        let state = KinesisState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = ListShardsRequest::default();
+        let result = state.list_shards(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_add_tags_to_stream() {
+        let state = KinesisState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = AddTagsToStreamRequest::default();
+        let _ = state.add_tags_to_stream(req).await;
+    }
+    #[tokio::test]
+    async fn test_remove_tags_from_stream() {
+        let state = KinesisState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = RemoveTagsFromStreamRequest::default();
+        let _ = state.remove_tags_from_stream(req).await;
+    }
+
+    #[tokio::test]
+    async fn test_stream_create_and_list() {
+        let state = KinesisState::new("123456789012".to_string(), "us-east-1".to_string());
+        let create_req = CreateStreamRequest::default();
+        let _created = state.create_stream(create_req).await.unwrap();
+        let list_req = ListStreamsRequest::default();
+        let listed = state.list_streams(list_req).await.unwrap();
+        let _ = listed;
+    }
+
+    // --- Comprehensive additional tests ---
+
+    fn make_state() -> KinesisState {
+        KinesisState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    async fn create_stream(state: &KinesisState, name: &str) {
+        state.create_stream(CreateStreamRequest {
+            stream_name: name.to_string(),
+            shard_count: Some(1),
+            ..Default::default()
+        }).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_create_stream_duplicate() {
+        let state = make_state();
+        create_stream(&state, "dup-stream").await;
+        let result = state.create_stream(CreateStreamRequest {
+            stream_name: "dup-stream".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_stream_success() {
+        let state = make_state();
+        create_stream(&state, "del-stream").await;
+        let result = state.delete_stream(DeleteStreamRequest {
+            stream_name: Some("del-stream".to_string()),
+            ..Default::default()
+        }).await;
+        assert!(result.is_ok());
+        // Verify gone
+        let list = state.list_streams(ListStreamsRequest::default()).await.unwrap();
+        assert!(list.stream_names.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_describe_stream() {
+        let state = make_state();
+        create_stream(&state, "desc-stream").await;
+        let result = state.describe_stream(DescribeStreamRequest {
+            stream_name: Some("desc-stream".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.stream_description.stream_name, "desc-stream");
+        assert_eq!(result.stream_description.stream_status, "ACTIVE");
+        assert!(!result.stream_description.shards.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_describe_stream_not_found() {
+        let state = make_state();
+        let result = state.describe_stream(DescribeStreamRequest {
+            stream_name: Some("nope".to_string()),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_stream_summary() {
+        let state = make_state();
+        create_stream(&state, "sum-stream").await;
+        let result = state.describe_stream_summary(DescribeStreamSummaryRequest {
+            stream_name: Some("sum-stream".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.stream_description_summary.stream_name, "sum-stream");
+        assert_eq!(result.stream_description_summary.open_shard_count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_describe_stream_summary_not_found() {
+        let state = make_state();
+        let result = state.describe_stream_summary(DescribeStreamSummaryRequest {
+            stream_name: Some("nope".to_string()),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_streams_multiple() {
+        let state = make_state();
+        create_stream(&state, "stream-a").await;
+        create_stream(&state, "stream-b").await;
+        create_stream(&state, "stream-c").await;
+        let result = state.list_streams(ListStreamsRequest::default()).await.unwrap();
+        assert_eq!(result.stream_names.len(), 3);
+        assert!(!result.has_more_streams);
+    }
+
+    #[tokio::test]
+    async fn test_list_streams_with_limit() {
+        let state = make_state();
+        create_stream(&state, "s1").await;
+        create_stream(&state, "s2").await;
+        create_stream(&state, "s3").await;
+        let result = state.list_streams(ListStreamsRequest {
+            limit: Some(2),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.stream_names.len(), 2);
+        assert!(result.has_more_streams);
+    }
+
+    #[tokio::test]
+    async fn test_put_record_and_get_records() {
+        let state = make_state();
+        create_stream(&state, "rec-stream").await;
+
+        // Put a record
+        let put_result = state.put_record(PutRecordRequest {
+            stream_name: Some("rec-stream".to_string()),
+            data: "dGVzdCBkYXRh".to_string(), // base64("test data")
+            partition_key: "pk1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(!put_result.sequence_number.is_empty());
+        assert_eq!(put_result.shard_id, "shardId-000000000000");
+
+        // Get shard iterator
+        let iter_resp = state.get_shard_iterator(GetShardIteratorRequest {
+            stream_name: Some("rec-stream".to_string()),
+            shard_id: "shardId-000000000000".to_string(),
+            shard_iterator_type: "TRIM_HORIZON".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+
+        // Get records
+        let get_resp = state.get_records(GetRecordsRequest {
+            shard_iterator: iter_resp.shard_iterator,
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(get_resp.records.len(), 1);
+        assert_eq!(get_resp.records[0].data, "dGVzdCBkYXRh");
+        assert_eq!(get_resp.records[0].partition_key, "pk1");
+        assert!(get_resp.next_shard_iterator.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_put_record_stream_not_found() {
+        let state = make_state();
+        let result = state.put_record(PutRecordRequest {
+            stream_name: Some("nope".to_string()),
+            data: "data".to_string(),
+            partition_key: "pk".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_put_records_multiple() {
+        let state = make_state();
+        create_stream(&state, "multi-stream").await;
+        let result = state.put_records(PutRecordsRequest {
+            stream_name: Some("multi-stream".to_string()),
+            records: vec![
+                PutRecordsRequestEntry { data: "d1".to_string(), partition_key: "p1".to_string() },
+                PutRecordsRequestEntry { data: "d2".to_string(), partition_key: "p2".to_string() },
+                PutRecordsRequestEntry { data: "d3".to_string(), partition_key: "p3".to_string() },
+            ],
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.records.len(), 3);
+        assert_eq!(result.failed_record_count, 0);
+    }
+
+    #[tokio::test]
+    async fn test_put_records_stream_not_found() {
+        let state = make_state();
+        let result = state.put_records(PutRecordsRequest {
+            stream_name: Some("nope".to_string()),
+            records: vec![PutRecordsRequestEntry { data: "d".to_string(), partition_key: "p".to_string() }],
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_shard_iterator_types() {
+        let state = make_state();
+        create_stream(&state, "iter-stream").await;
+
+        // Put some records first
+        state.put_record(PutRecordRequest {
+            stream_name: Some("iter-stream".to_string()),
+            data: "data1".to_string(),
+            partition_key: "pk".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+
+        // TRIM_HORIZON
+        let iter = state.get_shard_iterator(GetShardIteratorRequest {
+            stream_name: Some("iter-stream".to_string()),
+            shard_id: "shardId-000000000000".to_string(),
+            shard_iterator_type: "TRIM_HORIZON".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(!iter.shard_iterator.is_empty());
+
+        // LATEST
+        let iter = state.get_shard_iterator(GetShardIteratorRequest {
+            stream_name: Some("iter-stream".to_string()),
+            shard_id: "shardId-000000000000".to_string(),
+            shard_iterator_type: "LATEST".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(!iter.shard_iterator.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_shard_iterator_stream_not_found() {
+        let state = make_state();
+        let result = state.get_shard_iterator(GetShardIteratorRequest {
+            stream_name: Some("nope".to_string()),
+            shard_id: "shardId-000000000000".to_string(),
+            shard_iterator_type: "TRIM_HORIZON".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_records_with_limit() {
+        let state = make_state();
+        create_stream(&state, "lim-stream").await;
+        for i in 0..5 {
+            state.put_record(PutRecordRequest {
+                stream_name: Some("lim-stream".to_string()),
+                data: format!("data{}", i),
+                partition_key: "pk".to_string(),
+                ..Default::default()
+            }).await.unwrap();
+        }
+
+        let iter = state.get_shard_iterator(GetShardIteratorRequest {
+            stream_name: Some("lim-stream".to_string()),
+            shard_id: "shardId-000000000000".to_string(),
+            shard_iterator_type: "TRIM_HORIZON".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.get_records(GetRecordsRequest {
+            shard_iterator: iter.shard_iterator,
+            limit: Some(3),
+        }).await.unwrap();
+        assert_eq!(result.records.len(), 3);
+        assert!(result.millis_behind_latest > 0);
+    }
+
+    #[tokio::test]
+    async fn test_get_records_empty_stream() {
+        let state = make_state();
+        create_stream(&state, "empty-stream").await;
+
+        let iter = state.get_shard_iterator(GetShardIteratorRequest {
+            stream_name: Some("empty-stream".to_string()),
+            shard_id: "shardId-000000000000".to_string(),
+            shard_iterator_type: "TRIM_HORIZON".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.get_records(GetRecordsRequest {
+            shard_iterator: iter.shard_iterator,
+            ..Default::default()
+        }).await.unwrap();
+        assert!(result.records.is_empty());
+        assert_eq!(result.millis_behind_latest, 0);
+    }
+
+    #[tokio::test]
+    async fn test_list_shards_success() {
+        let state = make_state();
+        state.create_stream(CreateStreamRequest {
+            stream_name: "shard-stream".to_string(),
+            shard_count: Some(3),
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.list_shards(ListShardsRequest {
+            stream_name: Some("shard-stream".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.shards.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_add_and_list_tags() {
+        let state = make_state();
+        create_stream(&state, "tag-stream").await;
+        let mut tags = std::collections::HashMap::new();
+        tags.insert("env".to_string(), "test".to_string());
+        tags.insert("team".to_string(), "backend".to_string());
+
+        state.add_tags_to_stream(AddTagsToStreamRequest {
+            stream_name: Some("tag-stream".to_string()),
+            tags,
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.list_tags_for_stream(ListTagsForStreamRequest {
+            stream_name: Some("tag-stream".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.tags.len(), 2);
+        assert!(!result.has_more_tags);
+    }
+
+    #[tokio::test]
+    async fn test_remove_tags_from_stream_success() {
+        let state = make_state();
+        create_stream(&state, "untag-stream").await;
+        let mut tags = std::collections::HashMap::new();
+        tags.insert("env".to_string(), "test".to_string());
+        tags.insert("team".to_string(), "backend".to_string());
+
+        state.add_tags_to_stream(AddTagsToStreamRequest {
+            stream_name: Some("untag-stream".to_string()),
+            tags,
+            ..Default::default()
+        }).await.unwrap();
+
+        state.remove_tags_from_stream(RemoveTagsFromStreamRequest {
+            stream_name: Some("untag-stream".to_string()),
+            tag_keys: vec!["env".to_string()],
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.list_tags_for_stream(ListTagsForStreamRequest {
+            stream_name: Some("untag-stream".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.tags.len(), 1);
+        assert_eq!(result.tags[0].key, "team");
+    }
+
+    #[tokio::test]
+    async fn test_add_tags_stream_not_found() {
+        let state = make_state();
+        let result = state.add_tags_to_stream(AddTagsToStreamRequest {
+            stream_name: Some("nope".to_string()),
+            tags: std::collections::HashMap::new(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_remove_tags_stream_not_found() {
+        let state = make_state();
+        let result = state.remove_tags_from_stream(RemoveTagsFromStreamRequest {
+            stream_name: Some("nope".to_string()),
+            tag_keys: vec!["env".to_string()],
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_tags_stream_not_found() {
+        let state = make_state();
+        let result = state.list_tags_for_stream(ListTagsForStreamRequest {
+            stream_name: Some("nope".to_string()),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_increase_retention_period() {
+        let state = make_state();
+        create_stream(&state, "ret-stream").await;
+        let result = state.increase_stream_retention_period(IncreaseStreamRetentionPeriodRequest {
+            stream_name: Some("ret-stream".to_string()),
+            retention_period_hours: 48,
+            ..Default::default()
+        }).await;
+        assert!(result.is_ok());
+
+        let desc = state.describe_stream(DescribeStreamRequest {
+            stream_name: Some("ret-stream".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(desc.stream_description.retention_period_hours, 48);
+    }
+
+    #[tokio::test]
+    async fn test_increase_retention_period_too_low() {
+        let state = make_state();
+        create_stream(&state, "ret2-stream").await;
+        let result = state.increase_stream_retention_period(IncreaseStreamRetentionPeriodRequest {
+            stream_name: Some("ret2-stream".to_string()),
+            retention_period_hours: 12, // less than default 24
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_decrease_retention_period() {
+        let state = make_state();
+        create_stream(&state, "dec-stream").await;
+        // First increase
+        state.increase_stream_retention_period(IncreaseStreamRetentionPeriodRequest {
+            stream_name: Some("dec-stream".to_string()),
+            retention_period_hours: 48,
+            ..Default::default()
+        }).await.unwrap();
+
+        // Then decrease
+        let result = state.decrease_stream_retention_period(DecreaseStreamRetentionPeriodRequest {
+            stream_name: Some("dec-stream".to_string()),
+            retention_period_hours: 24,
+            ..Default::default()
+        }).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_decrease_retention_period_too_high() {
+        let state = make_state();
+        create_stream(&state, "dec2-stream").await;
+        let result = state.decrease_stream_retention_period(DecreaseStreamRetentionPeriodRequest {
+            stream_name: Some("dec2-stream".to_string()),
+            retention_period_hours: 48, // greater than default 24
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_increase_retention_not_found() {
+        let state = make_state();
+        let result = state.increase_stream_retention_period(IncreaseStreamRetentionPeriodRequest {
+            stream_name: Some("nope".to_string()),
+            retention_period_hours: 48,
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_decrease_retention_not_found() {
+        let state = make_state();
+        let result = state.decrease_stream_retention_period(DecreaseStreamRetentionPeriodRequest {
+            stream_name: Some("nope".to_string()),
+            retention_period_hours: 12,
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_records_chained_iterators() {
+        let state = make_state();
+        create_stream(&state, "chain-stream").await;
+
+        // Put 3 records
+        for i in 0..3 {
+            state.put_record(PutRecordRequest {
+                stream_name: Some("chain-stream".to_string()),
+                data: format!("rec{}", i),
+                partition_key: "pk".to_string(),
+                ..Default::default()
+            }).await.unwrap();
+        }
+
+        // Get first 2
+        let iter = state.get_shard_iterator(GetShardIteratorRequest {
+            stream_name: Some("chain-stream".to_string()),
+            shard_id: "shardId-000000000000".to_string(),
+            shard_iterator_type: "TRIM_HORIZON".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+
+        let first = state.get_records(GetRecordsRequest {
+            shard_iterator: iter.shard_iterator,
+            limit: Some(2),
+        }).await.unwrap();
+        assert_eq!(first.records.len(), 2);
+        let next_iter = first.next_shard_iterator.unwrap();
+
+        // Get remaining with chained iterator
+        let second = state.get_records(GetRecordsRequest {
+            shard_iterator: next_iter,
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(second.records.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_list_tags_with_limit() {
+        let state = make_state();
+        create_stream(&state, "tags-lim").await;
+        let mut tags = std::collections::HashMap::new();
+        for i in 0..15 {
+            tags.insert(format!("key{:02}", i), format!("val{}", i));
+        }
+        state.add_tags_to_stream(AddTagsToStreamRequest {
+            stream_name: Some("tags-lim".to_string()),
+            tags,
+            ..Default::default()
+        }).await.unwrap();
+
+        let result = state.list_tags_for_stream(ListTagsForStreamRequest {
+            stream_name: Some("tags-lim".to_string()),
+            limit: Some(5),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.tags.len(), 5);
+        assert!(result.has_more_tags);
+    }
+}

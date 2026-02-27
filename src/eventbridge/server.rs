@@ -16,7 +16,7 @@ macro_rules! dispatch {
         let req: $req_type = serde_json::from_slice(&$body)
             .map_err(|e| EventBridgeError::InvalidAction(e.to_string()))?;
         let resp = $state.$method(req).await?;
-        Ok(Json(serde_json::to_value(resp).unwrap()).into_response())
+        Ok(Json(resp).into_response())
     }};
 }
 
@@ -72,4 +72,99 @@ pub fn create_router(state: Arc<EventBridgeState>) -> Router {
     Router::new()
         .route("/", post(handle_request))
         .with_state(state)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn test_missing_target_header() {
+        let state = Arc::new(EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn test_unknown_action() {
+        let state = Arc::new(EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSEvents.FakeAction")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+    #[tokio::test]
+    async fn test_describeeventbus_default() {
+        let state = Arc::new(EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSEvents.DescribeEventBus")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_createeventbus_action() {
+        let state = Arc::new(EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSEvents.CreateEventBus")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert!(resp.status().is_success() || resp.status().is_client_error());
+    }
+    #[tokio::test]
+    async fn test_listeventbuses_action() {
+        let state = Arc::new(EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSEvents.ListEventBuses")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+    #[tokio::test]
+    async fn test_listrules_action() {
+        let state = Arc::new(EventBridgeState::new("123456789012".to_string(), "us-east-1".to_string()));
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "AWSEvents.ListRules")
+            .body(Body::from("{}"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
 }

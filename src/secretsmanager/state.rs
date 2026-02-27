@@ -394,3 +394,165 @@ impl SecretsManagerState {
         })
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = SecretsManagerState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_tag_resource() {
+        let state = SecretsManagerState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = TagResourceRequest::default();
+        let _ = state.tag_resource(req).await;
+    }
+    #[tokio::test]
+    async fn test_untag_resource() {
+        let state = SecretsManagerState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = UntagResourceRequest::default();
+        let _ = state.untag_resource(req).await;
+    }
+
+    fn make_state() -> SecretsManagerState {
+        SecretsManagerState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    async fn create_secret(state: &SecretsManagerState, name: &str) -> String {
+        let req = CreateSecretRequest {
+            name: name.to_string(),
+            secret_string: Some("my-secret-value".to_string()),
+            ..Default::default()
+        };
+        state.create_secret(req).await.unwrap().arn
+    }
+
+    #[tokio::test]
+    async fn test_create_secret() {
+        let state = make_state();
+        let arn = create_secret(&state, "my-secret").await;
+        assert!(arn.contains("my-secret"));
+    }
+
+    #[tokio::test]
+    async fn test_create_secret_duplicate() {
+        let state = make_state();
+        create_secret(&state, "dup").await;
+        let req = CreateSecretRequest { name: "dup".to_string(), ..Default::default() };
+        assert!(state.create_secret(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_secret_value() {
+        let state = make_state();
+        create_secret(&state, "s1").await;
+        let req = GetSecretValueRequest { secret_id: "s1".to_string(), ..Default::default() };
+        let result = state.get_secret_value(req).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().secret_string.unwrap(), "my-secret-value");
+    }
+
+    #[tokio::test]
+    async fn test_get_secret_value_not_found() {
+        let state = make_state();
+        let req = GetSecretValueRequest { secret_id: "nope".to_string(), ..Default::default() };
+        assert!(state.get_secret_value(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_secret() {
+        let state = make_state();
+        create_secret(&state, "s1").await;
+        let req = DescribeSecretRequest { secret_id: "s1".to_string() };
+        let result = state.describe_secret(req).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name, "s1");
+    }
+
+    #[tokio::test]
+    async fn test_list_secrets() {
+        let state = make_state();
+        create_secret(&state, "s1").await;
+        create_secret(&state, "s2").await;
+        let req = ListSecretsRequest {};
+        let result = state.list_secrets(req).await.unwrap();
+        assert_eq!(result.secret_list.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_update_secret() {
+        let state = make_state();
+        create_secret(&state, "s1").await;
+        let req = UpdateSecretRequest {
+            secret_id: "s1".to_string(),
+            secret_string: Some("updated-value".to_string()),
+            ..Default::default()
+        };
+        assert!(state.update_secret(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_put_secret_value() {
+        let state = make_state();
+        create_secret(&state, "s1").await;
+        let req = PutSecretValueRequest {
+            secret_id: "s1".to_string(),
+            secret_string: Some("new-value".to_string()),
+            ..Default::default()
+        };
+        assert!(state.put_secret_value(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_secret() {
+        let state = make_state();
+        create_secret(&state, "s1").await;
+        let req = DeleteSecretRequest {
+            secret_id: "s1".to_string(),
+            force_delete_without_recovery: Some(true),
+            ..Default::default()
+        };
+        assert!(state.delete_secret(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_restore_secret() {
+        let state = make_state();
+        create_secret(&state, "s1").await;
+        state.delete_secret(DeleteSecretRequest {
+            secret_id: "s1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = RestoreSecretRequest { secret_id: "s1".to_string() };
+        assert!(state.restore_secret(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_list_secret_version_ids() {
+        let state = make_state();
+        create_secret(&state, "s1").await;
+        let req = ListSecretVersionIdsRequest { secret_id: "s1".to_string() };
+        let result = state.list_secret_version_ids(req).await;
+        assert!(result.is_ok());
+        assert!(!result.unwrap().versions.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_tag_and_untag_secret() {
+        let state = make_state();
+        create_secret(&state, "s1").await;
+        state.tag_resource(TagResourceRequest {
+            secret_id: "s1".to_string(),
+            tags: vec![Tag { key: "env".to_string(), value: "test".to_string() }],
+        }).await.unwrap();
+        let desc = state.describe_secret(DescribeSecretRequest { secret_id: "s1".to_string() }).await.unwrap();
+        assert_eq!(desc.tags.len(), 1);
+        state.untag_resource(UntagResourceRequest {
+            secret_id: "s1".to_string(),
+            tag_keys: vec!["env".to_string()],
+        }).await.unwrap();
+    }
+}

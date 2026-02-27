@@ -84,7 +84,7 @@ pub struct BillingModeSummary {
 
 // --- CreateTable ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct CreateTableRequest {
     #[serde(rename = "TableName")]
     pub table_name: String,
@@ -108,7 +108,7 @@ pub struct CreateTableResponse {
 
 // --- DeleteTable ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct DeleteTableRequest {
     #[serde(rename = "TableName")]
     pub table_name: String,
@@ -122,7 +122,7 @@ pub struct DeleteTableResponse {
 
 // --- DescribeTable ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct DescribeTableRequest {
     #[serde(rename = "TableName")]
     pub table_name: String,
@@ -154,7 +154,7 @@ pub struct ListTablesResponse {
 
 // --- UpdateTable ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct UpdateTableRequest {
     #[serde(rename = "TableName")]
     pub table_name: String,
@@ -172,7 +172,7 @@ pub struct UpdateTableResponse {
 
 // --- PutItem ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct PutItemRequest {
     #[serde(rename = "TableName")]
     pub table_name: String,
@@ -190,7 +190,7 @@ pub struct PutItemResponse {
 
 // --- GetItem ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct GetItemRequest {
     #[serde(rename = "TableName")]
     pub table_name: String,
@@ -210,7 +210,7 @@ pub struct GetItemResponse {
 
 // --- DeleteItem ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct DeleteItemRequest {
     #[serde(rename = "TableName")]
     pub table_name: String,
@@ -228,7 +228,7 @@ pub struct DeleteItemResponse {
 
 // --- UpdateItem ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct UpdateItemRequest {
     #[serde(rename = "TableName")]
     pub table_name: String,
@@ -252,7 +252,7 @@ pub struct UpdateItemResponse {
 
 // --- Query ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct QueryRequest {
     #[serde(rename = "TableName")]
     pub table_name: String,
@@ -290,7 +290,7 @@ pub struct QueryResponse {
 
 // --- Scan ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct ScanRequest {
     #[serde(rename = "TableName")]
     pub table_name: String,
@@ -324,7 +324,7 @@ pub struct ScanResponse {
 
 // --- BatchGetItem ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct BatchGetItemRequest {
     #[serde(rename = "RequestItems")]
     pub request_items: HashMap<String, KeysAndAttributes>,
@@ -350,13 +350,13 @@ pub struct BatchGetItemResponse {
 
 // --- BatchWriteItem ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct BatchWriteItemRequest {
     #[serde(rename = "RequestItems")]
     pub request_items: HashMap<String, Vec<WriteRequest>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct WriteRequest {
     #[serde(rename = "PutRequest", default)]
     pub put_request: Option<PutRequest>,
@@ -364,13 +364,13 @@ pub struct WriteRequest {
     pub delete_request: Option<DeleteRequest>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct PutRequest {
     #[serde(rename = "Item")]
     pub item: Item,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct DeleteRequest {
     #[serde(rename = "Key")]
     pub key: Item,
@@ -392,7 +392,7 @@ pub struct Tag {
     pub value: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct TagResourceRequest {
     #[serde(rename = "ResourceArn")]
     pub resource_arn: String,
@@ -402,7 +402,7 @@ pub struct TagResourceRequest {
 
 // --- UntagResource ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct UntagResourceRequest {
     #[serde(rename = "ResourceArn")]
     pub resource_arn: String,
@@ -412,7 +412,7 @@ pub struct UntagResourceRequest {
 
 // --- ListTagsOfResource ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct ListTagsOfResourceRequest {
     #[serde(rename = "ResourceArn")]
     pub resource_arn: String,

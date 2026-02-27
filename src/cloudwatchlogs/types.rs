@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateLogGroupRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
@@ -9,13 +9,13 @@ pub struct CreateLogGroupRequest {
     pub tags: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteLogGroupRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeLogGroupsRequest {
     #[serde(rename = "logGroupNamePrefix")]
     pub log_group_name_prefix: Option<String>,
@@ -51,7 +51,7 @@ pub struct LogGroup {
     pub stored_bytes: i64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateLogStreamRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
@@ -59,7 +59,7 @@ pub struct CreateLogStreamRequest {
     pub log_stream_name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteLogStreamRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
@@ -67,7 +67,7 @@ pub struct DeleteLogStreamRequest {
     pub log_stream_name: String,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeLogStreamsRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: Option<String>,
@@ -111,7 +111,7 @@ pub struct LogStream {
     pub stored_bytes: i64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutLogEventsRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
@@ -121,7 +121,7 @@ pub struct PutLogEventsRequest {
     pub log_events: Vec<InputLogEvent>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct InputLogEvent {
     #[serde(rename = "timestamp")]
     pub timestamp: i64,
@@ -138,7 +138,7 @@ pub struct PutLogEventsResponse {
     pub rejected_log_events_info: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GetLogEventsRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
@@ -174,7 +174,7 @@ pub struct OutputLogEvent {
     pub ingestion_time: i64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct FilterLogEventsRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
@@ -213,7 +213,7 @@ pub struct FilteredLogEvent {
     pub event_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutRetentionPolicyRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
@@ -221,13 +221,13 @@ pub struct PutRetentionPolicyRequest {
     pub retention_in_days: i64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteRetentionPolicyRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct TagLogGroupRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
@@ -235,7 +235,7 @@ pub struct TagLogGroupRequest {
     pub tags: HashMap<String, String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UntagLogGroupRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
@@ -243,7 +243,7 @@ pub struct UntagLogGroupRequest {
     pub tags: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListTagsLogGroupRequest {
     #[serde(rename = "logGroupName")]
     pub log_group_name: String,
@@ -255,7 +255,7 @@ pub struct ListTagsLogGroupResponse {
     pub tags: HashMap<String, String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct TagResourceRequest {
     #[serde(rename = "resourceArn")]
     pub resource_arn: String,
@@ -263,7 +263,7 @@ pub struct TagResourceRequest {
     pub tags: HashMap<String, String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UntagResourceRequest {
     #[serde(rename = "resourceArn")]
     pub resource_arn: String,
@@ -271,7 +271,7 @@ pub struct UntagResourceRequest {
     pub tag_keys: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListTagsForResourceRequest {
     #[serde(rename = "resourceArn")]
     pub resource_arn: String,

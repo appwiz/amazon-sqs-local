@@ -22,7 +22,7 @@ pub struct TagJson {
 
 // --- CreateTopic ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateTopicRequest {
     pub name: String,
@@ -40,7 +40,7 @@ pub struct CreateTopicResponse {
 
 // --- DeleteTopic ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteTopicRequest {
     pub topic_arn: String,
@@ -71,7 +71,7 @@ pub struct TopicArnEntry {
 
 // --- GetTopicAttributes ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct GetTopicAttributesRequest {
     pub topic_arn: String,
@@ -85,7 +85,7 @@ pub struct GetTopicAttributesResponse {
 
 // --- SetTopicAttributes ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct SetTopicAttributesRequest {
     pub topic_arn: String,
@@ -96,7 +96,7 @@ pub struct SetTopicAttributesRequest {
 
 // --- Subscribe ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct SubscribeRequest {
     pub topic_arn: String,
@@ -117,7 +117,7 @@ pub struct SubscribeResponse {
 
 // --- Unsubscribe ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UnsubscribeRequest {
     pub subscription_arn: String,
@@ -125,7 +125,7 @@ pub struct UnsubscribeRequest {
 
 // --- ConfirmSubscription ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ConfirmSubscriptionRequest {
     pub topic_arn: String,
@@ -169,7 +169,7 @@ pub struct SubscriptionEntry {
 
 // --- ListSubscriptionsByTopic ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ListSubscriptionsByTopicRequest {
     pub topic_arn: String,
@@ -179,7 +179,7 @@ pub struct ListSubscriptionsByTopicRequest {
 
 // --- GetSubscriptionAttributes ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct GetSubscriptionAttributesRequest {
     pub subscription_arn: String,
@@ -193,7 +193,7 @@ pub struct GetSubscriptionAttributesResponse {
 
 // --- SetSubscriptionAttributes ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct SetSubscriptionAttributesRequest {
     pub subscription_arn: String,
@@ -204,7 +204,7 @@ pub struct SetSubscriptionAttributesRequest {
 
 // --- Publish ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct PublishRequest {
     #[serde(default)]
@@ -234,7 +234,7 @@ pub struct PublishResponse {
 
 // --- PublishBatch ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct PublishBatchRequest {
     pub topic_arn: String,
@@ -283,7 +283,7 @@ pub struct BatchResultErrorEntry {
 
 // --- TagResource ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct TagResourceRequest {
     pub resource_arn: String,
@@ -292,7 +292,7 @@ pub struct TagResourceRequest {
 
 // --- UntagResource ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UntagResourceRequest {
     pub resource_arn: String,
@@ -301,7 +301,7 @@ pub struct UntagResourceRequest {
 
 // --- ListTagsForResource ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ListTagsForResourceRequest {
     pub resource_arn: String,

@@ -234,8 +234,7 @@ async fn object_get_handler(
         return Ok((StatusCode::OK, [("content-type", "application/xml")], xml).into_response());
     }
 
-    if params.contains_key("uploadId") {
-        let upload_id = params.get("uploadId").unwrap();
+    if let Some(upload_id) = params.get("uploadId") {
         let result = state.list_parts(&bucket, &key, upload_id).await?;
         return Ok(xml_response(&result));
     }
@@ -271,15 +270,27 @@ async fn object_get_handler(
     }
 
     if let Some((start, end, total)) = range_info {
-        let slice = &obj.data[start as usize..=end as usize];
+        let start_idx = start as usize;
+        let end_idx = (end as usize).min(obj.data.len().saturating_sub(1));
+        if start_idx > end_idx || start_idx >= obj.data.len() {
+            return Err(S3Error::InvalidRange(format!(
+                "Range {}-{} not satisfiable for object of size {}",
+                start, end, obj.data.len()
+            )));
+        }
+        let slice = &obj.data[start_idx..=end_idx];
         builder = builder.status(StatusCode::PARTIAL_CONTENT);
         builder = builder.header("content-range", format!("bytes {}-{}/{}", start, end, total));
         builder = builder.header("content-length", slice.len().to_string());
-        Ok(builder.body(axum::body::Body::from(slice.to_vec())).unwrap())
+        Ok(builder
+            .body(axum::body::Body::from(slice.to_vec()))
+            .expect("valid response body"))
     } else {
         builder = builder.status(StatusCode::OK);
         builder = builder.header("content-length", obj.data.len().to_string());
-        Ok(builder.body(axum::body::Body::from(obj.data)).unwrap())
+        Ok(builder
+            .body(axum::body::Body::from(obj.data))
+            .expect("valid response body"))
     }
 }
 
@@ -385,7 +396,9 @@ async fn head_object_handler(
         builder = builder.header(format!("x-amz-meta-{}", k), v);
     }
 
-    Ok(builder.body(axum::body::Body::empty()).unwrap())
+    Ok(builder
+        .body(axum::body::Body::empty())
+        .expect("valid response body"))
 }
 
 async fn object_post_handler(
@@ -463,4 +476,546 @@ pub fn create_router(state: Arc<S3State>) -> Router {
         )
         .layer(DefaultBodyLimit::max(5 * 1024 * 1024 * 1024)) // 5GB max
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    fn new_state() -> Arc<S3State> {
+        Arc::new(S3State::new("123456789012".to_string(), "us-east-1".to_string()))
+    }
+
+    #[tokio::test]
+    async fn test_list_buckets_empty() {
+        let app = create_router(new_state());
+        let req = Request::builder()
+            .method("GET")
+            .uri("/")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_create_bucket() {
+        let app = create_router(new_state());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/my-bucket")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_create_and_list_buckets() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/my-bucket")
+            .body(Body::empty())
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("my-bucket"));
+    }
+
+    #[tokio::test]
+    async fn test_head_bucket() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/my-bucket")
+            .body(Body::empty())
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("HEAD")
+            .uri("/my-bucket")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(resp.headers().get("x-amz-bucket-region").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_head_bucket_not_found() {
+        let app = create_router(new_state());
+        let req = Request::builder()
+            .method("HEAD")
+            .uri("/nonexistent")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_delete_bucket() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/my-bucket")
+            .body(Body::empty())
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("DELETE")
+            .uri("/my-bucket")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn test_put_and_get_object() {
+        let state = new_state();
+        // Create bucket
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/my-bucket")
+            .body(Body::empty())
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        // Put object
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/my-bucket/test-key.txt")
+            .header("content-type", "text/plain")
+            .body(Body::from("hello world"))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(resp.headers().get("etag").is_some());
+
+        // Get object
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/my-bucket/test-key.txt")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"hello world");
+    }
+
+    #[tokio::test]
+    async fn test_head_object() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/bkt/key")
+            .body(Body::from("data"))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("HEAD")
+            .uri("/bkt/key")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(resp.headers().get("etag").is_some());
+        assert!(resp.headers().get("content-length").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_delete_object() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/bkt/key")
+            .body(Body::from("data"))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("DELETE")
+            .uri("/bkt/key")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+        // Verify object is gone
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/bkt/key")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_list_objects_v2() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/bkt/file1.txt")
+            .body(Body::from("aaa"))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/bkt?prefix=file")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("file1.txt"));
+    }
+
+    #[tokio::test]
+    async fn test_get_bucket_location() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/bkt?location")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_put_and_get_bucket_versioning() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let versioning_xml = r#"<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Status>Enabled</Status></VersioningConfiguration>"#;
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/bkt?versioning")
+            .header("content-type", "application/xml")
+            .body(Body::from(versioning_xml))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/bkt?versioning")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_put_and_get_bucket_tagging() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let tagging_xml = r#"<Tagging><TagSet><Tag><Key>env</Key><Value>test</Value></Tag></TagSet></Tagging>"#;
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/bkt?tagging")
+            .body(Body::from(tagging_xml))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri("/bkt?tagging")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Delete tagging
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("DELETE")
+            .uri("/bkt?tagging")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn test_object_metadata() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/bkt/key")
+            .header("x-amz-meta-custom", "value123")
+            .body(Body::from("data"))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/bkt/key")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers().get("x-amz-meta-custom").unwrap().to_str().unwrap(),
+            "value123"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_copy_object() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/src-bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/dst-bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/src-bkt/orig")
+            .body(Body::from("original"))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/dst-bkt/copy")
+            .header("x-amz-copy-source", "/src-bkt/orig")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Verify copy
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/dst-bkt/copy")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"original");
+    }
+
+    #[tokio::test]
+    async fn test_get_object_range() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/bkt/key")
+            .body(Body::from("0123456789"))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/bkt/key")
+            .header("range", "bytes=0-4")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::PARTIAL_CONTENT);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(&body[..], b"01234");
+    }
+
+    #[tokio::test]
+    async fn test_put_and_get_object_tagging() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/bkt/key")
+            .body(Body::from("data"))
+            .unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let tagging_xml = r#"<Tagging><TagSet><Tag><Key>env</Key><Value>prod</Value></Tag></TagSet></Tagging>"#;
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri("/bkt/key?tagging")
+            .body(Body::from(tagging_xml))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/bkt/key?tagging")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_delete_objects_batch() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        for name in &["a", "b", "c"] {
+            let app = create_router(state.clone());
+            let req = Request::builder()
+                .method("PUT")
+                .uri(format!("/bkt/{}", name))
+                .body(Body::from("data"))
+                .unwrap();
+            app.oneshot(req).await.unwrap();
+        }
+
+        let delete_xml = r#"<Delete><Object><Key>a</Key></Object><Object><Key>b</Key></Object></Delete>"#;
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("POST")
+            .uri("/bkt?delete")
+            .body(Body::from(delete_xml))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_multipart_upload() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        // Initiate multipart upload
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/bkt/bigfile?uploads")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body_str.contains("UploadId"));
+    }
+
+    #[tokio::test]
+    async fn test_list_multipart_uploads() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/bkt?uploads")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_get_object_not_found() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder().method("PUT").uri("/bkt").body(Body::empty()).unwrap();
+        app.oneshot(req).await.unwrap();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri("/bkt/nokey")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
 }

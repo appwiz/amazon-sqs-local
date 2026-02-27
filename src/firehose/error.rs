@@ -55,3 +55,80 @@ impl IntoResponse for FirehoseError {
         (self.status_code(), axum::Json(body)).into_response()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resourcenotfoundexception_error_code() {
+        let err = FirehoseError::ResourceNotFoundException("test".to_string());
+        assert_eq!(err.error_code(), "ResourceNotFoundException");
+    }
+    #[test]
+    fn test_resourceinuseexception_error_code() {
+        let err = FirehoseError::ResourceInUseException("test".to_string());
+        assert_eq!(err.error_code(), "ResourceInUseException");
+    }
+    #[test]
+    fn test_invalidargumentexception_error_code() {
+        let err = FirehoseError::InvalidArgumentException("test".to_string());
+        assert_eq!(err.error_code(), "InvalidArgumentException");
+    }
+    #[test]
+    fn test_limitexceededexception_error_code() {
+        let err = FirehoseError::LimitExceededException("test".to_string());
+        assert_eq!(err.error_code(), "LimitExceededException");
+    }
+    #[test]
+    fn test_concurrentmodificationexception_error_code() {
+        let err = FirehoseError::ConcurrentModificationException("test".to_string());
+        assert_eq!(err.error_code(), "ConcurrentModificationException");
+    }
+    #[test]
+    fn test_invalidaction_error_code() {
+        let err = FirehoseError::InvalidAction("test".to_string());
+        assert_eq!(err.error_code(), "InvalidAction");
+    }
+    #[test]
+    fn test_message() {
+        let err = FirehoseError::ResourceNotFoundException("hello world".to_string());
+        assert_eq!(err.message(), "hello world");
+    }
+    #[test]
+    fn test_resourcenotfoundexception_status() {
+        let err = FirehoseError::ResourceNotFoundException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_resourceinuseexception_status() {
+        let err = FirehoseError::ResourceInUseException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_invalidargumentexception_status() {
+        let err = FirehoseError::InvalidArgumentException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_limitexceededexception_status() {
+        let err = FirehoseError::LimitExceededException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_concurrentmodificationexception_status() {
+        let err = FirehoseError::ConcurrentModificationException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_invalidaction_status() {
+        let err = FirehoseError::InvalidAction("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = FirehoseError::ResourceNotFoundException("test error".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error());
+    }
+}

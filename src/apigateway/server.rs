@@ -12,7 +12,7 @@ use super::state::ApiGatewayState;
 use super::types::*;
 
 fn json_response<T: serde::Serialize>(status: StatusCode, value: &T) -> Response {
-    (status, Json(serde_json::to_value(value).unwrap())).into_response()
+    (status, Json(value)).into_response()
 }
 
 // --- REST API handlers ---
@@ -377,4 +377,390 @@ pub fn create_router(state: Arc<ApiGatewayState>) -> Router {
                 .get(get_tags_handler),
         )
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+
+    fn new_state() -> Arc<ApiGatewayState> {
+        Arc::new(ApiGatewayState::new("123456789012".to_string(), "us-east-1".to_string()))
+    }
+
+    async fn extract_body(resp: axum::response::Response) -> serde_json::Value {
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        serde_json::from_slice(&body).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_list_rest_apis_empty() {
+        let app = create_router(new_state());
+        let req = Request::builder()
+            .method("GET")
+            .uri("/restapis")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_create_rest_api() {
+        let app = create_router(new_state());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/restapis")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"name": "test-api"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let json = extract_body(resp).await;
+        assert_eq!(json["name"], "test-api");
+        assert!(json["id"].as_str().is_some());
+    }
+
+    #[tokio::test]
+    async fn test_get_rest_api() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/restapis")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"name": "my-api"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        let json = extract_body(resp).await;
+        let api_id = json["id"].as_str().unwrap().to_string();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/restapis/{}", api_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = extract_body(resp).await;
+        assert_eq!(json["name"], "my-api");
+    }
+
+    #[tokio::test]
+    async fn test_get_rest_api_not_found() {
+        let app = create_router(new_state());
+        let req = Request::builder()
+            .method("GET")
+            .uri("/restapis/nonexistent")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_delete_rest_api() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/restapis")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"name": "del-api"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        let json = extract_body(resp).await;
+        let api_id = json["id"].as_str().unwrap().to_string();
+
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("DELETE")
+            .uri(format!("/restapis/{}", api_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::ACCEPTED);
+
+        // Verify deleted
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/restapis/{}", api_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_update_rest_api() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/restapis")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"name": "orig"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        let json = extract_body(resp).await;
+        let api_id = json["id"].as_str().unwrap().to_string();
+
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("PATCH")
+            .uri(format!("/restapis/{}", api_id))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"patchOperations": [{"op": "replace", "path": "/description", "value": "updated"}]}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_create_and_get_resource() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/restapis")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"name": "res-api"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        let json = extract_body(resp).await;
+        let api_id = json["id"].as_str().unwrap().to_string();
+
+        // Get resources to find root resource
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/restapis/{}/resources", api_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let json = extract_body(resp).await;
+        let root_id = json["item"][0]["id"].as_str().unwrap().to_string();
+
+        // Create resource
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri(format!("/restapis/{}/resources/{}", api_id, root_id))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"pathPart": "items"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let json = extract_body(resp).await;
+        let resource_id = json["id"].as_str().unwrap().to_string();
+
+        // Get resource
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/restapis/{}/resources/{}", api_id, resource_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_create_deployment_and_stage() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/restapis")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"name": "deploy-api"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        let json = extract_body(resp).await;
+        let api_id = json["id"].as_str().unwrap().to_string();
+
+        // Create deployment
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri(format!("/restapis/{}/deployments", api_id))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"description": "initial"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let json = extract_body(resp).await;
+        let deploy_id = json["id"].as_str().unwrap().to_string();
+
+        // List deployments
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/restapis/{}/deployments", api_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Create stage
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri(format!("/restapis/{}/stages", api_id))
+            .header("content-type", "application/json")
+            .body(Body::from(format!(r#"{{"stageName": "prod", "deploymentId": "{}"}}"#, deploy_id)))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        // Get stage
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/restapis/{}/stages/prod", api_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // List stages
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/restapis/{}/stages", api_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Delete stage
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("DELETE")
+            .uri(format!("/restapis/{}/stages/prod", api_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::ACCEPTED);
+    }
+
+    #[tokio::test]
+    async fn test_tag_resource() {
+        let state = new_state();
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/restapis")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"name": "tag-api"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        let json = extract_body(resp).await;
+        let api_id = json["id"].as_str().unwrap().to_string();
+
+        // Tag
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri(format!("/tags/{}", api_id))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"tags": {"env": "test"}}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+        // Get tags
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/tags/{}", api_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Untag
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("DELETE")
+            .uri(format!("/tags/{}?tagKeys=env", api_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn test_put_method_and_integration() {
+        let state = new_state();
+        // Create API
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("POST")
+            .uri("/restapis")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"name": "method-api"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        let json = extract_body(resp).await;
+        let api_id = json["id"].as_str().unwrap().to_string();
+
+        // Get root resource
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/restapis/{}/resources", api_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        let json = extract_body(resp).await;
+        let root_id = json["item"][0]["id"].as_str().unwrap().to_string();
+
+        // Put method
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri(format!("/restapis/{}/resources/{}/methods/GET", api_id, root_id))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"authorizationType": "NONE"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        // Get method
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/restapis/{}/resources/{}/methods/GET", api_id, root_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Put integration
+        let app = create_router(state.clone());
+        let req = Request::builder()
+            .method("PUT")
+            .uri(format!("/restapis/{}/resources/{}/methods/GET/integration", api_id, root_id))
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"type": "MOCK"}"#))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED);
+
+        // Get integration
+        let app = create_router(state);
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/restapis/{}/resources/{}/methods/GET/integration", api_id, root_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
 }

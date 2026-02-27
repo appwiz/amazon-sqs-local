@@ -48,3 +48,60 @@ impl IntoResponse for DynamoDbError {
         (self.status_code(), axum::Json(body)).into_response()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resourcenotfoundexception_error_code() {
+        let err = DynamoDbError::ResourceNotFoundException("test".to_string());
+        assert_eq!(err.error_code(), "ResourceNotFoundException");
+    }
+    #[test]
+    fn test_resourceinuseexception_error_code() {
+        let err = DynamoDbError::ResourceInUseException("test".to_string());
+        assert_eq!(err.error_code(), "ResourceInUseException");
+    }
+    #[test]
+    fn test_validationexception_error_code() {
+        let err = DynamoDbError::ValidationException("test".to_string());
+        assert_eq!(err.error_code(), "ValidationException");
+    }
+    #[test]
+    fn test_serializationexception_error_code() {
+        let err = DynamoDbError::SerializationException("test".to_string());
+        assert_eq!(err.error_code(), "SerializationException");
+    }
+    #[test]
+    fn test_message() {
+        let err = DynamoDbError::ResourceNotFoundException("hello world".to_string());
+        assert_eq!(err.message(), "hello world");
+    }
+    #[test]
+    fn test_resourcenotfoundexception_status() {
+        let err = DynamoDbError::ResourceNotFoundException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_resourceinuseexception_status() {
+        let err = DynamoDbError::ResourceInUseException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_validationexception_status() {
+        let err = DynamoDbError::ValidationException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_serializationexception_status() {
+        let err = DynamoDbError::SerializationException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = DynamoDbError::ResourceNotFoundException("test error".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error());
+    }
+}

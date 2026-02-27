@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateStateMachineRequest {
     #[serde(rename = "name")]
     pub name: String,
@@ -22,13 +22,13 @@ pub struct CreateStateMachineResponse {
     pub creation_date: f64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteStateMachineRequest {
     #[serde(rename = "stateMachineArn")]
     pub state_machine_arn: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeStateMachineRequest {
     #[serde(rename = "stateMachineArn")]
     pub state_machine_arn: String,
@@ -52,7 +52,7 @@ pub struct DescribeStateMachineResponse {
     pub creation_date: f64,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListStateMachinesRequest {
     #[serde(rename = "maxResults")]
     pub max_results: Option<usize>,
@@ -79,7 +79,7 @@ pub struct StateMachineListItem {
     pub creation_date: f64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct StartExecutionRequest {
     #[serde(rename = "stateMachineArn")]
     pub state_machine_arn: String,
@@ -97,7 +97,7 @@ pub struct StartExecutionResponse {
     pub start_date: f64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct StopExecutionRequest {
     #[serde(rename = "executionArn")]
     pub execution_arn: String,
@@ -109,7 +109,7 @@ pub struct StopExecutionResponse {
     pub stop_date: f64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeExecutionRequest {
     #[serde(rename = "executionArn")]
     pub execution_arn: String,
@@ -138,7 +138,7 @@ pub struct DescribeExecutionResponse {
     pub output: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListExecutionsRequest {
     #[serde(rename = "stateMachineArn")]
     pub state_machine_arn: Option<String>,
@@ -174,7 +174,7 @@ pub struct ExecutionListItem {
     pub stop_date: Option<f64>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct GetExecutionHistoryRequest {
     #[serde(rename = "executionArn")]
     pub execution_arn: String,
@@ -209,15 +209,15 @@ pub struct HistoryEvent {
     pub execution_succeeded_event_details: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct SendTaskSuccessRequest {
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct SendTaskFailureRequest {
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct SendTaskHeartbeatRequest {
 }
 
@@ -229,7 +229,7 @@ pub struct Tag {
     pub value: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct TagResourceRequest {
     #[serde(rename = "resourceArn")]
     pub resource_arn: String,
@@ -237,7 +237,7 @@ pub struct TagResourceRequest {
     pub tags: Vec<Tag>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UntagResourceRequest {
     #[serde(rename = "resourceArn")]
     pub resource_arn: String,
@@ -245,7 +245,7 @@ pub struct UntagResourceRequest {
     pub tag_keys: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListTagsForResourceRequest {
     #[serde(rename = "resourceArn")]
     pub resource_arn: String,

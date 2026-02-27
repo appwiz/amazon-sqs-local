@@ -263,3 +263,368 @@ impl SsmState {
         Ok(ListTagsForResourceResponse { tag_list })
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = SsmState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_put_parameter() {
+        let state = SsmState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = PutParameterRequest::default();
+        let _ = state.put_parameter(req).await;
+    }
+    #[tokio::test]
+    async fn test_get_parameter_not_found() {
+        let state = SsmState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = GetParameterRequest::default();
+        let result = state.get_parameter(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_get_parameters_not_found() {
+        let state = SsmState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = GetParametersRequest::default();
+        let result = state.get_parameters(req).await;
+        assert!(result.is_ok());
+    }
+    #[tokio::test]
+    async fn test_delete_parameter_not_found() {
+        let state = SsmState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = DeleteParameterRequest::default();
+        let result = state.delete_parameter(req).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_delete_parameters_not_found() {
+        let state = SsmState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = DeleteParametersRequest::default();
+        let result = state.delete_parameters(req).await;
+        assert!(result.is_ok());
+    }
+    #[tokio::test]
+    async fn test_describe_parameters_not_found() {
+        let state = SsmState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = DescribeParametersRequest::default();
+        let result = state.describe_parameters(req).await;
+        assert!(result.is_ok());
+    }
+    #[tokio::test]
+    async fn test_add_tags_to_resource() {
+        let state = SsmState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = AddTagsToResourceRequest::default();
+        let _ = state.add_tags_to_resource(req).await;
+    }
+    #[tokio::test]
+    async fn test_remove_tags_from_resource() {
+        let state = SsmState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = RemoveTagsFromResourceRequest::default();
+        let _ = state.remove_tags_from_resource(req).await;
+    }
+    #[tokio::test]
+    async fn test_list_tags_for_resource_empty() {
+        let state = SsmState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = ListTagsForResourceRequest::default();
+        let result = state.list_tags_for_resource(req).await;
+        assert!(result.is_err());
+    }
+
+    fn make_state() -> SsmState {
+        SsmState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    async fn put_param(state: &SsmState, name: &str, value: &str) {
+        state.put_parameter(PutParameterRequest {
+            name: name.to_string(),
+            value: value.to_string(),
+            ..Default::default()
+        }).await.unwrap();
+    }
+
+    // --- Extended coverage: put_parameter ---
+
+    #[tokio::test]
+    async fn test_put_parameter_with_all_fields() {
+        let state = make_state();
+        let result = state.put_parameter(PutParameterRequest {
+            name: "/app/key".to_string(),
+            value: "secret".to_string(),
+            param_type: Some("SecureString".to_string()),
+            description: Some("my param".to_string()),
+            tier: Some("Advanced".to_string()),
+            data_type: Some("text".to_string()),
+            overwrite: None,
+            tags: Some(vec![Tag { key: "env".to_string(), value: "prod".to_string() }]),
+        }).await.unwrap();
+        assert_eq!(result.version, 1);
+        assert_eq!(result.tier, "Advanced");
+    }
+
+    #[tokio::test]
+    async fn test_put_parameter_duplicate_no_overwrite() {
+        let state = make_state();
+        put_param(&state, "my-param", "v1").await;
+        let result = state.put_parameter(PutParameterRequest {
+            name: "my-param".to_string(),
+            value: "v2".to_string(),
+            overwrite: Some(false),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_put_parameter_overwrite() {
+        let state = make_state();
+        put_param(&state, "my-param", "v1").await;
+        let result = state.put_parameter(PutParameterRequest {
+            name: "my-param".to_string(),
+            value: "v2".to_string(),
+            overwrite: Some(true),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.version, 2);
+    }
+
+    #[tokio::test]
+    async fn test_put_parameter_overwrite_preserves_tags() {
+        let state = make_state();
+        state.put_parameter(PutParameterRequest {
+            name: "my-param".to_string(),
+            value: "v1".to_string(),
+            tags: Some(vec![Tag { key: "env".to_string(), value: "prod".to_string() }]),
+            ..Default::default()
+        }).await.unwrap();
+        state.put_parameter(PutParameterRequest {
+            name: "my-param".to_string(),
+            value: "v2".to_string(),
+            overwrite: Some(true),
+            ..Default::default()
+        }).await.unwrap();
+        let tags = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_id: "my-param".to_string(),
+        }).await.unwrap();
+        assert_eq!(tags.tag_list.len(), 1);
+    }
+
+    // --- Extended coverage: get_parameter ---
+
+    #[tokio::test]
+    async fn test_get_parameter_success() {
+        let state = make_state();
+        put_param(&state, "/app/db-host", "localhost").await;
+        let result = state.get_parameter(GetParameterRequest {
+            name: "/app/db-host".to_string(),
+        }).await.unwrap();
+        assert_eq!(result.parameter.name, "/app/db-host");
+        assert_eq!(result.parameter.value, "localhost");
+        assert_eq!(result.parameter.version, 1);
+        assert!(result.parameter.arn.contains("/app/db-host"));
+    }
+
+    // --- Extended coverage: get_parameters ---
+
+    #[tokio::test]
+    async fn test_get_parameters_mixed() {
+        let state = make_state();
+        put_param(&state, "p1", "v1").await;
+        put_param(&state, "p2", "v2").await;
+        let result = state.get_parameters(GetParametersRequest {
+            names: vec!["p1".to_string(), "p2".to_string(), "missing".to_string()],
+        }).await.unwrap();
+        assert_eq!(result.parameters.len(), 2);
+        assert_eq!(result.invalid_parameters, vec!["missing".to_string()]);
+    }
+
+    // --- Extended coverage: get_parameters_by_path ---
+
+    #[tokio::test]
+    async fn test_get_parameters_by_path_non_recursive() {
+        let state = make_state();
+        put_param(&state, "/app/db-host", "localhost").await;
+        put_param(&state, "/app/db-port", "5432").await;
+        put_param(&state, "/app/nested/key", "val").await;
+        let result = state.get_parameters_by_path(GetParametersByPathRequest {
+            path: "/app".to_string(),
+            recursive: Some(false),
+            max_results: None,
+        }).await.unwrap();
+        assert_eq!(result.parameters.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_get_parameters_by_path_recursive() {
+        let state = make_state();
+        put_param(&state, "/app/db-host", "localhost").await;
+        put_param(&state, "/app/nested/key", "val").await;
+        let result = state.get_parameters_by_path(GetParametersByPathRequest {
+            path: "/app".to_string(),
+            recursive: Some(true),
+            max_results: None,
+        }).await.unwrap();
+        assert_eq!(result.parameters.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_get_parameters_by_path_with_limit() {
+        let state = make_state();
+        put_param(&state, "/app/a", "1").await;
+        put_param(&state, "/app/b", "2").await;
+        put_param(&state, "/app/c", "3").await;
+        let result = state.get_parameters_by_path(GetParametersByPathRequest {
+            path: "/app".to_string(),
+            recursive: Some(false),
+            max_results: Some(2),
+        }).await.unwrap();
+        assert_eq!(result.parameters.len(), 2);
+        assert!(result.next_token.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_get_parameters_by_path_trailing_slash() {
+        let state = make_state();
+        put_param(&state, "/app/key", "val").await;
+        let result = state.get_parameters_by_path(GetParametersByPathRequest {
+            path: "/app/".to_string(),
+            recursive: Some(false),
+            max_results: None,
+        }).await.unwrap();
+        assert_eq!(result.parameters.len(), 1);
+    }
+
+    // --- Extended coverage: delete_parameter ---
+
+    #[tokio::test]
+    async fn test_delete_parameter_success() {
+        let state = make_state();
+        put_param(&state, "my-param", "val").await;
+        assert!(state.delete_parameter(DeleteParameterRequest { name: "my-param".to_string() }).await.is_ok());
+        assert!(state.get_parameter(GetParameterRequest { name: "my-param".to_string() }).await.is_err());
+    }
+
+    // --- Extended coverage: delete_parameters ---
+
+    #[tokio::test]
+    async fn test_delete_parameters_mixed() {
+        let state = make_state();
+        put_param(&state, "p1", "v1").await;
+        put_param(&state, "p2", "v2").await;
+        let result = state.delete_parameters(DeleteParametersRequest {
+            names: vec!["p1".to_string(), "missing".to_string()],
+        }).await.unwrap();
+        assert_eq!(result.deleted_parameters, vec!["p1".to_string()]);
+        assert_eq!(result.invalid_parameters, vec!["missing".to_string()]);
+    }
+
+    // --- Extended coverage: describe_parameters ---
+
+    #[tokio::test]
+    async fn test_describe_parameters_with_data() {
+        let state = make_state();
+        state.put_parameter(PutParameterRequest {
+            name: "/app/key".to_string(),
+            value: "val".to_string(),
+            description: Some("my desc".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.describe_parameters(DescribeParametersRequest { max_results: None }).await.unwrap();
+        assert_eq!(result.parameters.len(), 1);
+        assert_eq!(result.parameters[0].name, "/app/key");
+        assert_eq!(result.parameters[0].description.as_deref(), Some("my desc"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_parameters_with_limit() {
+        let state = make_state();
+        put_param(&state, "p1", "v1").await;
+        put_param(&state, "p2", "v2").await;
+        put_param(&state, "p3", "v3").await;
+        let result = state.describe_parameters(DescribeParametersRequest { max_results: Some(2) }).await.unwrap();
+        assert_eq!(result.parameters.len(), 2);
+        assert!(result.next_token.is_some());
+    }
+
+    // --- Extended coverage: tag operations ---
+
+    #[tokio::test]
+    async fn test_add_tags_to_resource_success() {
+        let state = make_state();
+        put_param(&state, "my-param", "val").await;
+        state.add_tags_to_resource(AddTagsToResourceRequest {
+            resource_id: "my-param".to_string(),
+            tags: vec![
+                Tag { key: "env".to_string(), value: "prod".to_string() },
+                Tag { key: "team".to_string(), value: "infra".to_string() },
+            ],
+        }).await.unwrap();
+        let tags = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_id: "my-param".to_string(),
+        }).await.unwrap();
+        assert_eq!(tags.tag_list.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_add_tags_not_found() {
+        let state = make_state();
+        let result = state.add_tags_to_resource(AddTagsToResourceRequest {
+            resource_id: "nope".to_string(),
+            tags: vec![Tag { key: "k".to_string(), value: "v".to_string() }],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_remove_tags_from_resource_success() {
+        let state = make_state();
+        state.put_parameter(PutParameterRequest {
+            name: "my-param".to_string(),
+            value: "val".to_string(),
+            tags: Some(vec![
+                Tag { key: "env".to_string(), value: "prod".to_string() },
+                Tag { key: "team".to_string(), value: "infra".to_string() },
+            ]),
+            ..Default::default()
+        }).await.unwrap();
+        state.remove_tags_from_resource(RemoveTagsFromResourceRequest {
+            resource_id: "my-param".to_string(),
+            tag_keys: vec!["team".to_string()],
+        }).await.unwrap();
+        let tags = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_id: "my-param".to_string(),
+        }).await.unwrap();
+        assert_eq!(tags.tag_list.len(), 1);
+        assert_eq!(tags.tag_list[0].key, "env");
+    }
+
+    #[tokio::test]
+    async fn test_remove_tags_not_found() {
+        let state = make_state();
+        let result = state.remove_tags_from_resource(RemoveTagsFromResourceRequest {
+            resource_id: "nope".to_string(),
+            tag_keys: vec!["k".to_string()],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_tags_for_resource_success() {
+        let state = make_state();
+        state.put_parameter(PutParameterRequest {
+            name: "my-param".to_string(),
+            value: "val".to_string(),
+            tags: Some(vec![Tag { key: "env".to_string(), value: "prod".to_string() }]),
+            ..Default::default()
+        }).await.unwrap();
+        let tags = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_id: "my-param".to_string(),
+        }).await.unwrap();
+        assert_eq!(tags.tag_list.len(), 1);
+        assert_eq!(tags.tag_list[0].key, "env");
+        assert_eq!(tags.tag_list[0].value, "prod");
+    }
+}

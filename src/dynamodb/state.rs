@@ -1633,3 +1633,991 @@ fn apply_delete_action(
 
     Ok(())
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = DynamoDbState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_tag_resource() {
+        let state = DynamoDbState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = TagResourceRequest::default();
+        let _ = state.tag_resource(req).await;
+    }
+    #[tokio::test]
+    async fn test_untag_resource() {
+        let state = DynamoDbState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = UntagResourceRequest::default();
+        let _ = state.untag_resource(req).await;
+    }
+
+    fn make_create_table_req(name: &str) -> CreateTableRequest {
+        CreateTableRequest {
+            table_name: name.to_string(),
+            key_schema: vec![KeySchemaElement {
+                attribute_name: "pk".to_string(),
+                key_type: "HASH".to_string(),
+            }],
+            attribute_definitions: vec![AttributeDefinition {
+                attribute_name: "pk".to_string(),
+                attribute_type: "S".to_string(),
+            }],
+            ..Default::default()
+        }
+    }
+
+    fn make_state() -> DynamoDbState {
+        DynamoDbState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    #[tokio::test]
+    async fn test_create_table_success() {
+        let state = make_state();
+        let result = state.create_table(make_create_table_req("test-table")).await;
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.table_description.table_name, "test-table");
+        assert_eq!(resp.table_description.table_status, "ACTIVE");
+        assert!(resp.table_description.table_arn.contains("test-table"));
+    }
+
+    #[tokio::test]
+    async fn test_create_table_duplicate() {
+        let state = make_state();
+        state.create_table(make_create_table_req("dup")).await.unwrap();
+        let result = state.create_table(make_create_table_req("dup")).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_create_table_no_hash_key() {
+        let state = make_state();
+        let req = CreateTableRequest {
+            table_name: "bad".to_string(),
+            key_schema: vec![KeySchemaElement {
+                attribute_name: "sk".to_string(),
+                key_type: "RANGE".to_string(),
+            }],
+            attribute_definitions: vec![],
+            ..Default::default()
+        };
+        let result = state.create_table(req).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_table_success() {
+        let state = make_state();
+        state.create_table(make_create_table_req("del")).await.unwrap();
+        let result = state.delete_table(DeleteTableRequest { table_name: "del".to_string() }).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().table_description.table_status, "DELETING");
+    }
+
+    #[tokio::test]
+    async fn test_delete_table_not_found() {
+        let state = make_state();
+        let result = state.delete_table(DeleteTableRequest { table_name: "nope".to_string() }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_table_success() {
+        let state = make_state();
+        state.create_table(make_create_table_req("desc")).await.unwrap();
+        let result = state.describe_table(DescribeTableRequest { table_name: "desc".to_string() }).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().table.table_name, "desc");
+    }
+
+    #[tokio::test]
+    async fn test_describe_table_not_found() {
+        let state = make_state();
+        let result = state.describe_table(DescribeTableRequest { table_name: "nope".to_string() }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_tables_empty() {
+        let state = make_state();
+        let result = state.list_tables(ListTablesRequest::default()).await.unwrap();
+        assert!(result.table_names.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_tables_with_tables() {
+        let state = make_state();
+        state.create_table(make_create_table_req("a")).await.unwrap();
+        state.create_table(make_create_table_req("b")).await.unwrap();
+        let result = state.list_tables(ListTablesRequest::default()).await.unwrap();
+        assert_eq!(result.table_names.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_list_tables_pagination() {
+        let state = make_state();
+        state.create_table(make_create_table_req("a")).await.unwrap();
+        state.create_table(make_create_table_req("b")).await.unwrap();
+        state.create_table(make_create_table_req("c")).await.unwrap();
+        let result = state.list_tables(ListTablesRequest { limit: Some(2), ..Default::default() }).await.unwrap();
+        assert_eq!(result.table_names.len(), 2);
+        assert!(result.last_evaluated_table_name.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_update_table_success() {
+        let state = make_state();
+        state.create_table(make_create_table_req("upd")).await.unwrap();
+        let req = UpdateTableRequest {
+            table_name: "upd".to_string(),
+            billing_mode: Some("PAY_PER_REQUEST".to_string()),
+            ..Default::default()
+        };
+        let result = state.update_table(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_table_not_found() {
+        let state = make_state();
+        let req = UpdateTableRequest { table_name: "nope".to_string(), ..Default::default() };
+        assert!(state.update_table(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_put_item_success() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "key1"}));
+        item.insert("data".to_string(), serde_json::json!({"S": "hello"}));
+        let req = PutItemRequest {
+            table_name: "items".to_string(),
+            item,
+            ..Default::default()
+        };
+        let result = state.put_item(req).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_put_item_table_not_found() {
+        let state = make_state();
+        let req = PutItemRequest {
+            table_name: "nope".to_string(),
+            item: HashMap::new(),
+            ..Default::default()
+        };
+        assert!(state.put_item(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_put_item_missing_key() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let item = HashMap::new();
+        let req = PutItemRequest {
+            table_name: "items".to_string(),
+            item,
+            ..Default::default()
+        };
+        assert!(state.put_item(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_put_item_return_old() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let mut item1 = HashMap::new();
+        item1.insert("pk".to_string(), serde_json::json!({"S": "key1"}));
+        item1.insert("val".to_string(), serde_json::json!({"S": "old"}));
+        state.put_item(PutItemRequest { table_name: "items".to_string(), item: item1, ..Default::default() }).await.unwrap();
+
+        let mut item2 = HashMap::new();
+        item2.insert("pk".to_string(), serde_json::json!({"S": "key1"}));
+        item2.insert("val".to_string(), serde_json::json!({"S": "new"}));
+        let result = state.put_item(PutItemRequest {
+            table_name: "items".to_string(),
+            item: item2,
+            return_values: Some("ALL_OLD".to_string()),
+        }).await.unwrap();
+        assert!(result.attributes.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_get_item_success() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        state.put_item(PutItemRequest { table_name: "items".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let result = state.get_item(GetItemRequest { table_name: "items".to_string(), key, ..Default::default() }).await.unwrap();
+        assert!(result.item.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_get_item_not_found() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "missing"}));
+        let result = state.get_item(GetItemRequest { table_name: "items".to_string(), key, ..Default::default() }).await.unwrap();
+        assert!(result.item.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_delete_item_success() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        state.put_item(PutItemRequest { table_name: "items".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let result = state.delete_item(DeleteItemRequest {
+            table_name: "items".to_string(),
+            key,
+            return_values: Some("ALL_OLD".to_string()),
+        }).await.unwrap();
+        assert!(result.attributes.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_update_item_creates_new() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let mut vals = HashMap::new();
+        vals.insert(":v".to_string(), serde_json::json!({"S": "hello"}));
+        let req = UpdateItemRequest {
+            table_name: "items".to_string(),
+            key,
+            update_expression: Some("SET #a = :v".to_string()),
+            expression_attribute_names: Some({
+                let mut m = HashMap::new();
+                m.insert("#a".to_string(), "attr".to_string());
+                m
+            }),
+            expression_attribute_values: Some(vals),
+            return_values: Some("ALL_NEW".to_string()),
+        };
+        let result = state.update_item(req).await.unwrap();
+        assert!(result.attributes.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_query_success() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        state.put_item(PutItemRequest { table_name: "items".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let mut vals = HashMap::new();
+        vals.insert(":pk".to_string(), serde_json::json!({"S": "k1"}));
+        let req = QueryRequest {
+            table_name: "items".to_string(),
+            key_condition_expression: Some("pk = :pk".to_string()),
+            expression_attribute_values: Some(vals),
+            ..Default::default()
+        };
+        let result = state.query(req).await.unwrap();
+        assert_eq!(result.count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_query_no_key_condition() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let req = QueryRequest { table_name: "items".to_string(), ..Default::default() };
+        assert!(state.query(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_scan_success() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        state.put_item(PutItemRequest { table_name: "items".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let req = ScanRequest { table_name: "items".to_string(), ..Default::default() };
+        let result = state.scan(req).await.unwrap();
+        assert_eq!(result.count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_scan_count_select() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        state.put_item(PutItemRequest { table_name: "items".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let req = ScanRequest { table_name: "items".to_string(), select: Some("COUNT".to_string()), ..Default::default() };
+        let result = state.scan(req).await.unwrap();
+        assert!(result.items.is_empty());
+        assert_eq!(result.count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_item() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        state.put_item(PutItemRequest { table_name: "items".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let mut request_items = HashMap::new();
+        request_items.insert("items".to_string(), KeysAndAttributes {
+            keys: vec![key],
+            projection_expression: None,
+            expression_attribute_names: None,
+        });
+        let result = state.batch_get_item(BatchGetItemRequest { request_items }).await.unwrap();
+        assert_eq!(result.responses.get("items").unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_batch_write_item() {
+        let state = make_state();
+        state.create_table(make_create_table_req("items")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let mut request_items = HashMap::new();
+        request_items.insert("items".to_string(), vec![WriteRequest {
+            put_request: Some(PutRequest { item }),
+            delete_request: None,
+        }]);
+        let result = state.batch_write_item(BatchWriteItemRequest { request_items }).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_tag_and_list_tags() {
+        let state = make_state();
+        let resp = state.create_table(make_create_table_req("tagged")).await.unwrap();
+        let arn = resp.table_description.table_arn;
+
+        state.tag_resource(TagResourceRequest {
+            resource_arn: arn.clone(),
+            tags: vec![Tag { key: "env".to_string(), value: "test".to_string() }],
+        }).await.unwrap();
+
+        let tags = state.list_tags_of_resource(ListTagsOfResourceRequest { resource_arn: arn.clone() }).await.unwrap();
+        assert_eq!(tags.tags.len(), 1);
+
+        state.untag_resource(UntagResourceRequest {
+            resource_arn: arn.clone(),
+            tag_keys: vec!["env".to_string()],
+        }).await.unwrap();
+
+        let tags = state.list_tags_of_resource(ListTagsOfResourceRequest { resource_arn: arn }).await.unwrap();
+        assert!(tags.tags.is_empty());
+    }
+
+    // --- Comprehensive additional tests ---
+
+    fn make_composite_table_req(name: &str) -> CreateTableRequest {
+        CreateTableRequest {
+            table_name: name.to_string(),
+            key_schema: vec![
+                KeySchemaElement { attribute_name: "pk".to_string(), key_type: "HASH".to_string() },
+                KeySchemaElement { attribute_name: "sk".to_string(), key_type: "RANGE".to_string() },
+            ],
+            attribute_definitions: vec![
+                AttributeDefinition { attribute_name: "pk".to_string(), attribute_type: "S".to_string() },
+                AttributeDefinition { attribute_name: "sk".to_string(), attribute_type: "S".to_string() },
+            ],
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_item_with_projection() {
+        let state = make_state();
+        state.create_table(make_create_table_req("proj")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        item.insert("attr1".to_string(), serde_json::json!({"S": "val1"}));
+        item.insert("attr2".to_string(), serde_json::json!({"S": "val2"}));
+        state.put_item(PutItemRequest { table_name: "proj".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let result = state.get_item(GetItemRequest {
+            table_name: "proj".to_string(),
+            key,
+            projection_expression: Some("attr1".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        let returned = result.item.unwrap();
+        assert!(returned.contains_key("attr1"));
+        assert!(!returned.contains_key("attr2"));
+    }
+
+    #[tokio::test]
+    async fn test_get_item_table_not_found() {
+        let state = make_state();
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let result = state.get_item(GetItemRequest {
+            table_name: "nonexistent".to_string(),
+            key,
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_item_return_none_no_old() {
+        let state = make_state();
+        state.create_table(make_create_table_req("del")).await.unwrap();
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "missing"}));
+        let result = state.delete_item(DeleteItemRequest {
+            table_name: "del".to_string(),
+            key,
+            return_values: Some("ALL_OLD".to_string()),
+        }).await.unwrap();
+        assert!(result.attributes.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_delete_item_table_not_found() {
+        let state = make_state();
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let result = state.delete_item(DeleteItemRequest {
+            table_name: "nope".to_string(),
+            key,
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_item_set_multiple_attrs() {
+        let state = make_state();
+        state.create_table(make_create_table_req("upd")).await.unwrap();
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let mut vals = HashMap::new();
+        vals.insert(":a".to_string(), serde_json::json!({"S": "aaa"}));
+        vals.insert(":b".to_string(), serde_json::json!({"N": "42"}));
+        let req = UpdateItemRequest {
+            table_name: "upd".to_string(),
+            key: key.clone(),
+            update_expression: Some("SET attr_a = :a, attr_b = :b".to_string()),
+            expression_attribute_values: Some(vals),
+            return_values: Some("ALL_NEW".to_string()),
+            ..Default::default()
+        };
+        let result = state.update_item(req).await.unwrap();
+        let attrs = result.attributes.unwrap();
+        assert!(attrs.contains_key("attr_a"));
+        assert!(attrs.contains_key("attr_b"));
+    }
+
+    #[tokio::test]
+    async fn test_update_item_remove_attr() {
+        let state = make_state();
+        state.create_table(make_create_table_req("upd")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        item.insert("removeme".to_string(), serde_json::json!({"S": "gone"}));
+        state.put_item(PutItemRequest { table_name: "upd".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let req = UpdateItemRequest {
+            table_name: "upd".to_string(),
+            key,
+            update_expression: Some("REMOVE removeme".to_string()),
+            return_values: Some("ALL_NEW".to_string()),
+            ..Default::default()
+        };
+        let result = state.update_item(req).await.unwrap();
+        let attrs = result.attributes.unwrap();
+        assert!(!attrs.contains_key("removeme"));
+    }
+
+    #[tokio::test]
+    async fn test_update_item_return_all_old() {
+        let state = make_state();
+        state.create_table(make_create_table_req("upd")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        item.insert("val".to_string(), serde_json::json!({"S": "original"}));
+        state.put_item(PutItemRequest { table_name: "upd".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let mut vals = HashMap::new();
+        vals.insert(":v".to_string(), serde_json::json!({"S": "updated"}));
+        let req = UpdateItemRequest {
+            table_name: "upd".to_string(),
+            key,
+            update_expression: Some("SET val = :v".to_string()),
+            expression_attribute_values: Some(vals),
+            return_values: Some("ALL_OLD".to_string()),
+            ..Default::default()
+        };
+        let result = state.update_item(req).await.unwrap();
+        let old = result.attributes.unwrap();
+        assert_eq!(old.get("val").unwrap(), &serde_json::json!({"S": "original"}));
+    }
+
+    #[tokio::test]
+    async fn test_update_item_table_not_found() {
+        let state = make_state();
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let result = state.update_item(UpdateItemRequest {
+            table_name: "nope".to_string(),
+            key,
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_query_with_composite_key() {
+        let state = make_state();
+        state.create_table(make_composite_table_req("comp")).await.unwrap();
+
+        for i in 0..5 {
+            let mut item = HashMap::new();
+            item.insert("pk".to_string(), serde_json::json!({"S": "user1"}));
+            item.insert("sk".to_string(), serde_json::json!({"S": format!("item{}", i)}));
+            item.insert("data".to_string(), serde_json::json!({"S": format!("data{}", i)}));
+            state.put_item(PutItemRequest { table_name: "comp".to_string(), item, ..Default::default() }).await.unwrap();
+        }
+
+        let mut vals = HashMap::new();
+        vals.insert(":pk".to_string(), serde_json::json!({"S": "user1"}));
+        let result = state.query(QueryRequest {
+            table_name: "comp".to_string(),
+            key_condition_expression: Some("pk = :pk".to_string()),
+            expression_attribute_values: Some(vals),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.count, 5);
+    }
+
+    #[tokio::test]
+    async fn test_query_with_range_begins_with() {
+        let state = make_state();
+        state.create_table(make_composite_table_req("comp")).await.unwrap();
+
+        for prefix in &["alpha", "alpha-1", "beta"] {
+            let mut item = HashMap::new();
+            item.insert("pk".to_string(), serde_json::json!({"S": "user1"}));
+            item.insert("sk".to_string(), serde_json::json!({"S": prefix.to_string()}));
+            state.put_item(PutItemRequest { table_name: "comp".to_string(), item, ..Default::default() }).await.unwrap();
+        }
+
+        let mut vals = HashMap::new();
+        vals.insert(":pk".to_string(), serde_json::json!({"S": "user1"}));
+        vals.insert(":prefix".to_string(), serde_json::json!({"S": "alpha"}));
+        let result = state.query(QueryRequest {
+            table_name: "comp".to_string(),
+            key_condition_expression: Some("pk = :pk AND begins_with(sk, :prefix)".to_string()),
+            expression_attribute_values: Some(vals),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.count, 2);
+    }
+
+    #[tokio::test]
+    async fn test_query_with_limit() {
+        let state = make_state();
+        state.create_table(make_composite_table_req("lim")).await.unwrap();
+
+        for i in 0..10 {
+            let mut item = HashMap::new();
+            item.insert("pk".to_string(), serde_json::json!({"S": "user1"}));
+            item.insert("sk".to_string(), serde_json::json!({"S": format!("{:03}", i)}));
+            state.put_item(PutItemRequest { table_name: "lim".to_string(), item, ..Default::default() }).await.unwrap();
+        }
+
+        let mut vals = HashMap::new();
+        vals.insert(":pk".to_string(), serde_json::json!({"S": "user1"}));
+        let result = state.query(QueryRequest {
+            table_name: "lim".to_string(),
+            key_condition_expression: Some("pk = :pk".to_string()),
+            expression_attribute_values: Some(vals),
+            limit: Some(3),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.count, 3);
+        assert!(result.last_evaluated_key.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_query_scan_index_forward_false() {
+        let state = make_state();
+        state.create_table(make_composite_table_req("rev")).await.unwrap();
+
+        for label in &["a", "b", "c"] {
+            let mut item = HashMap::new();
+            item.insert("pk".to_string(), serde_json::json!({"S": "user1"}));
+            item.insert("sk".to_string(), serde_json::json!({"S": label.to_string()}));
+            state.put_item(PutItemRequest { table_name: "rev".to_string(), item, ..Default::default() }).await.unwrap();
+        }
+
+        let mut vals = HashMap::new();
+        vals.insert(":pk".to_string(), serde_json::json!({"S": "user1"}));
+        let result = state.query(QueryRequest {
+            table_name: "rev".to_string(),
+            key_condition_expression: Some("pk = :pk".to_string()),
+            expression_attribute_values: Some(vals),
+            scan_index_forward: Some(false),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.count, 3);
+        // First item should be "c" (descending)
+        let first_sk = result.items[0].get("sk").unwrap();
+        assert_eq!(first_sk, &serde_json::json!({"S": "c"}));
+    }
+
+    #[tokio::test]
+    async fn test_query_count_select() {
+        let state = make_state();
+        state.create_table(make_create_table_req("cnt")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        state.put_item(PutItemRequest { table_name: "cnt".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let mut vals = HashMap::new();
+        vals.insert(":pk".to_string(), serde_json::json!({"S": "k1"}));
+        let result = state.query(QueryRequest {
+            table_name: "cnt".to_string(),
+            key_condition_expression: Some("pk = :pk".to_string()),
+            expression_attribute_values: Some(vals),
+            select: Some("COUNT".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(result.items.is_empty());
+        assert_eq!(result.count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_query_table_not_found() {
+        let state = make_state();
+        let result = state.query(QueryRequest {
+            table_name: "nope".to_string(),
+            key_condition_expression: Some("pk = :pk".to_string()),
+            ..Default::default()
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_scan_with_filter_expression() {
+        let state = make_state();
+        state.create_table(make_create_table_req("filt")).await.unwrap();
+        for val in &["match", "nomatch", "match2"] {
+            let mut item = HashMap::new();
+            item.insert("pk".to_string(), serde_json::json!({"S": val.to_string()}));
+            item.insert("status".to_string(), serde_json::json!({"S": if val.starts_with("match") { "active" } else { "inactive" }}));
+            state.put_item(PutItemRequest { table_name: "filt".to_string(), item, ..Default::default() }).await.unwrap();
+        }
+
+        let mut vals = HashMap::new();
+        vals.insert(":s".to_string(), serde_json::json!({"S": "active"}));
+        let result = state.scan(ScanRequest {
+            table_name: "filt".to_string(),
+            filter_expression: Some("status = :s".to_string()),
+            expression_attribute_values: Some(vals),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.count, 2);
+        assert_eq!(result.scanned_count, 3);
+    }
+
+    #[tokio::test]
+    async fn test_scan_with_limit_pagination() {
+        let state = make_state();
+        state.create_table(make_create_table_req("pagin")).await.unwrap();
+        for i in 0..5 {
+            let mut item = HashMap::new();
+            item.insert("pk".to_string(), serde_json::json!({"S": format!("k{}", i)}));
+            state.put_item(PutItemRequest { table_name: "pagin".to_string(), item, ..Default::default() }).await.unwrap();
+        }
+
+        let result = state.scan(ScanRequest {
+            table_name: "pagin".to_string(),
+            limit: Some(2),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.count, 2);
+        assert!(result.last_evaluated_key.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_scan_table_not_found() {
+        let state = make_state();
+        let result = state.scan(ScanRequest { table_name: "nope".to_string(), ..Default::default() }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_batch_write_put_and_delete() {
+        let state = make_state();
+        state.create_table(make_create_table_req("bw")).await.unwrap();
+
+        // Put two items
+        let mut item1 = HashMap::new();
+        item1.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let mut item2 = HashMap::new();
+        item2.insert("pk".to_string(), serde_json::json!({"S": "k2"}));
+        let mut request_items = HashMap::new();
+        request_items.insert("bw".to_string(), vec![
+            WriteRequest { put_request: Some(PutRequest { item: item1 }), delete_request: None },
+            WriteRequest { put_request: Some(PutRequest { item: item2 }), delete_request: None },
+        ]);
+        state.batch_write_item(BatchWriteItemRequest { request_items }).await.unwrap();
+
+        // Verify both exist
+        let scan = state.scan(ScanRequest { table_name: "bw".to_string(), ..Default::default() }).await.unwrap();
+        assert_eq!(scan.count, 2);
+
+        // Delete one via batch
+        let mut del_key = HashMap::new();
+        del_key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let mut request_items = HashMap::new();
+        request_items.insert("bw".to_string(), vec![
+            WriteRequest { put_request: None, delete_request: Some(DeleteRequest { key: del_key }) },
+        ]);
+        state.batch_write_item(BatchWriteItemRequest { request_items }).await.unwrap();
+
+        let scan = state.scan(ScanRequest { table_name: "bw".to_string(), ..Default::default() }).await.unwrap();
+        assert_eq!(scan.count, 1);
+    }
+
+    #[tokio::test]
+    async fn test_batch_write_table_not_found() {
+        let state = make_state();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let mut request_items = HashMap::new();
+        request_items.insert("nope".to_string(), vec![
+            WriteRequest { put_request: Some(PutRequest { item }), delete_request: None },
+        ]);
+        let result = state.batch_write_item(BatchWriteItemRequest { request_items }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_item_missing_keys() {
+        let state = make_state();
+        state.create_table(make_create_table_req("bg")).await.unwrap();
+
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "missing"}));
+        let mut request_items = HashMap::new();
+        request_items.insert("bg".to_string(), KeysAndAttributes {
+            keys: vec![key],
+            projection_expression: None,
+            expression_attribute_names: None,
+        });
+        let result = state.batch_get_item(BatchGetItemRequest { request_items }).await.unwrap();
+        assert!(result.responses.get("bg").unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_item_table_not_found() {
+        let state = make_state();
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let mut request_items = HashMap::new();
+        request_items.insert("nope".to_string(), KeysAndAttributes {
+            keys: vec![key],
+            projection_expression: None,
+            expression_attribute_names: None,
+        });
+        let result = state.batch_get_item(BatchGetItemRequest { request_items }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_item_with_projection() {
+        let state = make_state();
+        state.create_table(make_create_table_req("bgp")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        item.insert("a".to_string(), serde_json::json!({"S": "val_a"}));
+        item.insert("b".to_string(), serde_json::json!({"S": "val_b"}));
+        state.put_item(PutItemRequest { table_name: "bgp".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let mut request_items = HashMap::new();
+        request_items.insert("bgp".to_string(), KeysAndAttributes {
+            keys: vec![key],
+            projection_expression: Some("a".to_string()),
+            expression_attribute_names: None,
+        });
+        let result = state.batch_get_item(BatchGetItemRequest { request_items }).await.unwrap();
+        let items = result.responses.get("bgp").unwrap();
+        assert_eq!(items.len(), 1);
+        assert!(items[0].contains_key("a"));
+        assert!(!items[0].contains_key("b"));
+    }
+
+    #[tokio::test]
+    async fn test_create_table_with_billing_mode() {
+        let state = make_state();
+        let req = CreateTableRequest {
+            table_name: "pay".to_string(),
+            key_schema: vec![KeySchemaElement {
+                attribute_name: "pk".to_string(),
+                key_type: "HASH".to_string(),
+            }],
+            attribute_definitions: vec![AttributeDefinition {
+                attribute_name: "pk".to_string(),
+                attribute_type: "S".to_string(),
+            }],
+            billing_mode: Some("PAY_PER_REQUEST".to_string()),
+            ..Default::default()
+        };
+        let result = state.create_table(req).await.unwrap();
+        assert!(result.table_description.billing_mode_summary.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_scan_with_projection() {
+        let state = make_state();
+        state.create_table(make_create_table_req("scanp")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        item.insert("keep".to_string(), serde_json::json!({"S": "yes"}));
+        item.insert("drop".to_string(), serde_json::json!({"S": "no"}));
+        state.put_item(PutItemRequest { table_name: "scanp".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let result = state.scan(ScanRequest {
+            table_name: "scanp".to_string(),
+            projection_expression: Some("keep".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.count, 1);
+        assert!(result.items[0].contains_key("keep"));
+        assert!(!result.items[0].contains_key("drop"));
+    }
+
+    #[tokio::test]
+    async fn test_query_with_filter_expression() {
+        let state = make_state();
+        state.create_table(make_composite_table_req("qf")).await.unwrap();
+        for i in 0..5 {
+            let mut item = HashMap::new();
+            item.insert("pk".to_string(), serde_json::json!({"S": "user1"}));
+            item.insert("sk".to_string(), serde_json::json!({"S": format!("item{}", i)}));
+            item.insert("active".to_string(), serde_json::json!({"BOOL": i % 2 == 0}));
+            state.put_item(PutItemRequest { table_name: "qf".to_string(), item, ..Default::default() }).await.unwrap();
+        }
+
+        let mut vals = HashMap::new();
+        vals.insert(":pk".to_string(), serde_json::json!({"S": "user1"}));
+        vals.insert(":active".to_string(), serde_json::json!({"BOOL": true}));
+        let result = state.query(QueryRequest {
+            table_name: "qf".to_string(),
+            key_condition_expression: Some("pk = :pk".to_string()),
+            filter_expression: Some("active = :active".to_string()),
+            expression_attribute_values: Some(vals),
+            ..Default::default()
+        }).await.unwrap();
+        assert_eq!(result.count, 3);
+        assert_eq!(result.scanned_count, 5);
+    }
+
+    #[tokio::test]
+    async fn test_list_tags_of_resource_not_found() {
+        let state = make_state();
+        let result = state.list_tags_of_resource(ListTagsOfResourceRequest {
+            resource_arn: "arn:aws:dynamodb:us-east-1:123456789012:table/nope".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_put_item_overwrite() {
+        let state = make_state();
+        state.create_table(make_create_table_req("ow")).await.unwrap();
+        let mut item1 = HashMap::new();
+        item1.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        item1.insert("v".to_string(), serde_json::json!({"S": "old"}));
+        state.put_item(PutItemRequest { table_name: "ow".to_string(), item: item1, ..Default::default() }).await.unwrap();
+
+        let mut item2 = HashMap::new();
+        item2.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        item2.insert("v".to_string(), serde_json::json!({"S": "new"}));
+        state.put_item(PutItemRequest { table_name: "ow".to_string(), item: item2, ..Default::default() }).await.unwrap();
+
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "k1"}));
+        let result = state.get_item(GetItemRequest { table_name: "ow".to_string(), key, ..Default::default() }).await.unwrap();
+        let got = result.item.unwrap();
+        assert_eq!(got.get("v").unwrap(), &serde_json::json!({"S": "new"}));
+    }
+
+    #[tokio::test]
+    async fn test_composite_key_put_get_delete() {
+        let state = make_state();
+        state.create_table(make_composite_table_req("ck")).await.unwrap();
+        let mut item = HashMap::new();
+        item.insert("pk".to_string(), serde_json::json!({"S": "user1"}));
+        item.insert("sk".to_string(), serde_json::json!({"S": "order1"}));
+        item.insert("total".to_string(), serde_json::json!({"N": "100"}));
+        state.put_item(PutItemRequest { table_name: "ck".to_string(), item, ..Default::default() }).await.unwrap();
+
+        let mut key = HashMap::new();
+        key.insert("pk".to_string(), serde_json::json!({"S": "user1"}));
+        key.insert("sk".to_string(), serde_json::json!({"S": "order1"}));
+        let result = state.get_item(GetItemRequest { table_name: "ck".to_string(), key: key.clone(), ..Default::default() }).await.unwrap();
+        assert!(result.item.is_some());
+
+        state.delete_item(DeleteItemRequest { table_name: "ck".to_string(), key: key.clone(), ..Default::default() }).await.unwrap();
+        let result = state.get_item(GetItemRequest { table_name: "ck".to_string(), key, ..Default::default() }).await.unwrap();
+        assert!(result.item.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_multiple_tables() {
+        let state = make_state();
+        state.create_table(make_create_table_req("t1")).await.unwrap();
+        state.create_table(make_create_table_req("t2")).await.unwrap();
+
+        let mut i1 = HashMap::new();
+        i1.insert("pk".to_string(), serde_json::json!({"S": "a"}));
+        state.put_item(PutItemRequest { table_name: "t1".to_string(), item: i1, ..Default::default() }).await.unwrap();
+
+        let mut i2 = HashMap::new();
+        i2.insert("pk".to_string(), serde_json::json!({"S": "b"}));
+        state.put_item(PutItemRequest { table_name: "t2".to_string(), item: i2, ..Default::default() }).await.unwrap();
+
+        let mut k1 = HashMap::new();
+        k1.insert("pk".to_string(), serde_json::json!({"S": "a"}));
+        let mut k2 = HashMap::new();
+        k2.insert("pk".to_string(), serde_json::json!({"S": "b"}));
+        let mut request_items = HashMap::new();
+        request_items.insert("t1".to_string(), KeysAndAttributes { keys: vec![k1], projection_expression: None, expression_attribute_names: None });
+        request_items.insert("t2".to_string(), KeysAndAttributes { keys: vec![k2], projection_expression: None, expression_attribute_names: None });
+        let result = state.batch_get_item(BatchGetItemRequest { request_items }).await.unwrap();
+        assert_eq!(result.responses.get("t1").unwrap().len(), 1);
+        assert_eq!(result.responses.get("t2").unwrap().len(), 1);
+    }
+}

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateEventBusRequest {
     #[serde(rename = "Name")]
     pub name: String,
@@ -14,13 +14,13 @@ pub struct CreateEventBusResponse {
     pub event_bus_arn: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteEventBusRequest {
     #[serde(rename = "Name")]
     pub name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeEventBusRequest {
     #[serde(rename = "Name")]
     pub name: Option<String>,
@@ -37,7 +37,7 @@ pub struct DescribeEventBusResponse {
     pub policy: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListEventBusesRequest {
     #[serde(rename = "NamePrefix")]
     pub name_prefix: Option<String>,
@@ -62,13 +62,13 @@ pub struct EventBus {
     pub arn: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutEventsRequest {
     #[serde(rename = "Entries")]
     pub entries: Vec<PutEventsRequestEntry>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutEventsRequestEntry {
     #[serde(rename = "EventBusName")]
     pub event_bus_name: Option<String>,
@@ -95,7 +95,7 @@ pub struct PutEventsResultEntry {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutRuleRequest {
     #[serde(rename = "Name")]
     pub name: String,
@@ -119,7 +119,7 @@ pub struct PutRuleResponse {
     pub rule_arn: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DeleteRuleRequest {
     #[serde(rename = "Name")]
     pub name: String,
@@ -127,7 +127,7 @@ pub struct DeleteRuleRequest {
     pub event_bus_name: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct DescribeRuleRequest {
     #[serde(rename = "Name")]
     pub name: String,
@@ -156,7 +156,7 @@ pub struct DescribeRuleResponse {
     pub event_bus_name: String,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListRulesRequest {
     #[serde(rename = "EventBusName")]
     pub event_bus_name: Option<String>,
@@ -187,7 +187,7 @@ pub struct Rule {
     pub event_bus_name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct PutTargetsRequest {
     #[serde(rename = "Rule")]
     pub rule: String,
@@ -205,7 +205,7 @@ pub struct PutTargetsResponse {
     pub failed_entries: Vec<serde_json::Value>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct RemoveTargetsRequest {
     #[serde(rename = "Rule")]
     pub rule: String,
@@ -223,7 +223,7 @@ pub struct RemoveTargetsResponse {
     pub failed_entries: Vec<serde_json::Value>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListTargetsByRuleRequest {
     #[serde(rename = "Rule")]
     pub rule: String,
@@ -265,7 +265,7 @@ pub struct Tag {
     pub value: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct TagResourceRequest {
     #[serde(rename = "ResourceARN")]
     pub resource_arn: String,
@@ -273,7 +273,7 @@ pub struct TagResourceRequest {
     pub tags: Vec<Tag>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UntagResourceRequest {
     #[serde(rename = "ResourceARN")]
     pub resource_arn: String,
@@ -281,7 +281,7 @@ pub struct UntagResourceRequest {
     pub tag_keys: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ListTagsForResourceRequest {
     #[serde(rename = "ResourceARN")]
     pub resource_arn: String,

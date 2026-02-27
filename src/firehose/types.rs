@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 // --- CreateDeliveryStream ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateDeliveryStreamRequest {
     pub delivery_stream_name: String,
@@ -25,7 +25,7 @@ pub struct CreateDeliveryStreamResponse {
 
 // --- DeleteDeliveryStream ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteDeliveryStreamRequest {
     pub delivery_stream_name: String,
@@ -33,7 +33,7 @@ pub struct DeleteDeliveryStreamRequest {
 
 // --- DescribeDeliveryStream ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DescribeDeliveryStreamRequest {
     pub delivery_stream_name: String,
@@ -95,7 +95,7 @@ pub struct ListDeliveryStreamsResponse {
 
 // --- UpdateDestination ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UpdateDestinationRequest {
     pub delivery_stream_name: String,
@@ -105,7 +105,7 @@ pub struct UpdateDestinationRequest {
 
 // --- PutRecord ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct PutRecordRequest {
     pub delivery_stream_name: String,
@@ -124,7 +124,7 @@ pub struct PutRecordResponse {
 
 // --- PutRecordBatch ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct PutRecordBatchRequest {
     pub delivery_stream_name: String,
@@ -147,7 +147,7 @@ pub struct PutRecordBatchResponseEntry {
 
 // --- TagDeliveryStream ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct TagDeliveryStreamRequest {
     pub delivery_stream_name: String,
@@ -156,7 +156,7 @@ pub struct TagDeliveryStreamRequest {
 
 // --- UntagDeliveryStream ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UntagDeliveryStreamRequest {
     pub delivery_stream_name: String,
@@ -165,7 +165,7 @@ pub struct UntagDeliveryStreamRequest {
 
 // --- ListTagsForDeliveryStream ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ListTagsForDeliveryStreamRequest {
     pub delivery_stream_name: String,

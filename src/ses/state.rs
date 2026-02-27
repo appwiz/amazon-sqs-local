@@ -126,3 +126,178 @@ impl SesState {
         })
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = SesState::new("123456789012".to_string(), "us-east-1".to_string());
+    }
+    #[tokio::test]
+    async fn test_send_email() {
+        let state = SesState::new("123456789012".to_string(), "us-east-1".to_string());
+        let req = SendEmailRequest::default();
+        let _ = state.send_email(req).await;
+    }
+    #[tokio::test]
+    async fn test_delete_email_identity_not_found() {
+        let state = SesState::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.delete_email_identity("nonexistent".to_string()).await;
+        assert!(result.is_err());
+    }
+    #[tokio::test]
+    async fn test_get_email_identity_not_found() {
+        let state = SesState::new("123456789012".to_string(), "us-east-1".to_string());
+        let result = state.get_email_identity("nonexistent".to_string()).await;
+        assert!(result.is_err());
+    }
+
+    fn make_state() -> SesState {
+        SesState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    // --- Extended coverage: create_email_identity ---
+
+    #[tokio::test]
+    async fn test_create_email_identity_email() {
+        let state = make_state();
+        let result = state.create_email_identity(
+            "user@example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "user@example.com".to_string(), tags: None },
+        ).await.unwrap();
+        assert_eq!(result.identity_type, "EMAIL_ADDRESS");
+        assert!(result.verified_for_sending_status);
+        assert_eq!(result.dkim_attributes.status, "SUCCESS");
+    }
+
+    #[tokio::test]
+    async fn test_create_email_identity_domain() {
+        let state = make_state();
+        let result = state.create_email_identity(
+            "example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "example.com".to_string(), tags: None },
+        ).await.unwrap();
+        assert_eq!(result.identity_type, "DOMAIN");
+    }
+
+    #[tokio::test]
+    async fn test_create_email_identity_with_tags() {
+        let state = make_state();
+        state.create_email_identity(
+            "user@example.com".to_string(),
+            CreateEmailIdentityRequest {
+                email_identity: "user@example.com".to_string(),
+                tags: Some(vec![Tag { key: "env".to_string(), value: "test".to_string() }]),
+            },
+        ).await.unwrap();
+        let identity = state.get_email_identity("user@example.com".to_string()).await.unwrap();
+        assert_eq!(identity.tags.len(), 1);
+        assert_eq!(identity.tags[0].key, "env");
+    }
+
+    #[tokio::test]
+    async fn test_create_email_identity_duplicate() {
+        let state = make_state();
+        state.create_email_identity(
+            "user@example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "user@example.com".to_string(), tags: None },
+        ).await.unwrap();
+        let result = state.create_email_identity(
+            "user@example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "user@example.com".to_string(), tags: None },
+        ).await;
+        assert!(result.is_err());
+    }
+
+    // --- Extended coverage: delete_email_identity ---
+
+    #[tokio::test]
+    async fn test_delete_email_identity_success() {
+        let state = make_state();
+        state.create_email_identity(
+            "user@example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "user@example.com".to_string(), tags: None },
+        ).await.unwrap();
+        assert!(state.delete_email_identity("user@example.com".to_string()).await.is_ok());
+        assert!(state.get_email_identity("user@example.com".to_string()).await.is_err());
+    }
+
+    // --- Extended coverage: get_email_identity ---
+
+    #[tokio::test]
+    async fn test_get_email_identity_success() {
+        let state = make_state();
+        state.create_email_identity(
+            "user@example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "user@example.com".to_string(), tags: None },
+        ).await.unwrap();
+        let result = state.get_email_identity("user@example.com".to_string()).await.unwrap();
+        assert_eq!(result.identity_type, "EMAIL_ADDRESS");
+        assert!(result.verified_for_sending_status);
+        assert!(result.feedback_forwarding_status);
+    }
+
+    // --- Extended coverage: list_email_identities ---
+
+    #[tokio::test]
+    async fn test_list_email_identities_empty() {
+        let state = make_state();
+        let result = state.list_email_identities(None).await.unwrap();
+        assert!(result.email_identities.is_empty());
+        assert!(result.next_token.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_list_email_identities_multiple() {
+        let state = make_state();
+        state.create_email_identity(
+            "a@example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "a@example.com".to_string(), tags: None },
+        ).await.unwrap();
+        state.create_email_identity(
+            "b@example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "b@example.com".to_string(), tags: None },
+        ).await.unwrap();
+        state.create_email_identity(
+            "example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "example.com".to_string(), tags: None },
+        ).await.unwrap();
+        let result = state.list_email_identities(None).await.unwrap();
+        assert_eq!(result.email_identities.len(), 3);
+        // Sorted by name
+        assert_eq!(result.email_identities[0].identity_name, "a@example.com");
+    }
+
+    #[tokio::test]
+    async fn test_list_email_identities_with_page_size() {
+        let state = make_state();
+        state.create_email_identity(
+            "a@example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "a@example.com".to_string(), tags: None },
+        ).await.unwrap();
+        state.create_email_identity(
+            "b@example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "b@example.com".to_string(), tags: None },
+        ).await.unwrap();
+        state.create_email_identity(
+            "c@example.com".to_string(),
+            CreateEmailIdentityRequest { email_identity: "c@example.com".to_string(), tags: None },
+        ).await.unwrap();
+        let result = state.list_email_identities(Some(2)).await.unwrap();
+        assert_eq!(result.email_identities.len(), 2);
+        assert!(result.next_token.is_some());
+    }
+
+    // --- Extended coverage: send_email ---
+
+    #[tokio::test]
+    async fn test_send_email_returns_message_id() {
+        let state = make_state();
+        let result = state.send_email(SendEmailRequest::default()).await.unwrap();
+        assert!(!result.message_id.is_empty());
+        assert!(result.message_id.contains("@email.amazonses.com"));
+    }
+}

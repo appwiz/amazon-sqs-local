@@ -46,3 +46,60 @@ impl IntoResponse for CwlError {
         (self.status_code(), axum::Json(body)).into_response()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resourcenotfoundexception_error_code() {
+        let err = CwlError::ResourceNotFoundException("test".to_string());
+        assert_eq!(err.error_code(), "ResourceNotFoundException");
+    }
+    #[test]
+    fn test_resourcealreadyexistsexception_error_code() {
+        let err = CwlError::ResourceAlreadyExistsException("test".to_string());
+        assert_eq!(err.error_code(), "ResourceAlreadyExistsException");
+    }
+    #[test]
+    fn test_invalidparameterexception_error_code() {
+        let err = CwlError::InvalidParameterException("test".to_string());
+        assert_eq!(err.error_code(), "InvalidParameterException");
+    }
+    #[test]
+    fn test_invalidaction_error_code() {
+        let err = CwlError::InvalidAction("test".to_string());
+        assert_eq!(err.error_code(), "InvalidAction");
+    }
+    #[test]
+    fn test_message() {
+        let err = CwlError::ResourceNotFoundException("hello world".to_string());
+        assert_eq!(err.message(), "hello world");
+    }
+    #[test]
+    fn test_resourcenotfoundexception_status() {
+        let err = CwlError::ResourceNotFoundException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_resourcealreadyexistsexception_status() {
+        let err = CwlError::ResourceAlreadyExistsException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_invalidparameterexception_status() {
+        let err = CwlError::InvalidParameterException("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_invalidaction_status() {
+        let err = CwlError::InvalidAction("test".to_string());
+        assert_eq!(err.status_code(), StatusCode::BAD_REQUEST);
+    }
+    #[test]
+    fn test_into_response() {
+        let err = CwlError::ResourceNotFoundException("test error".to_string());
+        let resp = err.into_response();
+        assert!(resp.status().is_client_error());
+    }
+}

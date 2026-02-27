@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 // SES v2 types
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct SendEmailRequest {
 }
 
@@ -13,7 +13,7 @@ pub struct SendEmailResponse {
 }
 
 // Email Identity
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct CreateEmailIdentityRequest {
     #[serde(rename = "EmailIdentity")]
     pub email_identity: String,

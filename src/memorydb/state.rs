@@ -960,3 +960,265 @@ impl MemoryDbState {
         Ok(ListTagsResponse { tag_list })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_state() -> MemoryDbState {
+        MemoryDbState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = make_state();
+    }
+
+    #[tokio::test]
+    async fn test_create_cluster() {
+        let state = make_state();
+        let req = CreateClusterRequest {
+            cluster_name: "my-cluster".to_string(),
+            node_type: "db.r6g.large".to_string(),
+            acl_name: "open-access".to_string(),
+            ..Default::default()
+        };
+        let result = state.create_cluster(req).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().cluster.name, "my-cluster");
+    }
+
+    #[tokio::test]
+    async fn test_create_cluster_duplicate() {
+        let state = make_state();
+        let req = CreateClusterRequest {
+            cluster_name: "dup".to_string(),
+            node_type: "db.r6g.large".to_string(),
+            acl_name: "open-access".to_string(),
+            ..Default::default()
+        };
+        state.create_cluster(req.clone()).await.unwrap();
+        assert!(state.create_cluster(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_clusters() {
+        let state = make_state();
+        state.create_cluster(CreateClusterRequest {
+            cluster_name: "c1".to_string(),
+            node_type: "db.r6g.large".to_string(),
+            acl_name: "open-access".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = DescribeClustersRequest::default();
+        let result = state.describe_clusters(req).await.unwrap();
+        assert_eq!(result.clusters.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_cluster() {
+        let state = make_state();
+        state.create_cluster(CreateClusterRequest {
+            cluster_name: "del".to_string(),
+            node_type: "db.r6g.large".to_string(),
+            acl_name: "open-access".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.delete_cluster(DeleteClusterRequest { cluster_name: "del".to_string() }).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_cluster_not_found() {
+        let state = make_state();
+        assert!(state.delete_cluster(DeleteClusterRequest { cluster_name: "nope".to_string() }).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_update_cluster() {
+        let state = make_state();
+        state.create_cluster(CreateClusterRequest {
+            cluster_name: "upd".to_string(),
+            node_type: "db.r6g.large".to_string(),
+            acl_name: "open-access".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let req = UpdateClusterRequest {
+            cluster_name: "upd".to_string(),
+            description: Some("updated".to_string()),
+            ..Default::default()
+        };
+        assert!(state.update_cluster(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_subnet_group() {
+        let state = make_state();
+        let req = CreateSubnetGroupRequest {
+            subnet_group_name: "sg1".to_string(),
+            ..Default::default()
+        };
+        assert!(state.create_subnet_group(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_subnet_group() {
+        let state = make_state();
+        state.create_subnet_group(CreateSubnetGroupRequest {
+            subnet_group_name: "sg1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        assert!(state.delete_subnet_group(DeleteSubnetGroupRequest { subnet_group_name: "sg1".to_string() }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_subnet_groups() {
+        let state = make_state();
+        state.create_subnet_group(CreateSubnetGroupRequest {
+            subnet_group_name: "sg1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.describe_subnet_groups(DescribeSubnetGroupsRequest::default()).await.unwrap();
+        assert_eq!(result.subnet_groups.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_create_user() {
+        let state = make_state();
+        let req = CreateUserRequest {
+            user_name: "testuser".to_string(),
+            access_string: "on ~* &* +@all".to_string(),
+            authentication_mode: AuthenticationMode {
+                auth_type: "password".to_string(),
+                passwords: Some(vec!["mypassword123!".to_string()]),
+            },
+            ..Default::default()
+        };
+        assert!(state.create_user(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_users() {
+        let state = make_state();
+        state.create_user(CreateUserRequest {
+            user_name: "u1".to_string(),
+            access_string: "on".to_string(),
+            authentication_mode: AuthenticationMode {
+                auth_type: "password".to_string(),
+                passwords: None,
+            },
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.describe_users(DescribeUsersRequest::default()).await.unwrap();
+        assert_eq!(result.users.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_user() {
+        let state = make_state();
+        state.create_user(CreateUserRequest {
+            user_name: "u1".to_string(),
+            access_string: "on".to_string(),
+            authentication_mode: AuthenticationMode {
+                auth_type: "password".to_string(),
+                passwords: None,
+            },
+            ..Default::default()
+        }).await.unwrap();
+        assert!(state.delete_user(DeleteUserRequest { user_name: "u1".to_string() }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_acl() {
+        let state = make_state();
+        let req = CreateAclRequest {
+            acl_name: "my-acl".to_string(),
+            ..Default::default()
+        };
+        assert!(state.create_acl(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_acls() {
+        let state = make_state();
+        state.create_acl(CreateAclRequest { acl_name: "a1".to_string(), ..Default::default() }).await.unwrap();
+        let result = state.describe_acls(DescribeAclsRequest::default()).await.unwrap();
+        assert_eq!(result.acls.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_acl() {
+        let state = make_state();
+        state.create_acl(CreateAclRequest { acl_name: "a1".to_string(), ..Default::default() }).await.unwrap();
+        assert!(state.delete_acl(DeleteAclRequest { acl_name: "a1".to_string() }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_and_delete_snapshot() {
+        let state = make_state();
+        state.create_cluster(CreateClusterRequest {
+            cluster_name: "c1".to_string(),
+            node_type: "db.r6g.large".to_string(),
+            acl_name: "open-access".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.create_snapshot(CreateSnapshotRequest {
+            cluster_name: "c1".to_string(),
+            snapshot_name: "snap1".to_string(),
+            ..Default::default()
+        }).await;
+        assert!(result.is_ok());
+        assert!(state.delete_snapshot(DeleteSnapshotRequest { snapshot_name: "snap1".to_string() }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_snapshots() {
+        let state = make_state();
+        state.create_cluster(CreateClusterRequest {
+            cluster_name: "c1".to_string(),
+            node_type: "db.r6g.large".to_string(),
+            acl_name: "open-access".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        state.create_snapshot(CreateSnapshotRequest {
+            cluster_name: "c1".to_string(),
+            snapshot_name: "snap1".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        let result = state.describe_snapshots(DescribeSnapshotsRequest::default()).await.unwrap();
+        assert_eq!(result.snapshots.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_tag_and_untag_and_list_tags() {
+        let state = make_state();
+        state.create_cluster(CreateClusterRequest {
+            cluster_name: "c1".to_string(),
+            node_type: "db.r6g.large".to_string(),
+            acl_name: "open-access".to_string(),
+            ..Default::default()
+        }).await.unwrap();
+        // Get the cluster ARN
+        let clusters = state.describe_clusters(DescribeClustersRequest {
+            cluster_name: Some("c1".to_string()),
+            ..Default::default()
+        }).await.unwrap();
+        let arn = clusters.clusters[0].arn.clone();
+
+        state.tag_resource(TagResourceRequest {
+            resource_arn: arn.clone(),
+            tags: vec![Tag { key: "env".to_string(), value: Some("test".to_string()) }],
+        }).await.unwrap();
+
+        let tags = state.list_tags(ListTagsRequest { resource_arn: arn.clone() }).await.unwrap();
+        assert_eq!(tags.tag_list.len(), 1);
+
+        state.untag_resource(UntagResourceRequest {
+            resource_arn: arn.clone(),
+            tag_keys: vec!["env".to_string()],
+        }).await.unwrap();
+
+        let tags = state.list_tags(ListTagsRequest { resource_arn: arn }).await.unwrap();
+        assert!(tags.tag_list.is_empty());
+    }
+}

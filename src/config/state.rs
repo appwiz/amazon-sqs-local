@@ -755,3 +755,958 @@ impl ConfigState {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_state() -> ConfigState {
+        ConfigState::new("123456789012".to_string(), "us-east-1".to_string())
+    }
+
+    #[tokio::test]
+    async fn test_new_state() {
+        let _state = make_state();
+    }
+
+    #[tokio::test]
+    async fn test_put_configuration_recorder() {
+        let state = make_state();
+        let req = PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                role_arn: Some("arn:aws:iam::123456789012:role/config".to_string()),
+                ..Default::default()
+            },
+        };
+        assert!(state.put_configuration_recorder(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_configuration_recorders() {
+        let state = make_state();
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.describe_configuration_recorders(DescribeConfigurationRecordersRequest::default()).await.unwrap();
+        assert_eq!(result.configuration_recorders.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_configuration_recorder() {
+        let state = make_state();
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let req = DeleteConfigurationRecorderRequest { configuration_recorder_name: "default".to_string() };
+        assert!(state.delete_configuration_recorder(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_configuration_recorder_not_found() {
+        let state = make_state();
+        let req = DeleteConfigurationRecorderRequest { configuration_recorder_name: "nope".to_string() };
+        assert!(state.delete_configuration_recorder(req).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_start_stop_recorder() {
+        let state = make_state();
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        assert!(state.start_configuration_recorder(StartConfigurationRecorderRequest {
+            configuration_recorder_name: "default".to_string(),
+        }).await.is_ok());
+        assert!(state.stop_configuration_recorder(StopConfigurationRecorderRequest {
+            configuration_recorder_name: "default".to_string(),
+        }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_configuration_recorder_status() {
+        let state = make_state();
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.describe_configuration_recorder_status(DescribeConfigurationRecorderStatusRequest::default()).await.unwrap();
+        assert_eq!(result.configuration_recorders_status.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_put_delivery_channel() {
+        let state = make_state();
+        let req = PutDeliveryChannelRequest {
+            delivery_channel: DeliveryChannel {
+                name: Some("default".to_string()),
+                s3_bucket_name: Some("my-bucket".to_string()),
+                ..Default::default()
+            },
+        };
+        assert!(state.put_delivery_channel(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_delivery_channels() {
+        let state = make_state();
+        state.put_delivery_channel(PutDeliveryChannelRequest {
+            delivery_channel: DeliveryChannel {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.describe_delivery_channels(DescribeDeliveryChannelsRequest::default()).await.unwrap();
+        assert_eq!(result.delivery_channels.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_delivery_channel() {
+        let state = make_state();
+        state.put_delivery_channel(PutDeliveryChannelRequest {
+            delivery_channel: DeliveryChannel {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        assert!(state.delete_delivery_channel(DeleteDeliveryChannelRequest { delivery_channel_name: "default".to_string() }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_put_config_rule() {
+        let state = make_state();
+        let req = PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "my-rule".to_string(),
+                source: Source {
+                    owner: "AWS".to_string(),
+                    source_identifier: "S3_BUCKET_VERSIONING_ENABLED".to_string(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            tags: None,
+        };
+        assert!(state.put_config_rule(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_config_rules() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        let result = state.describe_config_rules(DescribeConfigRulesRequest::default()).await.unwrap();
+        assert_eq!(result.config_rules.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_config_rule() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        assert!(state.delete_config_rule(DeleteConfigRuleRequest { config_rule_name: "r1".to_string() }).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_config_rule_not_found() {
+        let state = make_state();
+        assert!(state.delete_config_rule(DeleteConfigRuleRequest { config_rule_name: "nope".to_string() }).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_put_evaluations() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        let req = PutEvaluationsRequest {
+            evaluations: vec![Evaluation {
+                compliance_resource_id: "bucket-1".to_string(),
+                compliance_resource_type: "AWS::S3::Bucket".to_string(),
+                compliance_type: "COMPLIANT".to_string(),
+                ordering_timestamp: 1234567890.0,
+                annotation: None,
+            }],
+            result_token: "r1".to_string(),
+        };
+        assert!(state.put_evaluations(req).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_compliance_by_config_rule() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        let result = state.describe_compliance_by_config_rule(DescribeComplianceByConfigRuleRequest::default()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_describe_compliance_by_resource() {
+        let state = make_state();
+        let result = state.describe_compliance_by_resource(DescribeComplianceByResourceRequest::default()).await;
+        assert!(result.is_ok());
+    }
+
+    // --- Extended coverage: configuration recorder edge cases ---
+
+    #[tokio::test]
+    async fn test_put_configuration_recorder_no_name_defaults() {
+        let state = make_state();
+        let req = PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: None,
+                role_arn: Some("arn:aws:iam::123456789012:role/config".to_string()),
+                ..Default::default()
+            },
+        };
+        state.put_configuration_recorder(req).await.unwrap();
+        let result = state.describe_configuration_recorders(DescribeConfigurationRecordersRequest::default()).await.unwrap();
+        assert_eq!(result.configuration_recorders.len(), 1);
+        assert_eq!(result.configuration_recorders[0].name.as_deref(), Some("default"));
+    }
+
+    #[tokio::test]
+    async fn test_put_configuration_recorder_update_existing() {
+        let state = make_state();
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                role_arn: Some("arn:old".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        // Update the same recorder
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                role_arn: Some("arn:new".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.describe_configuration_recorders(DescribeConfigurationRecordersRequest::default()).await.unwrap();
+        assert_eq!(result.configuration_recorders.len(), 1);
+        assert_eq!(result.configuration_recorders[0].role_arn.as_deref(), Some("arn:new"));
+    }
+
+    #[tokio::test]
+    async fn test_put_configuration_recorder_different_name_exceeds_limit() {
+        let state = make_state();
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("first".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("second".to_string()),
+                ..Default::default()
+            },
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_configuration_recorders_by_name() {
+        let state = make_state();
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.describe_configuration_recorders(DescribeConfigurationRecordersRequest {
+            configuration_recorder_names: Some(vec!["default".to_string()]),
+        }).await.unwrap();
+        assert_eq!(result.configuration_recorders.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_describe_configuration_recorders_by_wrong_name() {
+        let state = make_state();
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.describe_configuration_recorders(DescribeConfigurationRecordersRequest {
+            configuration_recorder_names: Some(vec!["wrong".to_string()]),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_configuration_recorders_empty_no_recorder() {
+        let state = make_state();
+        let result = state.describe_configuration_recorders(DescribeConfigurationRecordersRequest {
+            configuration_recorder_names: Some(vec!["missing".to_string()]),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_configuration_recorders_empty_names_no_recorder() {
+        let state = make_state();
+        let result = state.describe_configuration_recorders(DescribeConfigurationRecordersRequest {
+            configuration_recorder_names: Some(vec![]),
+        }).await.unwrap();
+        assert!(result.configuration_recorders.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_start_recorder_not_found() {
+        let state = make_state();
+        let result = state.start_configuration_recorder(StartConfigurationRecorderRequest {
+            configuration_recorder_name: "nonexistent".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_stop_recorder_not_found() {
+        let state = make_state();
+        let result = state.stop_configuration_recorder(StopConfigurationRecorderRequest {
+            configuration_recorder_name: "nonexistent".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_recorder_status_recording_shows_success() {
+        let state = make_state();
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        state.start_configuration_recorder(StartConfigurationRecorderRequest {
+            configuration_recorder_name: "default".to_string(),
+        }).await.unwrap();
+        let result = state.describe_configuration_recorder_status(DescribeConfigurationRecorderStatusRequest::default()).await.unwrap();
+        assert_eq!(result.configuration_recorders_status[0].recording, true);
+        assert_eq!(result.configuration_recorders_status[0].last_status.as_deref(), Some("SUCCESS"));
+        assert!(result.configuration_recorders_status[0].last_start_time.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_describe_recorder_status_by_name() {
+        let state = make_state();
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.describe_configuration_recorder_status(DescribeConfigurationRecorderStatusRequest {
+            configuration_recorder_names: Some(vec!["default".to_string()]),
+        }).await.unwrap();
+        assert_eq!(result.configuration_recorders_status.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_describe_recorder_status_wrong_name() {
+        let state = make_state();
+        state.put_configuration_recorder(PutConfigurationRecorderRequest {
+            configuration_recorder: ConfigurationRecorder {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.describe_configuration_recorder_status(DescribeConfigurationRecorderStatusRequest {
+            configuration_recorder_names: Some(vec!["wrong".to_string()]),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_recorder_status_no_recorder_with_names() {
+        let state = make_state();
+        let result = state.describe_configuration_recorder_status(DescribeConfigurationRecorderStatusRequest {
+            configuration_recorder_names: Some(vec!["missing".to_string()]),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_recorder_status_no_recorder_empty_names() {
+        let state = make_state();
+        let result = state.describe_configuration_recorder_status(DescribeConfigurationRecorderStatusRequest {
+            configuration_recorder_names: Some(vec![]),
+        }).await.unwrap();
+        assert!(result.configuration_recorders_status.is_empty());
+    }
+
+    // --- Extended coverage: delivery channel edge cases ---
+
+    #[tokio::test]
+    async fn test_put_delivery_channel_no_name_defaults() {
+        let state = make_state();
+        state.put_delivery_channel(PutDeliveryChannelRequest {
+            delivery_channel: DeliveryChannel {
+                name: None,
+                s3_bucket_name: Some("bucket".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.describe_delivery_channels(DescribeDeliveryChannelsRequest::default()).await.unwrap();
+        assert_eq!(result.delivery_channels[0].name.as_deref(), Some("default"));
+    }
+
+    #[tokio::test]
+    async fn test_put_delivery_channel_different_name_exceeds_limit() {
+        let state = make_state();
+        state.put_delivery_channel(PutDeliveryChannelRequest {
+            delivery_channel: DeliveryChannel {
+                name: Some("first".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.put_delivery_channel(PutDeliveryChannelRequest {
+            delivery_channel: DeliveryChannel {
+                name: Some("second".to_string()),
+                ..Default::default()
+            },
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_delivery_channels_by_name() {
+        let state = make_state();
+        state.put_delivery_channel(PutDeliveryChannelRequest {
+            delivery_channel: DeliveryChannel {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.describe_delivery_channels(DescribeDeliveryChannelsRequest {
+            delivery_channel_names: Some(vec!["default".to_string()]),
+        }).await.unwrap();
+        assert_eq!(result.delivery_channels.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_describe_delivery_channels_wrong_name() {
+        let state = make_state();
+        state.put_delivery_channel(PutDeliveryChannelRequest {
+            delivery_channel: DeliveryChannel {
+                name: Some("default".to_string()),
+                ..Default::default()
+            },
+        }).await.unwrap();
+        let result = state.describe_delivery_channels(DescribeDeliveryChannelsRequest {
+            delivery_channel_names: Some(vec!["wrong".to_string()]),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_delivery_channels_no_channel_with_names() {
+        let state = make_state();
+        let result = state.describe_delivery_channels(DescribeDeliveryChannelsRequest {
+            delivery_channel_names: Some(vec!["missing".to_string()]),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_delivery_channels_no_channel_empty_names() {
+        let state = make_state();
+        let result = state.describe_delivery_channels(DescribeDeliveryChannelsRequest {
+            delivery_channel_names: Some(vec![]),
+        }).await.unwrap();
+        assert!(result.delivery_channels.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_delete_delivery_channel_not_found() {
+        let state = make_state();
+        let result = state.delete_delivery_channel(DeleteDeliveryChannelRequest {
+            delivery_channel_name: "nonexistent".to_string(),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    // --- Extended coverage: config rule edge cases ---
+
+    #[tokio::test]
+    async fn test_put_config_rule_update_preserves_arn_and_id() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "my-rule".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "S3".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        let rules = state.describe_config_rules(DescribeConfigRulesRequest::default()).await.unwrap();
+        let original_arn = rules.config_rules[0].config_rule_arn.clone();
+        let original_id = rules.config_rules[0].config_rule_id.clone();
+        // Update same rule
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "my-rule".to_string(),
+                description: Some("updated".to_string()),
+                source: Source { owner: "AWS".to_string(), source_identifier: "S3".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        let rules = state.describe_config_rules(DescribeConfigRulesRequest::default()).await.unwrap();
+        assert_eq!(rules.config_rules[0].config_rule_arn, original_arn);
+        assert_eq!(rules.config_rules[0].config_rule_id, original_id);
+        assert_eq!(rules.config_rules[0].description.as_deref(), Some("updated"));
+    }
+
+    #[tokio::test]
+    async fn test_put_config_rule_with_tags() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "tagged-rule".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "S3".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: Some(vec![Tag { key: "env".to_string(), value: "prod".to_string() }]),
+        }).await.unwrap();
+        let rules = state.describe_config_rules(DescribeConfigRulesRequest::default()).await.unwrap();
+        let arn = rules.config_rules[0].config_rule_arn.clone().unwrap();
+        let tags = state.list_tags_for_resource(ListTagsForResourceRequest { resource_arn: arn, limit: None }).await.unwrap();
+        assert_eq!(tags.tags.len(), 1);
+        assert_eq!(tags.tags[0].key, "env");
+    }
+
+    #[tokio::test]
+    async fn test_describe_config_rules_by_name() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r2".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        let result = state.describe_config_rules(DescribeConfigRulesRequest {
+            config_rule_names: Some(vec!["r1".to_string()]),
+        }).await.unwrap();
+        assert_eq!(result.config_rules.len(), 1);
+        assert_eq!(result.config_rules[0].config_rule_name, "r1");
+    }
+
+    #[tokio::test]
+    async fn test_describe_config_rules_not_found() {
+        let state = make_state();
+        let result = state.describe_config_rules(DescribeConfigRulesRequest {
+            config_rule_names: Some(vec!["nonexistent".to_string()]),
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_delete_config_rule_cleans_up_evaluations() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        state.put_evaluations(PutEvaluationsRequest {
+            evaluations: vec![Evaluation {
+                compliance_resource_id: "bucket".to_string(),
+                compliance_resource_type: "AWS::S3::Bucket".to_string(),
+                compliance_type: "COMPLIANT".to_string(),
+                ordering_timestamp: 1234567890.0,
+                annotation: None,
+            }],
+            result_token: "r1".to_string(),
+        }).await.unwrap();
+        state.delete_config_rule(DeleteConfigRuleRequest { config_rule_name: "r1".to_string() }).await.unwrap();
+        // Rule is gone
+        let result = state.describe_config_rules(DescribeConfigRulesRequest::default()).await.unwrap();
+        assert!(result.config_rules.is_empty());
+    }
+
+    // --- Extended coverage: evaluations and compliance ---
+
+    #[tokio::test]
+    async fn test_get_compliance_details_by_config_rule() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        state.put_evaluations(PutEvaluationsRequest {
+            evaluations: vec![
+                Evaluation {
+                    compliance_resource_id: "b1".to_string(),
+                    compliance_resource_type: "AWS::S3::Bucket".to_string(),
+                    compliance_type: "COMPLIANT".to_string(),
+                    ordering_timestamp: 100.0,
+                    annotation: Some("ok".to_string()),
+                },
+                Evaluation {
+                    compliance_resource_id: "b2".to_string(),
+                    compliance_resource_type: "AWS::S3::Bucket".to_string(),
+                    compliance_type: "NON_COMPLIANT".to_string(),
+                    ordering_timestamp: 200.0,
+                    annotation: None,
+                },
+            ],
+            result_token: "r1".to_string(),
+        }).await.unwrap();
+        let result = state.get_compliance_details_by_config_rule(GetComplianceDetailsByConfigRuleRequest {
+            config_rule_name: "r1".to_string(),
+            compliance_types: None,
+            limit: None,
+        }).await.unwrap();
+        assert_eq!(result.evaluation_results.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_get_compliance_details_filter_by_type() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        state.put_evaluations(PutEvaluationsRequest {
+            evaluations: vec![
+                Evaluation {
+                    compliance_resource_id: "b1".to_string(),
+                    compliance_resource_type: "AWS::S3::Bucket".to_string(),
+                    compliance_type: "COMPLIANT".to_string(),
+                    ordering_timestamp: 100.0,
+                    annotation: None,
+                },
+                Evaluation {
+                    compliance_resource_id: "b2".to_string(),
+                    compliance_resource_type: "AWS::S3::Bucket".to_string(),
+                    compliance_type: "NON_COMPLIANT".to_string(),
+                    ordering_timestamp: 200.0,
+                    annotation: None,
+                },
+            ],
+            result_token: "r1".to_string(),
+        }).await.unwrap();
+        let result = state.get_compliance_details_by_config_rule(GetComplianceDetailsByConfigRuleRequest {
+            config_rule_name: "r1".to_string(),
+            compliance_types: Some(vec!["NON_COMPLIANT".to_string()]),
+            limit: None,
+        }).await.unwrap();
+        assert_eq!(result.evaluation_results.len(), 1);
+        assert_eq!(result.evaluation_results[0].compliance_type, "NON_COMPLIANT");
+    }
+
+    #[tokio::test]
+    async fn test_get_compliance_details_with_limit() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        state.put_evaluations(PutEvaluationsRequest {
+            evaluations: vec![
+                Evaluation { compliance_resource_id: "b1".to_string(), compliance_resource_type: "AWS::S3::Bucket".to_string(), compliance_type: "COMPLIANT".to_string(), ordering_timestamp: 100.0, annotation: None },
+                Evaluation { compliance_resource_id: "b2".to_string(), compliance_resource_type: "AWS::S3::Bucket".to_string(), compliance_type: "COMPLIANT".to_string(), ordering_timestamp: 200.0, annotation: None },
+            ],
+            result_token: "r1".to_string(),
+        }).await.unwrap();
+        let result = state.get_compliance_details_by_config_rule(GetComplianceDetailsByConfigRuleRequest {
+            config_rule_name: "r1".to_string(),
+            compliance_types: None,
+            limit: Some(1),
+        }).await.unwrap();
+        assert_eq!(result.evaluation_results.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_get_compliance_details_rule_not_found() {
+        let state = make_state();
+        let result = state.get_compliance_details_by_config_rule(GetComplianceDetailsByConfigRuleRequest {
+            config_rule_name: "nope".to_string(),
+            compliance_types: None,
+            limit: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_compliance_details_no_evaluations() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        let result = state.get_compliance_details_by_config_rule(GetComplianceDetailsByConfigRuleRequest {
+            config_rule_name: "r1".to_string(),
+            compliance_types: None,
+            limit: None,
+        }).await.unwrap();
+        assert!(result.evaluation_results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_describe_compliance_by_config_rule_non_compliant() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        state.put_evaluations(PutEvaluationsRequest {
+            evaluations: vec![Evaluation {
+                compliance_resource_id: "b1".to_string(),
+                compliance_resource_type: "AWS::S3::Bucket".to_string(),
+                compliance_type: "NON_COMPLIANT".to_string(),
+                ordering_timestamp: 100.0,
+                annotation: None,
+            }],
+            result_token: "r1".to_string(),
+        }).await.unwrap();
+        let result = state.describe_compliance_by_config_rule(DescribeComplianceByConfigRuleRequest {
+            config_rule_names: Some(vec!["r1".to_string()]),
+            compliance_types: None,
+        }).await.unwrap();
+        assert_eq!(result.compliance_by_config_rules.len(), 1);
+        assert_eq!(result.compliance_by_config_rules[0].compliance.compliance_type, "NON_COMPLIANT");
+    }
+
+    #[tokio::test]
+    async fn test_describe_compliance_by_config_rule_filter() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        // No evals = INSUFFICIENT_DATA
+        let result = state.describe_compliance_by_config_rule(DescribeComplianceByConfigRuleRequest {
+            config_rule_names: None,
+            compliance_types: Some(vec!["COMPLIANT".to_string()]),
+        }).await.unwrap();
+        assert!(result.compliance_by_config_rules.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_describe_compliance_by_config_rule_not_found() {
+        let state = make_state();
+        let result = state.describe_compliance_by_config_rule(DescribeComplianceByConfigRuleRequest {
+            config_rule_names: Some(vec!["nonexistent".to_string()]),
+            compliance_types: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_describe_compliance_by_resource_with_filters() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        state.put_evaluations(PutEvaluationsRequest {
+            evaluations: vec![
+                Evaluation { compliance_resource_id: "b1".to_string(), compliance_resource_type: "AWS::S3::Bucket".to_string(), compliance_type: "COMPLIANT".to_string(), ordering_timestamp: 100.0, annotation: None },
+                Evaluation { compliance_resource_id: "i1".to_string(), compliance_resource_type: "AWS::EC2::Instance".to_string(), compliance_type: "NON_COMPLIANT".to_string(), ordering_timestamp: 200.0, annotation: None },
+            ],
+            result_token: "r1".to_string(),
+        }).await.unwrap();
+        let result = state.describe_compliance_by_resource(DescribeComplianceByResourceRequest {
+            resource_type: Some("AWS::S3::Bucket".to_string()),
+            resource_id: None,
+            compliance_types: None,
+            limit: None,
+        }).await.unwrap();
+        assert_eq!(result.compliance_by_resources.len(), 1);
+        assert_eq!(result.compliance_by_resources[0].resource_type, "AWS::S3::Bucket");
+    }
+
+    #[tokio::test]
+    async fn test_describe_compliance_by_resource_with_limit() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        state.put_evaluations(PutEvaluationsRequest {
+            evaluations: vec![
+                Evaluation { compliance_resource_id: "b1".to_string(), compliance_resource_type: "AWS::S3::Bucket".to_string(), compliance_type: "COMPLIANT".to_string(), ordering_timestamp: 100.0, annotation: None },
+                Evaluation { compliance_resource_id: "b2".to_string(), compliance_resource_type: "AWS::S3::Bucket".to_string(), compliance_type: "COMPLIANT".to_string(), ordering_timestamp: 200.0, annotation: None },
+            ],
+            result_token: "r1".to_string(),
+        }).await.unwrap();
+        let result = state.describe_compliance_by_resource(DescribeComplianceByResourceRequest {
+            resource_type: None,
+            resource_id: None,
+            compliance_types: None,
+            limit: Some(1),
+        }).await.unwrap();
+        assert_eq!(result.compliance_by_resources.len(), 1);
+    }
+
+    // --- Extended coverage: tag operations ---
+
+    #[tokio::test]
+    async fn test_tag_untag_list_tags_for_config_rule() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: None,
+        }).await.unwrap();
+        let rules = state.describe_config_rules(DescribeConfigRulesRequest::default()).await.unwrap();
+        let arn = rules.config_rules[0].config_rule_arn.clone().unwrap();
+        // Tag
+        state.tag_resource(TagResourceRequest {
+            resource_arn: arn.clone(),
+            tags: vec![
+                Tag { key: "env".to_string(), value: "prod".to_string() },
+                Tag { key: "team".to_string(), value: "infra".to_string() },
+            ],
+        }).await.unwrap();
+        let tags = state.list_tags_for_resource(ListTagsForResourceRequest { resource_arn: arn.clone(), limit: None }).await.unwrap();
+        assert_eq!(tags.tags.len(), 2);
+        // Untag
+        state.untag_resource(UntagResourceRequest {
+            resource_arn: arn.clone(),
+            tag_keys: vec!["team".to_string()],
+        }).await.unwrap();
+        let tags = state.list_tags_for_resource(ListTagsForResourceRequest { resource_arn: arn, limit: None }).await.unwrap();
+        assert_eq!(tags.tags.len(), 1);
+        assert_eq!(tags.tags[0].key, "env");
+    }
+
+    #[tokio::test]
+    async fn test_tag_resource_not_found() {
+        let state = make_state();
+        let result = state.tag_resource(TagResourceRequest {
+            resource_arn: "arn:aws:config:us-east-1:123456789012:config-rule/fake".to_string(),
+            tags: vec![Tag { key: "k".to_string(), value: "v".to_string() }],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_untag_resource_not_found() {
+        let state = make_state();
+        let result = state.untag_resource(UntagResourceRequest {
+            resource_arn: "arn:aws:config:us-east-1:123456789012:config-rule/fake".to_string(),
+            tag_keys: vec!["k".to_string()],
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_tags_for_resource_not_found() {
+        let state = make_state();
+        let result = state.list_tags_for_resource(ListTagsForResourceRequest {
+            resource_arn: "arn:aws:config:us-east-1:123456789012:config-rule/fake".to_string(),
+            limit: None,
+        }).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_list_tags_with_limit() {
+        let state = make_state();
+        state.put_config_rule(PutConfigRuleRequest {
+            config_rule: ConfigRule {
+                config_rule_name: "r1".to_string(),
+                source: Source { owner: "AWS".to_string(), source_identifier: "test".to_string(), ..Default::default() },
+                ..Default::default()
+            },
+            tags: Some(vec![
+                Tag { key: "a".to_string(), value: "1".to_string() },
+                Tag { key: "b".to_string(), value: "2".to_string() },
+                Tag { key: "c".to_string(), value: "3".to_string() },
+            ]),
+        }).await.unwrap();
+        let rules = state.describe_config_rules(DescribeConfigRulesRequest::default()).await.unwrap();
+        let arn = rules.config_rules[0].config_rule_arn.clone().unwrap();
+        let tags = state.list_tags_for_resource(ListTagsForResourceRequest { resource_arn: arn, limit: Some(2) }).await.unwrap();
+        assert_eq!(tags.tags.len(), 2);
+    }
+}

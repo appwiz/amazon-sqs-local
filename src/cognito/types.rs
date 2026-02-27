@@ -39,7 +39,7 @@ pub struct UserPoolDescriptionType {
 
 // --- CreateUserPool ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateUserPoolRequest {
     pub pool_name: String,
@@ -59,7 +59,7 @@ pub struct CreateUserPoolResponse {
 
 // --- DeleteUserPool ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteUserPoolRequest {
     pub user_pool_id: String,
@@ -67,7 +67,7 @@ pub struct DeleteUserPoolRequest {
 
 // --- DescribeUserPool ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DescribeUserPoolRequest {
     pub user_pool_id: String,
@@ -100,7 +100,7 @@ pub struct ListUserPoolsResponse {
 
 // --- UpdateUserPool ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UpdateUserPoolRequest {
     pub user_pool_id: String,
@@ -125,7 +125,7 @@ pub struct UserType {
 
 // --- AdminCreateUser ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminCreateUserRequest {
     pub user_pool_id: String,
@@ -144,7 +144,7 @@ pub struct AdminCreateUserResponse {
 
 // --- AdminDeleteUser ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminDeleteUserRequest {
     pub user_pool_id: String,
@@ -153,7 +153,7 @@ pub struct AdminDeleteUserRequest {
 
 // --- AdminGetUser ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminGetUserRequest {
     pub user_pool_id: String,
@@ -175,7 +175,7 @@ pub struct AdminGetUserResponse {
 
 // --- AdminSetUserPassword ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminSetUserPasswordRequest {
     pub user_pool_id: String,
@@ -187,14 +187,14 @@ pub struct AdminSetUserPasswordRequest {
 
 // --- AdminEnableUser / AdminDisableUser ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminEnableUserRequest {
     pub user_pool_id: String,
     pub username: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminDisableUserRequest {
     pub user_pool_id: String,
@@ -203,7 +203,7 @@ pub struct AdminDisableUserRequest {
 
 // --- AdminResetUserPassword ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminResetUserPasswordRequest {
     pub user_pool_id: String,
@@ -266,7 +266,7 @@ pub struct UserPoolClientDescription {
 
 // --- CreateUserPoolClient ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateUserPoolClientRequest {
     pub user_pool_id: String,
@@ -299,7 +299,7 @@ pub struct CreateUserPoolClientResponse {
 
 // --- DeleteUserPoolClient ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteUserPoolClientRequest {
     pub user_pool_id: String,
@@ -308,7 +308,7 @@ pub struct DeleteUserPoolClientRequest {
 
 // --- DescribeUserPoolClient ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DescribeUserPoolClientRequest {
     pub user_pool_id: String,
@@ -323,7 +323,7 @@ pub struct DescribeUserPoolClientResponse {
 
 // --- ListUserPoolClients ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ListUserPoolClientsRequest {
     pub user_pool_id: String,
@@ -343,7 +343,7 @@ pub struct ListUserPoolClientsResponse {
 
 // --- UpdateUserPoolClient ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct UpdateUserPoolClientRequest {
     pub user_pool_id: String,
@@ -391,7 +391,7 @@ pub struct GroupType {
 
 // --- CreateGroup ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct CreateGroupRequest {
     pub user_pool_id: String,
@@ -412,7 +412,7 @@ pub struct CreateGroupResponse {
 
 // --- DeleteGroup ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct DeleteGroupRequest {
     pub user_pool_id: String,
@@ -421,7 +421,7 @@ pub struct DeleteGroupRequest {
 
 // --- GetGroup ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct GetGroupRequest {
     pub user_pool_id: String,
@@ -436,7 +436,7 @@ pub struct GetGroupResponse {
 
 // --- ListGroups ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ListGroupsRequest {
     pub user_pool_id: String,
@@ -456,7 +456,7 @@ pub struct ListGroupsResponse {
 
 // --- AdminAddUserToGroup ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminAddUserToGroupRequest {
     pub user_pool_id: String,
@@ -466,7 +466,7 @@ pub struct AdminAddUserToGroupRequest {
 
 // --- AdminRemoveUserFromGroup ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminRemoveUserFromGroupRequest {
     pub user_pool_id: String,
@@ -476,7 +476,7 @@ pub struct AdminRemoveUserFromGroupRequest {
 
 // --- AdminListGroupsForUser ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminListGroupsForUserRequest {
     pub user_pool_id: String,
@@ -493,7 +493,7 @@ pub struct AdminListGroupsForUserResponse {
 
 // --- ListUsersInGroup ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ListUsersInGroupRequest {
     pub user_pool_id: String,
@@ -510,7 +510,7 @@ pub struct ListUsersInGroupResponse {
 
 // --- Auth types ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct InitiateAuthRequest {
     pub auth_flow: String,
@@ -519,7 +519,7 @@ pub struct InitiateAuthRequest {
     pub auth_parameters: Option<std::collections::HashMap<String, String>>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminInitiateAuthRequest {
     pub user_pool_id: String,
@@ -552,7 +552,7 @@ pub struct InitiateAuthResponse {
 
 // --- SignUp ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct SignUpRequest {
     pub client_id: String,
@@ -571,7 +571,7 @@ pub struct SignUpResponse {
 
 // --- ConfirmSignUp ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ConfirmSignUpRequest {
     pub client_id: String,
@@ -580,7 +580,7 @@ pub struct ConfirmSignUpRequest {
 
 // --- ForgotPassword ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ForgotPasswordRequest {
     pub client_id: String,
@@ -603,7 +603,7 @@ pub struct CodeDeliveryDetailsType {
 
 // --- ConfirmForgotPassword ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct ConfirmForgotPasswordRequest {
     pub client_id: String,
@@ -613,7 +613,7 @@ pub struct ConfirmForgotPasswordRequest {
 
 // --- AdminUpdateUserAttributes ---
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct AdminUpdateUserAttributesRequest {
     pub user_pool_id: String,
