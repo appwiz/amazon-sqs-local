@@ -213,8 +213,7 @@ pub struct CreateMountTargetRequest {
     #[serde(rename = "IpAddress")]
     pub ip_address: Option<String>,
     #[serde(rename = "SecurityGroups")]
-    #[allow(dead_code)]
-    pub security_groups: Option<Vec<String>>,
+    pub _security_groups: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -73,6 +73,7 @@ echo "Starting server with SSM on port ${PORT}..."
   --cognito-port 19208 --apigateway-port 19209 --kms-port 19210 \
   --secretsmanager-port 19211 --kinesis-port 19212 --eventbridge-port 19213 \
   --stepfunctions-port 19214 --cloudwatchlogs-port 19215 --ses-port 19216 \
+  --servicecatalog-port 19217 --config-port 19218 --efs-port 19219 --appsync-port 19220 \
   --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1

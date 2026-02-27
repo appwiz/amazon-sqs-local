@@ -40,7 +40,8 @@ async fn handle_request(
         .ok_or_else(|| SfnError::InvalidAction("Missing X-Amz-Target header".into()))?;
 
     let action = target
-        .strip_prefix("AmazonStates.")
+        .strip_prefix("AWSStepFunctions.")
+        .or_else(|| target.strip_prefix("AmazonStates."))
         .ok_or_else(|| SfnError::InvalidAction(format!("Invalid target: {target}")))?;
 
     match action {

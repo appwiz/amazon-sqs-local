@@ -3,15 +3,10 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum CwlError {
     ResourceNotFoundException(String),
     ResourceAlreadyExistsException(String),
     InvalidParameterException(String),
-    LimitExceededException(String),
-    ServiceUnavailableException(String),
-    InvalidSequenceTokenException(String),
-    DataAlreadyAcceptedException(String),
     InvalidAction(String),
 }
 
@@ -21,10 +16,6 @@ impl CwlError {
             CwlError::ResourceNotFoundException(_) => "ResourceNotFoundException",
             CwlError::ResourceAlreadyExistsException(_) => "ResourceAlreadyExistsException",
             CwlError::InvalidParameterException(_) => "InvalidParameterException",
-            CwlError::LimitExceededException(_) => "LimitExceededException",
-            CwlError::ServiceUnavailableException(_) => "ServiceUnavailableException",
-            CwlError::InvalidSequenceTokenException(_) => "InvalidSequenceTokenException",
-            CwlError::DataAlreadyAcceptedException(_) => "DataAlreadyAcceptedException",
             CwlError::InvalidAction(_) => "InvalidAction",
         }
     }
@@ -32,7 +23,6 @@ impl CwlError {
     fn status_code(&self) -> StatusCode {
         match self {
             CwlError::ResourceNotFoundException(_) => StatusCode::BAD_REQUEST,
-            CwlError::ServiceUnavailableException(_) => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::BAD_REQUEST,
         }
     }
@@ -42,10 +32,6 @@ impl CwlError {
             CwlError::ResourceNotFoundException(m)
             | CwlError::ResourceAlreadyExistsException(m)
             | CwlError::InvalidParameterException(m)
-            | CwlError::LimitExceededException(m)
-            | CwlError::ServiceUnavailableException(m)
-            | CwlError::InvalidSequenceTokenException(m)
-            | CwlError::DataAlreadyAcceptedException(m)
             | CwlError::InvalidAction(m) => m,
         }
     }

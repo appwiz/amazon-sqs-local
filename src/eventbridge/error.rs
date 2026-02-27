@@ -3,12 +3,9 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum EventBridgeError {
     ResourceNotFoundException(String),
     ResourceAlreadyExistsException(String),
-    InvalidEventPatternException(String),
-    LimitExceededException(String),
     InvalidAction(String),
 }
 
@@ -17,8 +14,6 @@ impl EventBridgeError {
         match self {
             EventBridgeError::ResourceNotFoundException(_) => "ResourceNotFoundException",
             EventBridgeError::ResourceAlreadyExistsException(_) => "ResourceAlreadyExistsException",
-            EventBridgeError::InvalidEventPatternException(_) => "InvalidEventPatternException",
-            EventBridgeError::LimitExceededException(_) => "LimitExceededException",
             EventBridgeError::InvalidAction(_) => "InvalidAction",
         }
     }
@@ -34,8 +29,6 @@ impl EventBridgeError {
         match self {
             EventBridgeError::ResourceNotFoundException(m)
             | EventBridgeError::ResourceAlreadyExistsException(m)
-            | EventBridgeError::InvalidEventPatternException(m)
-            | EventBridgeError::LimitExceededException(m)
             | EventBridgeError::InvalidAction(m) => m,
         }
     }

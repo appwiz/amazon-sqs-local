@@ -3,14 +3,11 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum KinesisError {
     ResourceNotFoundException(String),
     ResourceInUseException(String),
     InvalidArgumentException(String),
     ExpiredIteratorException(String),
-    ProvisionedThroughputExceededException(String),
-    LimitExceededException(String),
     InvalidAction(String),
 }
 
@@ -21,8 +18,6 @@ impl KinesisError {
             KinesisError::ResourceInUseException(_) => "ResourceInUseException",
             KinesisError::InvalidArgumentException(_) => "InvalidArgumentException",
             KinesisError::ExpiredIteratorException(_) => "ExpiredIteratorException",
-            KinesisError::ProvisionedThroughputExceededException(_) => "ProvisionedThroughputExceededException",
-            KinesisError::LimitExceededException(_) => "LimitExceededException",
             KinesisError::InvalidAction(_) => "InvalidAction",
         }
     }
@@ -41,8 +36,6 @@ impl KinesisError {
             | KinesisError::ResourceInUseException(m)
             | KinesisError::InvalidArgumentException(m)
             | KinesisError::ExpiredIteratorException(m)
-            | KinesisError::ProvisionedThroughputExceededException(m)
-            | KinesisError::LimitExceededException(m)
             | KinesisError::InvalidAction(m) => m,
         }
     }

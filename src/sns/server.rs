@@ -94,9 +94,9 @@ fn parse_batch_entries(params: &Params, prefix: &str) -> Vec<PublishBatchEntry> 
                 entries.push(PublishBatchEntry {
                     id: id.clone(),
                     message: msg.clone(),
-                    subject: params.get(&subject_key).cloned(),
-                    message_attributes: None,
-                    message_deduplication_id: params.get(&dedup_key).cloned(),
+                    _subject: params.get(&subject_key).cloned(),
+                    _message_attributes: None,
+                    _message_deduplication_id: params.get(&dedup_key).cloned(),
                     message_group_id: params.get(&group_key).cloned(),
                 });
             }
@@ -317,7 +317,7 @@ async fn handle_subscribe(
         } else {
             Some(attributes)
         },
-        return_subscription_arn: param(&params, "ReturnSubscriptionArn")
+        _return_subscription_arn: param(&params, "ReturnSubscriptionArn")
             .map(|v| v == "true"),
     };
     let resp = state.subscribe(req).await?;
@@ -347,8 +347,8 @@ async fn handle_confirm_subscription(
 ) -> Result<Response, SnsError> {
     let req = ConfirmSubscriptionRequest {
         topic_arn: require(&params, "TopicArn")?,
-        token: require(&params, "Token")?,
-        authenticate_on_unsubscribe: param(&params, "AuthenticateOnUnsubscribe"),
+        _token: require(&params, "Token")?,
+        _authenticate_on_unsubscribe: param(&params, "AuthenticateOnUnsubscribe"),
     };
     let resp = state.confirm_subscription(req).await?;
     Ok(xml_ok(
@@ -365,7 +365,7 @@ async fn handle_list_subscriptions(
     params: Params,
 ) -> Result<Response, SnsError> {
     let req = ListSubscriptionsRequest {
-        next_token: param(&params, "NextToken"),
+        _next_token: param(&params, "NextToken"),
     };
     let resp = state.list_subscriptions(req).await?;
     Ok(xml_ok(
@@ -380,7 +380,7 @@ async fn handle_list_subscriptions_by_topic(
 ) -> Result<Response, SnsError> {
     let req = ListSubscriptionsByTopicRequest {
         topic_arn: require(&params, "TopicArn")?,
-        next_token: param(&params, "NextToken"),
+        _next_token: param(&params, "NextToken"),
     };
     let resp = state.list_subscriptions_by_topic(req).await?;
     Ok(xml_ok(
@@ -446,10 +446,10 @@ async fn handle_publish(
         topic_arn: param(&params, "TopicArn"),
         target_arn: param(&params, "TargetArn"),
         message: require(&params, "Message")?,
-        subject: param(&params, "Subject"),
-        message_structure: param(&params, "MessageStructure"),
-        message_attributes: None,
-        message_deduplication_id: param(&params, "MessageDeduplicationId"),
+        _subject: param(&params, "Subject"),
+        _message_structure: param(&params, "MessageStructure"),
+        _message_attributes: None,
+        _message_deduplication_id: param(&params, "MessageDeduplicationId"),
         message_group_id: param(&params, "MessageGroupId"),
     };
     let resp = state.publish(req).await?;

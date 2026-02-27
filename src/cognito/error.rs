@@ -3,7 +3,6 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum CognitoError {
     ResourceNotFoundException(String),
     InvalidParameterException(String),
@@ -11,11 +10,7 @@ pub enum CognitoError {
     UserNotFoundException(String),
     GroupExistsException(String),
     NotAuthorizedException(String),
-    UserPoolTaggingException(String),
-    LimitExceededException(String),
-    TooManyRequestsException(String),
     InvalidAction(String),
-    InternalErrorException(String),
 }
 
 impl CognitoError {
@@ -27,11 +22,7 @@ impl CognitoError {
             CognitoError::UserNotFoundException(_) => "UserNotFoundException",
             CognitoError::GroupExistsException(_) => "GroupExistsException",
             CognitoError::NotAuthorizedException(_) => "NotAuthorizedException",
-            CognitoError::UserPoolTaggingException(_) => "UserPoolTaggingException",
-            CognitoError::LimitExceededException(_) => "LimitExceededException",
-            CognitoError::TooManyRequestsException(_) => "TooManyRequestsException",
             CognitoError::InvalidAction(_) => "InvalidAction",
-            CognitoError::InternalErrorException(_) => "InternalErrorException",
         }
     }
 
@@ -43,11 +34,7 @@ impl CognitoError {
             CognitoError::GroupExistsException(_) => StatusCode::BAD_REQUEST,
             CognitoError::NotAuthorizedException(_) => StatusCode::BAD_REQUEST,
             CognitoError::InvalidParameterException(_) => StatusCode::BAD_REQUEST,
-            CognitoError::LimitExceededException(_) => StatusCode::BAD_REQUEST,
-            CognitoError::TooManyRequestsException(_) => StatusCode::BAD_REQUEST,
-            CognitoError::UserPoolTaggingException(_) => StatusCode::BAD_REQUEST,
             CognitoError::InvalidAction(_) => StatusCode::BAD_REQUEST,
-            CognitoError::InternalErrorException(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -59,11 +46,7 @@ impl CognitoError {
             | CognitoError::UserNotFoundException(m)
             | CognitoError::GroupExistsException(m)
             | CognitoError::NotAuthorizedException(m)
-            | CognitoError::UserPoolTaggingException(m)
-            | CognitoError::LimitExceededException(m)
-            | CognitoError::TooManyRequestsException(m)
-            | CognitoError::InvalidAction(m)
-            | CognitoError::InternalErrorException(m) => m,
+            | CognitoError::InvalidAction(m) => m,
         }
     }
 }

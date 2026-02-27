@@ -75,9 +75,7 @@ impl TopicAttributes {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct Topic {
-    pub name: String,
     pub arn: String,
     pub owner: String,
     pub attributes: TopicAttributes,
@@ -86,11 +84,10 @@ pub struct Topic {
 }
 
 impl Topic {
-    pub fn new(name: String, arn: String, owner: String, is_fifo: bool) -> Self {
+    pub fn new(_name: String, arn: String, owner: String, is_fifo: bool) -> Self {
         let mut attrs = TopicAttributes::default();
         attrs.fifo_topic = is_fifo;
         Topic {
-            name,
             arn,
             owner,
             attributes: attrs,
@@ -190,21 +187,3 @@ impl Subscription {
     }
 }
 
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct PublishedMessage {
-    pub message_id: String,
-    pub topic_arn: String,
-    pub message: String,
-    pub subject: Option<String>,
-    pub message_attributes: HashMap<String, MessageAttributeValue>,
-    pub timestamp: u64,
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct MessageAttributeValue {
-    pub data_type: String,
-    pub string_value: Option<String>,
-    pub binary_value: Option<String>,
-}

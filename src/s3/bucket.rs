@@ -60,10 +60,8 @@ pub struct Part {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct MultipartUpload {
     pub upload_id: String,
-    pub bucket: String,
     pub key: String,
     pub parts: HashMap<i32, Part>,
     pub initiated: String,

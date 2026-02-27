@@ -4,7 +4,7 @@
 #
 set -uo pipefail
 
-PORT=19500
+PORT=19750
 ENDPOINT="http://localhost:${PORT}"
 ACCOUNT="000000000000"
 REGION="us-east-1"
@@ -68,12 +68,12 @@ sleep 0.5
 echo "Starting server with Config on port ${PORT}..."
 "$BINARY" \
   --config-port "$PORT" \
-  --s3-port 19501 --sns-port 19502 --sqs-port 19503 --dynamodb-port 19504 \
-  --lambda-port 19505 --firehose-port 19506 --memorydb-port 19507 \
-  --cognito-port 19508 --apigateway-port 19509 --kms-port 19510 \
-  --secretsmanager-port 19511 --kinesis-port 19512 --eventbridge-port 19513 \
-  --stepfunctions-port 19514 --ssm-port 19515 --cloudwatchlogs-port 19516 \
-  --ses-port 19517 --servicecatalog-port 19518 \
+  --s3-port 19751 --sns-port 19752 --sqs-port 19753 --dynamodb-port 19754 \
+  --lambda-port 19755 --firehose-port 19756 --memorydb-port 19757 \
+  --cognito-port 19758 --apigateway-port 19759 --kms-port 19760 \
+  --secretsmanager-port 19761 --kinesis-port 19762 --eventbridge-port 19763 \
+  --stepfunctions-port 19764 --ssm-port 19765 --cloudwatchlogs-port 19766 \
+  --ses-port 19767 --servicecatalog-port 19768 --efs-port 19769 --appsync-port 19770 \
   --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1

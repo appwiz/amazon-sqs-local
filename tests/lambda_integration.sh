@@ -4,7 +4,7 @@
 #
 set -uo pipefail
 
-PORT=19001
+PORT=19050
 ENDPOINT="http://localhost:${PORT}"
 ACCOUNT="000000000000"
 REGION="us-east-1"
@@ -75,7 +75,13 @@ echo "dummy" > /tmp/lambda-dummy-file.txt
 (cd /tmp && zip -q lambda-dummy.zip lambda-dummy-file.txt)
 
 echo "Starting server with Lambda on port ${PORT}..."
-"$BINARY" --lambda-port "$PORT" --s3-port 19002 --sns-port 19003 --sqs-port 19004 --dynamodb-port 19005 --firehose-port 19006 --memorydb-port 19007 --region "$REGION" --account-id "$ACCOUNT" &
+"$BINARY" --lambda-port "$PORT" --s3-port 19030 --sns-port 19031 --sqs-port 19032 \
+  --dynamodb-port 19033 --firehose-port 19034 --memorydb-port 19035 --cognito-port 19036 \
+  --apigateway-port 19037 --kms-port 19038 --secretsmanager-port 19039 --kinesis-port 19040 \
+  --eventbridge-port 19041 --stepfunctions-port 19042 --ssm-port 19043 \
+  --cloudwatchlogs-port 19044 --ses-port 19045 --servicecatalog-port 19046 \
+  --config-port 19047 --efs-port 19048 --appsync-port 19049 \
+  --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1
 

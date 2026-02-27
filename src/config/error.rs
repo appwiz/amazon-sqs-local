@@ -3,18 +3,14 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum ConfigError {
     NoSuchConfigurationRecorderException(String),
     NoSuchDeliveryChannelException(String),
     NoSuchConfigRuleException(String),
     MaxNumberOfConfigurationRecordersExceededException(String),
     MaxNumberOfDeliveryChannelsExceededException(String),
-    MaxNumberOfConfigRulesExceededException(String),
     InvalidParameterValueException(String),
     ResourceNotFoundException(String),
-    ResourceInUseException(String),
-    ValidationException(String),
     InvalidAction(String),
 }
 
@@ -32,13 +28,8 @@ impl ConfigError {
             ConfigError::MaxNumberOfDeliveryChannelsExceededException(_) => {
                 "MaxNumberOfDeliveryChannelsExceededException"
             }
-            ConfigError::MaxNumberOfConfigRulesExceededException(_) => {
-                "MaxNumberOfConfigRulesExceededException"
-            }
             ConfigError::InvalidParameterValueException(_) => "InvalidParameterValueException",
             ConfigError::ResourceNotFoundException(_) => "ResourceNotFoundException",
-            ConfigError::ResourceInUseException(_) => "ResourceInUseException",
-            ConfigError::ValidationException(_) => "ValidationException",
             ConfigError::InvalidAction(_) => "InvalidAction",
         }
     }
@@ -52,11 +43,8 @@ impl ConfigError {
                 StatusCode::BAD_REQUEST
             }
             ConfigError::MaxNumberOfDeliveryChannelsExceededException(_) => StatusCode::BAD_REQUEST,
-            ConfigError::MaxNumberOfConfigRulesExceededException(_) => StatusCode::BAD_REQUEST,
             ConfigError::InvalidParameterValueException(_) => StatusCode::BAD_REQUEST,
             ConfigError::ResourceNotFoundException(_) => StatusCode::BAD_REQUEST,
-            ConfigError::ResourceInUseException(_) => StatusCode::BAD_REQUEST,
-            ConfigError::ValidationException(_) => StatusCode::BAD_REQUEST,
             ConfigError::InvalidAction(_) => StatusCode::BAD_REQUEST,
         }
     }
@@ -68,11 +56,8 @@ impl ConfigError {
             | ConfigError::NoSuchConfigRuleException(m)
             | ConfigError::MaxNumberOfConfigurationRecordersExceededException(m)
             | ConfigError::MaxNumberOfDeliveryChannelsExceededException(m)
-            | ConfigError::MaxNumberOfConfigRulesExceededException(m)
             | ConfigError::InvalidParameterValueException(m)
             | ConfigError::ResourceNotFoundException(m)
-            | ConfigError::ResourceInUseException(m)
-            | ConfigError::ValidationException(m)
             | ConfigError::InvalidAction(m) => m,
         }
     }

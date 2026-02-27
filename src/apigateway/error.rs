@@ -3,14 +3,10 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum ApiGatewayError {
     NotFoundException(String),
     ConflictException(String),
     BadRequestException(String),
-    TooManyRequestsException(String),
-    UnauthorizedException(String),
-    ServiceUnavailableException(String),
 }
 
 impl ApiGatewayError {
@@ -19,9 +15,6 @@ impl ApiGatewayError {
             ApiGatewayError::NotFoundException(_) => "NotFoundException",
             ApiGatewayError::ConflictException(_) => "ConflictException",
             ApiGatewayError::BadRequestException(_) => "BadRequestException",
-            ApiGatewayError::TooManyRequestsException(_) => "TooManyRequestsException",
-            ApiGatewayError::UnauthorizedException(_) => "UnauthorizedException",
-            ApiGatewayError::ServiceUnavailableException(_) => "ServiceUnavailableException",
         }
     }
 
@@ -30,9 +23,6 @@ impl ApiGatewayError {
             ApiGatewayError::NotFoundException(_) => StatusCode::NOT_FOUND,
             ApiGatewayError::ConflictException(_) => StatusCode::CONFLICT,
             ApiGatewayError::BadRequestException(_) => StatusCode::BAD_REQUEST,
-            ApiGatewayError::TooManyRequestsException(_) => StatusCode::TOO_MANY_REQUESTS,
-            ApiGatewayError::UnauthorizedException(_) => StatusCode::UNAUTHORIZED,
-            ApiGatewayError::ServiceUnavailableException(_) => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
 
@@ -40,10 +30,7 @@ impl ApiGatewayError {
         match self {
             ApiGatewayError::NotFoundException(m)
             | ApiGatewayError::ConflictException(m)
-            | ApiGatewayError::BadRequestException(m)
-            | ApiGatewayError::TooManyRequestsException(m)
-            | ApiGatewayError::UnauthorizedException(m)
-            | ApiGatewayError::ServiceUnavailableException(m) => m,
+            | ApiGatewayError::BadRequestException(m) => m,
         }
     }
 }

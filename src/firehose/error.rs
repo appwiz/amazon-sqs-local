@@ -3,13 +3,11 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum FirehoseError {
     ResourceNotFoundException(String),
     ResourceInUseException(String),
     InvalidArgumentException(String),
     LimitExceededException(String),
-    ServiceUnavailableException(String),
     ConcurrentModificationException(String),
     InvalidAction(String),
 }
@@ -21,7 +19,6 @@ impl FirehoseError {
             FirehoseError::ResourceInUseException(_) => "ResourceInUseException",
             FirehoseError::InvalidArgumentException(_) => "InvalidArgumentException",
             FirehoseError::LimitExceededException(_) => "LimitExceededException",
-            FirehoseError::ServiceUnavailableException(_) => "ServiceUnavailableException",
             FirehoseError::ConcurrentModificationException(_) => "ConcurrentModificationException",
             FirehoseError::InvalidAction(_) => "InvalidAction",
         }
@@ -33,7 +30,6 @@ impl FirehoseError {
             FirehoseError::ResourceInUseException(_) => StatusCode::BAD_REQUEST,
             FirehoseError::LimitExceededException(_) => StatusCode::BAD_REQUEST,
             FirehoseError::ConcurrentModificationException(_) => StatusCode::BAD_REQUEST,
-            FirehoseError::ServiceUnavailableException(_) => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::BAD_REQUEST,
         }
     }
@@ -44,7 +40,6 @@ impl FirehoseError {
             | FirehoseError::ResourceInUseException(m)
             | FirehoseError::InvalidArgumentException(m)
             | FirehoseError::LimitExceededException(m)
-            | FirehoseError::ServiceUnavailableException(m)
             | FirehoseError::ConcurrentModificationException(m)
             | FirehoseError::InvalidAction(m) => m,
         }

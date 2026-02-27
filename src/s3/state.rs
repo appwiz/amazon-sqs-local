@@ -483,7 +483,6 @@ impl S3State {
         let upload_id = Uuid::new_v4().to_string();
         let upload = MultipartUpload {
             upload_id: upload_id.clone(),
-            bucket: bucket_name.into(),
             key: key.clone(),
             parts: HashMap::new(),
             initiated: chrono::Utc::now()

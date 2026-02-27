@@ -73,6 +73,7 @@ echo "Starting server with EventBridge on port ${PORT}..."
   --cognito-port 19008 --apigateway-port 19009 --kms-port 19010 \
   --secretsmanager-port 19011 --kinesis-port 19012 --stepfunctions-port 19013 \
   --ssm-port 19014 --cloudwatchlogs-port 19015 --ses-port 19016 \
+  --servicecatalog-port 19196 --config-port 19197 --efs-port 19198 --appsync-port 19199 \
   --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1

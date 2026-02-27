@@ -70,7 +70,13 @@ lsof -ti:${PORT} | xargs kill 2>/dev/null || true
 sleep 0.5
 
 echo "Starting server with MemoryDB on port ${PORT}..."
-"$BINARY" --memorydb-port "$PORT" --s3-port 16001 --sns-port 16002 --sqs-port 16003 --dynamodb-port 16004 --lambda-port 16005 --firehose-port 16006 --region "$REGION" --account-id "$ACCOUNT" &
+"$BINARY" --memorydb-port "$PORT" --s3-port 16001 --sns-port 16002 --sqs-port 16003 \
+  --dynamodb-port 16004 --lambda-port 16005 --firehose-port 16006 --cognito-port 16007 \
+  --apigateway-port 16008 --kms-port 16009 --secretsmanager-port 16010 --kinesis-port 16011 \
+  --eventbridge-port 16012 --stepfunctions-port 16013 --ssm-port 16014 \
+  --cloudwatchlogs-port 16015 --ses-port 16016 --servicecatalog-port 16017 \
+  --config-port 16018 --efs-port 16019 --appsync-port 16020 \
+  --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1
 

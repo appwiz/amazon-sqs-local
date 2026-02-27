@@ -73,6 +73,7 @@ echo "Starting server with Kinesis on port ${PORT}..."
   --cognito-port 14608 --apigateway-port 14609 --kms-port 14610 \
   --secretsmanager-port 14611 --eventbridge-port 14612 --stepfunctions-port 14613 \
   --ssm-port 14614 --cloudwatchlogs-port 14615 --ses-port 14616 \
+  --servicecatalog-port 14617 --config-port 14618 --efs-port 14619 --appsync-port 14620 \
   --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1

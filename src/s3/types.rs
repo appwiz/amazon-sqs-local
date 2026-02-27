@@ -114,12 +114,11 @@ pub struct DeleteRequest {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct DeleteObjectEntry {
     #[serde(rename = "Key")]
     pub key: String,
     #[serde(rename = "VersionId", default)]
-    pub version_id: Option<String>,
+    pub _version_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -207,12 +206,11 @@ pub struct CompleteMultipartUploadRequest {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct CompletePart {
     #[serde(rename = "PartNumber")]
     pub part_number: i32,
     #[serde(rename = "ETag")]
-    pub etag: String,
+    pub _etag: String,
 }
 
 #[derive(Debug, Serialize)]

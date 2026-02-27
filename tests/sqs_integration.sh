@@ -90,7 +90,13 @@ lsof -ti:${PORT} | xargs kill 2>/dev/null || true
 sleep 0.5
 
 echo "Starting server with SQS on port ${PORT}..."
-"$BINARY" --sqs-port "$PORT" --s3-port 19000 --sns-port 19911 --region "$REGION" --account-id "$ACCOUNT" &
+"$BINARY" --sqs-port "$PORT" --s3-port 19840 --sns-port 19841 --dynamodb-port 19842 \
+  --lambda-port 19843 --firehose-port 19844 --memorydb-port 19845 --cognito-port 19846 \
+  --apigateway-port 19847 --kms-port 19848 --secretsmanager-port 19849 --kinesis-port 19850 \
+  --eventbridge-port 19851 --stepfunctions-port 19852 --ssm-port 19853 \
+  --cloudwatchlogs-port 19854 --ses-port 19855 --servicecatalog-port 19856 \
+  --config-port 19857 --efs-port 19858 --appsync-port 19859 \
+  --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1
 

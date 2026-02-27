@@ -4,7 +4,7 @@
 #
 set -uo pipefail
 
-PORT=19500
+PORT=19550
 ENDPOINT="http://localhost:${PORT}"
 ACCOUNT="000000000000"
 REGION="us-east-1"
@@ -68,12 +68,12 @@ sleep 0.5
 echo "Starting server with EFS on port ${PORT}..."
 "$BINARY" \
   --efs-port "$PORT" \
-  --s3-port 19501 --sns-port 19502 --sqs-port 19503 --dynamodb-port 19504 \
-  --lambda-port 19505 --firehose-port 19506 --memorydb-port 19507 \
-  --cognito-port 19508 --apigateway-port 19509 --kms-port 19510 \
-  --secretsmanager-port 19511 --kinesis-port 19512 --eventbridge-port 19513 \
-  --stepfunctions-port 19514 --ssm-port 19515 --cloudwatchlogs-port 19516 \
-  --ses-port 19517 --servicecatalog-port 19518 --config-port 19519 \
+  --s3-port 19551 --sns-port 19552 --sqs-port 19553 --dynamodb-port 19554 \
+  --lambda-port 19555 --firehose-port 19556 --memorydb-port 19557 \
+  --cognito-port 19558 --apigateway-port 19559 --kms-port 19560 \
+  --secretsmanager-port 19561 --kinesis-port 19562 --eventbridge-port 19563 \
+  --stepfunctions-port 19564 --ssm-port 19565 --cloudwatchlogs-port 19566 \
+  --ses-port 19567 --servicecatalog-port 19568 --config-port 19569 --appsync-port 19570 \
   --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1

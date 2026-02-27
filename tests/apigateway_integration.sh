@@ -72,7 +72,11 @@ sleep 0.5
 echo "Starting server with API Gateway on port ${PORT}..."
 "$BINARY" --apigateway-port "$PORT" --s3-port 14101 --sns-port 14102 --sqs-port 14103 \
   --dynamodb-port 14104 --lambda-port 14105 --firehose-port 14106 --memorydb-port 14107 \
-  --cognito-port 14108 --region "$REGION" --account-id "$ACCOUNT" &
+  --cognito-port 14108 --kms-port 14109 --secretsmanager-port 14110 --kinesis-port 14111 \
+  --eventbridge-port 14112 --stepfunctions-port 14113 --ssm-port 14114 \
+  --cloudwatchlogs-port 14115 --ses-port 14116 --servicecatalog-port 14117 \
+  --config-port 14118 --efs-port 14119 --appsync-port 14120 \
+  --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1
 

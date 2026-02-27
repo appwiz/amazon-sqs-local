@@ -3,18 +3,12 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum SfnError {
     StateMachineAlreadyExists(String),
     StateMachineDoesNotExist(String),
     ExecutionDoesNotExist(String),
     ExecutionAlreadyExists(String),
     InvalidArn(String),
-    InvalidDefinition(String),
-    InvalidExecutionInput(String),
-    InvalidName(String),
-    TaskDoesNotExist(String),
-    TaskTimedOut(String),
     InvalidAction(String),
 }
 
@@ -26,11 +20,6 @@ impl SfnError {
             SfnError::ExecutionDoesNotExist(_) => "ExecutionDoesNotExist",
             SfnError::ExecutionAlreadyExists(_) => "ExecutionAlreadyExists",
             SfnError::InvalidArn(_) => "InvalidArn",
-            SfnError::InvalidDefinition(_) => "InvalidDefinition",
-            SfnError::InvalidExecutionInput(_) => "InvalidExecutionInput",
-            SfnError::InvalidName(_) => "InvalidName",
-            SfnError::TaskDoesNotExist(_) => "TaskDoesNotExist",
-            SfnError::TaskTimedOut(_) => "TaskTimedOut",
             SfnError::InvalidAction(_) => "InvalidAction",
         }
     }
@@ -50,11 +39,6 @@ impl SfnError {
             | SfnError::ExecutionDoesNotExist(m)
             | SfnError::ExecutionAlreadyExists(m)
             | SfnError::InvalidArn(m)
-            | SfnError::InvalidDefinition(m)
-            | SfnError::InvalidExecutionInput(m)
-            | SfnError::InvalidName(m)
-            | SfnError::TaskDoesNotExist(m)
-            | SfnError::TaskTimedOut(m)
             | SfnError::InvalidAction(m) => m,
         }
     }

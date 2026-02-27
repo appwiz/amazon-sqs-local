@@ -3,7 +3,6 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum MemoryDbError {
     ClusterAlreadyExistsFault(String),
     ClusterNotFoundFault(String),
@@ -17,10 +16,7 @@ pub enum MemoryDbError {
     SnapshotAlreadyExistsFault(String),
     SnapshotNotFoundFault(String),
     InvalidParameterValue(String),
-    InvalidParameterCombination(String),
     InvalidARNFault(String),
-    TagNotFoundFault(String),
-    DefaultUserRequired(String),
     InvalidAction(String),
 }
 
@@ -39,10 +35,7 @@ impl MemoryDbError {
             MemoryDbError::SnapshotAlreadyExistsFault(_) => "SnapshotAlreadyExistsFault",
             MemoryDbError::SnapshotNotFoundFault(_) => "SnapshotNotFoundFault",
             MemoryDbError::InvalidParameterValue(_) => "InvalidParameterValueException",
-            MemoryDbError::InvalidParameterCombination(_) => "InvalidParameterCombinationException",
             MemoryDbError::InvalidARNFault(_) => "InvalidARNFault",
-            MemoryDbError::TagNotFoundFault(_) => "TagNotFoundFault",
-            MemoryDbError::DefaultUserRequired(_) => "DefaultUserRequired",
             MemoryDbError::InvalidAction(_) => "InvalidAction",
         }
     }
@@ -58,8 +51,7 @@ impl MemoryDbError {
             | MemoryDbError::SubnetGroupNotFoundFault(_)
             | MemoryDbError::UserNotFoundFault(_)
             | MemoryDbError::ACLNotFoundFault(_)
-            | MemoryDbError::SnapshotNotFoundFault(_)
-            | MemoryDbError::TagNotFoundFault(_) => StatusCode::NOT_FOUND,
+            | MemoryDbError::SnapshotNotFoundFault(_) => StatusCode::NOT_FOUND,
             _ => StatusCode::BAD_REQUEST,
         }
     }
@@ -78,10 +70,7 @@ impl MemoryDbError {
             | MemoryDbError::SnapshotAlreadyExistsFault(m)
             | MemoryDbError::SnapshotNotFoundFault(m)
             | MemoryDbError::InvalidParameterValue(m)
-            | MemoryDbError::InvalidParameterCombination(m)
             | MemoryDbError::InvalidARNFault(m)
-            | MemoryDbError::TagNotFoundFault(m)
-            | MemoryDbError::DefaultUserRequired(m)
             | MemoryDbError::InvalidAction(m) => m,
         }
     }

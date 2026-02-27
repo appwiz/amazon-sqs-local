@@ -40,7 +40,8 @@ async fn handle_request(
         .ok_or_else(|| EventBridgeError::InvalidAction("Missing X-Amz-Target header".into()))?;
 
     let action = target
-        .strip_prefix("AmazonEventBridge.")
+        .strip_prefix("AWSEvents.")
+        .or_else(|| target.strip_prefix("AmazonEventBridge."))
         .ok_or_else(|| EventBridgeError::InvalidAction(format!("Invalid target: {target}")))?;
 
     match action {

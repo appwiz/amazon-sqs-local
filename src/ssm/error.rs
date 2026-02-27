@@ -3,13 +3,9 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum SsmError {
     ParameterNotFound(String),
     ParameterAlreadyExists(String),
-    InvalidKeyId(String),
-    InvalidFilterValue(String),
-    TooManyUpdates(String),
     InvalidAction(String),
 }
 
@@ -18,9 +14,6 @@ impl SsmError {
         match self {
             SsmError::ParameterNotFound(_) => "ParameterNotFound",
             SsmError::ParameterAlreadyExists(_) => "ParameterAlreadyExists",
-            SsmError::InvalidKeyId(_) => "InvalidKeyId",
-            SsmError::InvalidFilterValue(_) => "InvalidFilterValue",
-            SsmError::TooManyUpdates(_) => "TooManyUpdates",
             SsmError::InvalidAction(_) => "InvalidAction",
         }
     }
@@ -36,9 +29,6 @@ impl SsmError {
         match self {
             SsmError::ParameterNotFound(m)
             | SsmError::ParameterAlreadyExists(m)
-            | SsmError::InvalidKeyId(m)
-            | SsmError::InvalidFilterValue(m)
-            | SsmError::TooManyUpdates(m)
             | SsmError::InvalidAction(m) => m,
         }
     }

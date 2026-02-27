@@ -52,11 +52,10 @@ pub struct DeleteQueueRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct GetQueueUrlRequest {
     pub queue_name: String,
     #[serde(default)]
-    pub queue_owner_a_w_s_account_id: Option<String>,
+    pub _queue_owner_a_w_s_account_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -211,7 +210,6 @@ pub struct SendMessageBatchResultEntry {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct ReceiveMessageRequest {
     pub queue_url: String,
     #[serde(default)]
@@ -225,9 +223,9 @@ pub struct ReceiveMessageRequest {
     #[serde(default)]
     pub message_attribute_names: Option<Vec<String>>,
     #[serde(default)]
-    pub message_system_attribute_names: Option<Vec<String>>,
+    pub _message_system_attribute_names: Option<Vec<String>>,
     #[serde(default)]
-    pub receive_request_attempt_id: Option<String>,
+    pub _receive_request_attempt_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -441,13 +439,12 @@ pub struct CancelMessageMoveTaskResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct ListMessageMoveTasksRequest {
     pub source_arn: String,
     #[serde(default)]
     pub max_results: Option<i32>,
     #[serde(default)]
-    pub next_token: Option<String>,
+    pub _next_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -73,6 +73,7 @@ echo "Starting server with SES on port ${PORT}..."
   --cognito-port 19508 --apigateway-port 19509 --kms-port 19510 \
   --secretsmanager-port 19511 --kinesis-port 19512 --eventbridge-port 19513 \
   --ssm-port 19514 --stepfunctions-port 19515 --cloudwatchlogs-port 19516 \
+  --servicecatalog-port 19517 --config-port 19518 --efs-port 19519 --appsync-port 19520 \
   --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1
@@ -85,41 +86,41 @@ fi
 echo "Running SES v2 integration tests..."
 
 # 1. CreateEmailIdentity (email address)
-OUT=$(aws_ses create-email-identity --email-identity sender@example.com)
+OUT=$(aws_ses create-email-identity --email-identity sender@testdomain.org)
 assert_contains "CreateEmailIdentity email" "$OUT" "IdentityType"
 assert_contains "CreateEmailIdentity verified" "$OUT" "VerifiedForSendingStatus"
 
 # 2. CreateEmailIdentity (domain)
-OUT=$(aws_ses create-email-identity --email-identity example.com)
+OUT=$(aws_ses create-email-identity --email-identity mydomain.net)
 assert_contains "CreateEmailIdentity domain" "$OUT" "IdentityType"
 
 # 3. ListEmailIdentities
 OUT=$(aws_ses list-email-identities)
 assert_contains "ListEmailIdentities" "$OUT" "EmailIdentities"
-assert_contains "ListEmailIdentities sender" "$OUT" "sender@example.com"
-assert_contains "ListEmailIdentities domain" "$OUT" "example.com"
+assert_contains "ListEmailIdentities sender" "$OUT" "sender@testdomain.org"
+assert_contains "ListEmailIdentities domain" "$OUT" "mydomain.net"
 
 # 4. GetEmailIdentity
-OUT=$(aws_ses get-email-identity --email-identity sender@example.com)
-assert_contains "GetEmailIdentity" "$OUT" "sender@example.com"
+OUT=$(aws_ses get-email-identity --email-identity sender@testdomain.org)
+assert_contains "GetEmailIdentity" "$OUT" "EMAIL_ADDRESS"
 assert_contains "GetEmailIdentity verified" "$OUT" "VerifiedForSendingStatus"
 
 # 5. SendEmail (simple)
 OUT=$(aws_ses send-email \
-  --from-email-address sender@example.com \
-  --destination '{"ToAddresses":["recipient@example.com"]}' \
+  --from-email-address sender@testdomain.org \
+  --destination '{"ToAddresses":["recipient@testdomain.org"]}' \
   --content '{"Simple":{"Subject":{"Data":"Test Subject"},"Body":{"Text":{"Data":"Hello World"}}}}')
 assert_contains "SendEmail" "$OUT" "MessageId"
 
 # 6. SendEmail (with CC and BCC)
 OUT=$(aws_ses send-email \
-  --from-email-address sender@example.com \
-  --destination '{"ToAddresses":["to@example.com"],"CcAddresses":["cc@example.com"]}' \
+  --from-email-address sender@testdomain.org \
+  --destination '{"ToAddresses":["to@testdomain.org"],"CcAddresses":["cc@testdomain.org"]}' \
   --content '{"Simple":{"Subject":{"Data":"CC Test"},"Body":{"Text":{"Data":"CC Body"}}}}')
 assert_contains "SendEmail CC" "$OUT" "MessageId"
 
 # 7. CreateEmailIdentity duplicate
-OUT=$(aws_ses create-email-identity --email-identity sender@example.com)
+OUT=$(aws_ses create-email-identity --email-identity sender@testdomain.org)
 assert_contains "CreateEmailIdentity duplicate" "$OUT" "AlreadyExistsException"
 
 # 8. GetEmailIdentity not found
@@ -127,13 +128,13 @@ OUT=$(aws_ses get-email-identity --email-identity unknown@nowhere.com)
 assert_contains "GetEmailIdentity not found" "$OUT" "NotFoundException"
 
 # 9. DeleteEmailIdentity
-OUT=$(aws_ses delete-email-identity --email-identity example.com)
+OUT=$(aws_ses delete-email-identity --email-identity mydomain.net)
 assert_contains "DeleteEmailIdentity" "$OUT" ""
 
 # 10. ListEmailIdentities after delete
 OUT=$(aws_ses list-email-identities)
-assert_not_contains "ListEmailIdentities after delete" "$OUT" "example.com"
-assert_contains "ListEmailIdentities still has sender" "$OUT" "sender@example.com"
+assert_not_contains "ListEmailIdentities after delete" "$OUT" "mydomain.net"
+assert_contains "ListEmailIdentities still has sender" "$OUT" "sender@testdomain.org"
 
 # ── report ───────────────────────────────────────────────────────────────
 

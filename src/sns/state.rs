@@ -30,11 +30,6 @@ impl SnsState {
         }
     }
 
-    #[allow(dead_code)]
-    fn resolve_topic_name(arn: &str) -> String {
-        arn.split(':').last().unwrap_or("").to_string()
-    }
-
     // --- Topic operations ---
 
     pub async fn create_topic(

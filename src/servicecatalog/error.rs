@@ -3,12 +3,10 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum ServiceCatalogError {
     ResourceNotFoundException(String),
     InvalidParametersException(String),
     ResourceInUseException(String),
-    LimitExceededException(String),
     DuplicateResourceException(String),
     InvalidAction(String),
 }
@@ -19,7 +17,6 @@ impl ServiceCatalogError {
             ServiceCatalogError::ResourceNotFoundException(_) => "ResourceNotFoundException",
             ServiceCatalogError::InvalidParametersException(_) => "InvalidParametersException",
             ServiceCatalogError::ResourceInUseException(_) => "ResourceInUseException",
-            ServiceCatalogError::LimitExceededException(_) => "LimitExceededException",
             ServiceCatalogError::DuplicateResourceException(_) => "DuplicateResourceException",
             ServiceCatalogError::InvalidAction(_) => "InvalidAction",
         }
@@ -30,7 +27,6 @@ impl ServiceCatalogError {
             ServiceCatalogError::ResourceNotFoundException(_) => StatusCode::BAD_REQUEST,
             ServiceCatalogError::InvalidParametersException(_) => StatusCode::BAD_REQUEST,
             ServiceCatalogError::ResourceInUseException(_) => StatusCode::BAD_REQUEST,
-            ServiceCatalogError::LimitExceededException(_) => StatusCode::BAD_REQUEST,
             ServiceCatalogError::DuplicateResourceException(_) => StatusCode::BAD_REQUEST,
             ServiceCatalogError::InvalidAction(_) => StatusCode::BAD_REQUEST,
         }
@@ -41,7 +37,6 @@ impl ServiceCatalogError {
             ServiceCatalogError::ResourceNotFoundException(m)
             | ServiceCatalogError::InvalidParametersException(m)
             | ServiceCatalogError::ResourceInUseException(m)
-            | ServiceCatalogError::LimitExceededException(m)
             | ServiceCatalogError::DuplicateResourceException(m)
             | ServiceCatalogError::InvalidAction(m) => m,
         }

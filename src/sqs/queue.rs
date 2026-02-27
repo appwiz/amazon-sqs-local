@@ -171,11 +171,10 @@ impl RedriveAllowPolicy {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct Permission {
-    pub label: String,
-    pub aws_account_ids: Vec<String>,
-    pub actions: Vec<String>,
+    pub _label: String,
+    pub _aws_account_ids: Vec<String>,
+    pub _actions: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -377,7 +376,6 @@ impl QueueAttributes {
 }
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct Message {
     pub message_id: String,
     pub body: String,
@@ -385,7 +383,6 @@ pub struct Message {
     pub message_attributes: HashMap<String, MessageAttributeValue>,
     pub md5_of_message_attributes: Option<String>,
     pub system_attributes: HashMap<String, MessageAttributeValue>,
-    pub md5_of_system_attributes: Option<String>,
     pub sent_timestamp: u64,
     pub visible_at: Instant,
     pub receive_count: u32,
@@ -395,7 +392,6 @@ pub struct Message {
     pub message_group_id: Option<String>,
     pub dedup_id: Option<String>,
     pub sequence_number: Option<String>,
-    pub sender_id: String,
 }
 
 /// Information about a message that needs to be moved to a DLQ.
@@ -404,9 +400,7 @@ pub struct DlqRedrive {
     pub dlq_arn: String,
 }
 
-#[allow(dead_code)]
 pub struct Queue {
-    pub name: String,
     pub arn: String,
     pub url: String,
     pub attributes: QueueAttributes,
@@ -424,10 +418,9 @@ pub struct Queue {
 }
 
 impl Queue {
-    pub fn new(name: String, arn: String, url: String, attributes: QueueAttributes) -> Self {
+    pub fn new(_name: String, arn: String, url: String, attributes: QueueAttributes) -> Self {
         let now = now_secs();
         Queue {
-            name,
             arn,
             url,
             attributes,
@@ -452,7 +445,7 @@ impl Queue {
         sys_attrs: Option<HashMap<String, MessageAttributeValue>>,
         dedup_id: Option<String>,
         group_id: Option<String>,
-        account_id: &str,
+        _account_id: &str,
     ) -> Result<SendMessageResponse, SqsError> {
         // Validate body size
         if body.len() > self.attributes.maximum_message_size as usize {
@@ -524,7 +517,6 @@ impl Queue {
             message_attributes: msg_attrs,
             md5_of_message_attributes: md5_of_msg_attrs.clone(),
             system_attributes: sys_attrs,
-            md5_of_system_attributes: md5_of_sys_attrs.clone(),
             sent_timestamp: now_millis(),
             visible_at: now + Duration::from_secs(delay),
             receive_count: 0,
@@ -534,7 +526,6 @@ impl Queue {
             message_group_id: group_id,
             dedup_id: effective_dedup_id.clone(),
             sequence_number: sequence_number.clone(),
-            sender_id: account_id.to_string(),
         };
 
         self.messages.push_back(msg);

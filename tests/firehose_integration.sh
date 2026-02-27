@@ -70,7 +70,13 @@ lsof -ti:${PORT} | xargs kill 2>/dev/null || true
 sleep 0.5
 
 echo "Starting server with Firehose on port ${PORT}..."
-"$BINARY" --firehose-port "$PORT" --s3-port 14001 --sns-port 14002 --sqs-port 14003 --dynamodb-port 14004 --lambda-port 14005 --memorydb-port 14006 --region "$REGION" --account-id "$ACCOUNT" &
+"$BINARY" --firehose-port "$PORT" --s3-port 14001 --sns-port 14002 --sqs-port 14003 \
+  --dynamodb-port 14004 --lambda-port 14005 --memorydb-port 14006 --cognito-port 14007 \
+  --apigateway-port 14008 --kms-port 14009 --secretsmanager-port 14010 --kinesis-port 14011 \
+  --eventbridge-port 14012 --stepfunctions-port 14013 --ssm-port 14014 \
+  --cloudwatchlogs-port 14015 --ses-port 14016 --servicecatalog-port 14017 \
+  --config-port 14018 --efs-port 14019 --appsync-port 14020 \
+  --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1
 

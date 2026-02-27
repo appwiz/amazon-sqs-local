@@ -73,6 +73,7 @@ echo "Starting server with Step Functions on port ${PORT}..."
   --cognito-port 18008 --apigateway-port 18009 --kms-port 18010 \
   --secretsmanager-port 18011 --kinesis-port 18012 --eventbridge-port 18013 \
   --ssm-port 18014 --cloudwatchlogs-port 18015 --ses-port 18016 \
+  --servicecatalog-port 18017 --config-port 18018 --efs-port 18019 --appsync-port 18020 \
   --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1

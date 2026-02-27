@@ -73,6 +73,7 @@ echo "Starting server with Secrets Manager on port ${PORT}..."
   --cognito-port 17108 --apigateway-port 17109 --kms-port 17110 \
   --kinesis-port 17111 --eventbridge-port 17112 --stepfunctions-port 17113 \
   --ssm-port 17114 --cloudwatchlogs-port 17115 --ses-port 17116 \
+  --servicecatalog-port 17117 --config-port 17118 --efs-port 17119 --appsync-port 17120 \
   --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1

@@ -136,8 +136,7 @@ pub struct UpdateDataSourceRequest {
 #[derive(Debug, Deserialize)]
 pub struct StartSchemaCreationRequest {
     #[serde(rename = "definition")]
-    #[allow(dead_code)]
-    pub definition: String,
+    pub _definition: String,
 }
 
 #[derive(Debug, Deserialize)]

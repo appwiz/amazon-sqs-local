@@ -159,7 +159,7 @@ impl SfnState {
         let sm_name = req.state_machine_arn.rsplit(':').next().unwrap_or("unknown");
         let exec_arn = format!(
             "arn:aws:states:{}:{}:execution:{}:{}",
-            "us-east-1", "000000000000", sm_name, exec_name
+            state.region, state.account_id, sm_name, exec_name
         );
         if state.executions.contains_key(&exec_arn) {
             return Err(SfnError::ExecutionAlreadyExists(format!(

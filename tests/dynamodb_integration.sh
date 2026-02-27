@@ -70,7 +70,13 @@ lsof -ti:${PORT} | xargs kill 2>/dev/null || true
 sleep 0.5
 
 echo "Starting server with DynamoDB on port ${PORT}..."
-"$BINARY" --dynamodb-port "$PORT" --s3-port 18001 --sns-port 18002 --sqs-port 18003 --lambda-port 18004 --firehose-port 18005 --memorydb-port 18006 --region "$REGION" --account-id "$ACCOUNT" &
+"$BINARY" --dynamodb-port "$PORT" --s3-port 18100 --sns-port 18101 --sqs-port 18102 \
+  --lambda-port 18103 --firehose-port 18104 --memorydb-port 18105 --cognito-port 18106 \
+  --apigateway-port 18107 --kms-port 18108 --secretsmanager-port 18109 --kinesis-port 18110 \
+  --eventbridge-port 18111 --stepfunctions-port 18112 --ssm-port 18113 \
+  --cloudwatchlogs-port 18114 --ses-port 18115 --servicecatalog-port 18116 \
+  --config-port 18117 --efs-port 18118 --appsync-port 18119 \
+  --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1
 

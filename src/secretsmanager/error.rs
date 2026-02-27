@@ -3,13 +3,11 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub enum SecretsManagerError {
     ResourceNotFoundException(String),
     ResourceExistsException(String),
     InvalidParameterException(String),
     InvalidRequestException(String),
-    LimitExceededException(String),
     InvalidAction(String),
 }
 
@@ -20,7 +18,6 @@ impl SecretsManagerError {
             SecretsManagerError::ResourceExistsException(_) => "ResourceExistsException",
             SecretsManagerError::InvalidParameterException(_) => "InvalidParameterException",
             SecretsManagerError::InvalidRequestException(_) => "InvalidRequestException",
-            SecretsManagerError::LimitExceededException(_) => "LimitExceededException",
             SecretsManagerError::InvalidAction(_) => "InvalidAction",
         }
     }
@@ -31,7 +28,6 @@ impl SecretsManagerError {
             SecretsManagerError::ResourceExistsException(_) => StatusCode::BAD_REQUEST,
             SecretsManagerError::InvalidParameterException(_) => StatusCode::BAD_REQUEST,
             SecretsManagerError::InvalidRequestException(_) => StatusCode::BAD_REQUEST,
-            SecretsManagerError::LimitExceededException(_) => StatusCode::BAD_REQUEST,
             SecretsManagerError::InvalidAction(_) => StatusCode::BAD_REQUEST,
         }
     }
@@ -42,7 +38,6 @@ impl SecretsManagerError {
             | SecretsManagerError::ResourceExistsException(m)
             | SecretsManagerError::InvalidParameterException(m)
             | SecretsManagerError::InvalidRequestException(m)
-            | SecretsManagerError::LimitExceededException(m)
             | SecretsManagerError::InvalidAction(m) => m,
         }
     }

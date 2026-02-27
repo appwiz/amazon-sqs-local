@@ -77,6 +77,7 @@ echo "Starting server with KMS on port ${PORT}..."
   --cognito-port 17008 --apigateway-port 17009 --secretsmanager-port 17010 \
   --kinesis-port 17011 --eventbridge-port 17012 --stepfunctions-port 17013 \
   --ssm-port 17014 --cloudwatchlogs-port 17015 --ses-port 17016 \
+  --servicecatalog-port 17017 --config-port 17018 --efs-port 17019 --appsync-port 17020 \
   --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1

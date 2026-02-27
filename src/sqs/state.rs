@@ -383,7 +383,6 @@ impl SqsState {
                 Err(err) => {
                     let code = match &err {
                         SqsError::InvalidParameterValue(_) => "InvalidParameterValue",
-                        SqsError::InvalidMessageContents(_) => "InvalidMessageContents",
                         SqsError::MissingParameter(_) => "MissingParameter",
                         _ => "InternalError",
                     };
@@ -676,9 +675,9 @@ impl SqsState {
         entry.queue.permissions.insert(
             req.label.clone(),
             Permission {
-                label: req.label,
-                aws_account_ids: req.aws_account_ids,
-                actions: req.actions,
+                _label: req.label,
+                _aws_account_ids: req.aws_account_ids,
+                _actions: req.actions,
             },
         );
         Ok(())
@@ -1007,19 +1006,14 @@ impl ErrorMessage for SqsError {
             | SqsError::InvalidAttributeName(m)
             | SqsError::InvalidAttributeValue(m)
             | SqsError::InvalidParameterValue(m)
-            | SqsError::InvalidMessageContents(m)
-            | SqsError::UnsupportedOperation(m)
             | SqsError::PurgeQueueInProgress(m)
-            | SqsError::ReceiptHandleIsInvalid(m)
             | SqsError::MessageNotInflight(m)
             | SqsError::OverLimit(m)
             | SqsError::EmptyBatchRequest(m)
             | SqsError::TooManyEntriesInBatchRequest(m)
             | SqsError::BatchEntryIdsNotDistinct(m)
-            | SqsError::BatchRequestTooLong(m)
             | SqsError::InvalidBatchEntryId(m)
             | SqsError::ResourceNotFoundException(m)
-            | SqsError::InvalidIdFormat(m)
             | SqsError::MissingParameter(m)
             | SqsError::InvalidAction(m) => m,
         }

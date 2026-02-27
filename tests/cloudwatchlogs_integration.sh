@@ -73,6 +73,7 @@ echo "Starting server with CloudWatch Logs on port ${PORT}..."
   --cognito-port 19408 --apigateway-port 19409 --kms-port 19410 \
   --secretsmanager-port 19411 --kinesis-port 19412 --eventbridge-port 19413 \
   --ssm-port 19414 --stepfunctions-port 19415 --ses-port 19416 \
+  --servicecatalog-port 19417 --config-port 19418 --efs-port 19419 --appsync-port 19420 \
   --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1

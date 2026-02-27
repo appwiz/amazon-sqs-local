@@ -74,9 +74,13 @@ lsof -ti:${PORT} | xargs kill 2>/dev/null || true
 sleep 0.5
 
 echo "Starting server with Cognito on port ${PORT}..."
-"$BINARY" --cognito-port "$PORT" --s3-port 19001 --sns-port 19002 --sqs-port 19003 \
-  --dynamodb-port 19004 --lambda-port 19005 --firehose-port 19006 --memorydb-port 19007 \
-  --apigateway-port 19008 --region "$REGION" --account-id "$ACCOUNT" &
+"$BINARY" --cognito-port "$PORT" --s3-port 19230 --sns-port 19231 --sqs-port 19232 \
+  --dynamodb-port 19233 --lambda-port 19234 --firehose-port 19235 --memorydb-port 19236 \
+  --apigateway-port 19237 --kms-port 19238 --secretsmanager-port 19239 --kinesis-port 19240 \
+  --eventbridge-port 19241 --stepfunctions-port 19242 --ssm-port 19243 \
+  --cloudwatchlogs-port 19244 --ses-port 19245 --servicecatalog-port 19246 \
+  --config-port 19247 --efs-port 19248 --appsync-port 19249 \
+  --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1
 

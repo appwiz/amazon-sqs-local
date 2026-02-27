@@ -98,7 +98,6 @@ pub struct SetTopicAttributesRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct SubscribeRequest {
     pub topic_arn: String,
     pub protocol: String,
@@ -107,7 +106,7 @@ pub struct SubscribeRequest {
     #[serde(default)]
     pub attributes: Option<HashMap<String, String>>,
     #[serde(default)]
-    pub return_subscription_arn: Option<bool>,
+    pub _return_subscription_arn: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -128,12 +127,11 @@ pub struct UnsubscribeRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct ConfirmSubscriptionRequest {
     pub topic_arn: String,
-    pub token: String,
+    pub _token: String,
     #[serde(default)]
-    pub authenticate_on_unsubscribe: Option<String>,
+    pub _authenticate_on_unsubscribe: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -146,10 +144,9 @@ pub struct ConfirmSubscriptionResponse {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct ListSubscriptionsRequest {
     #[serde(default)]
-    pub next_token: Option<String>,
+    pub _next_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -174,11 +171,10 @@ pub struct SubscriptionEntry {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct ListSubscriptionsByTopicRequest {
     pub topic_arn: String,
     #[serde(default)]
-    pub next_token: Option<String>,
+    pub _next_token: Option<String>,
 }
 
 // --- GetSubscriptionAttributes ---
@@ -210,7 +206,6 @@ pub struct SetSubscriptionAttributesRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct PublishRequest {
     #[serde(default)]
     pub topic_arn: Option<String>,
@@ -218,13 +213,13 @@ pub struct PublishRequest {
     pub target_arn: Option<String>,
     pub message: String,
     #[serde(default)]
-    pub subject: Option<String>,
+    pub _subject: Option<String>,
     #[serde(default)]
-    pub message_structure: Option<String>,
+    pub _message_structure: Option<String>,
     #[serde(default)]
-    pub message_attributes: Option<HashMap<String, MessageAttributeValueJson>>,
+    pub _message_attributes: Option<HashMap<String, MessageAttributeValueJson>>,
     #[serde(default)]
-    pub message_deduplication_id: Option<String>,
+    pub _message_deduplication_id: Option<String>,
     #[serde(default)]
     pub message_group_id: Option<String>,
 }
@@ -248,16 +243,15 @@ pub struct PublishBatchRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-#[allow(dead_code)]
 pub struct PublishBatchEntry {
     pub id: String,
     pub message: String,
     #[serde(default)]
-    pub subject: Option<String>,
+    pub _subject: Option<String>,
     #[serde(default)]
-    pub message_attributes: Option<HashMap<String, MessageAttributeValueJson>>,
+    pub _message_attributes: Option<HashMap<String, MessageAttributeValueJson>>,
     #[serde(default)]
-    pub message_deduplication_id: Option<String>,
+    pub _message_deduplication_id: Option<String>,
     #[serde(default)]
     pub message_group_id: Option<String>,
 }

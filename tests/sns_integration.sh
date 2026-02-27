@@ -85,7 +85,13 @@ echo "Building..."
 cargo build --quiet 2>&1
 
 echo "Starting server on port ${PORT}..."
-"$BINARY" --s3-port 19000 --sns-port "$PORT" --region "$REGION" --account-id "$ACCOUNT" &
+"$BINARY" --s3-port 19820 --sns-port "$PORT" --sqs-port 19821 --dynamodb-port 19822 \
+  --lambda-port 19823 --firehose-port 19824 --memorydb-port 19825 --cognito-port 19826 \
+  --apigateway-port 19827 --kms-port 19828 --secretsmanager-port 19829 --kinesis-port 19830 \
+  --eventbridge-port 19831 --stepfunctions-port 19832 --ssm-port 19833 \
+  --cloudwatchlogs-port 19834 --ses-port 19835 --servicecatalog-port 19836 \
+  --config-port 19837 --efs-port 19838 --appsync-port 19839 \
+  --region "$REGION" --account-id "$ACCOUNT" &
 SERVER_PID=$!
 sleep 1
 
