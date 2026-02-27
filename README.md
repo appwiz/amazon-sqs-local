@@ -2844,3 +2844,285 @@ This is a local development tool, not a production replacement. Key differences:
 ### AWS AppSync
 - [Developer Guide](https://docs.aws.amazon.com/appsync/latest/devguide/appsync-dg.pdf)
 - [API Reference](https://docs.aws.amazon.com/appsync/latest/APIReference/appsync-api.pdf)
+
+---
+
+## AWS Services Not Yet Implemented
+
+The following AWS services are not yet implemented in this project. Each entry links to the official User Guide and API Reference.
+
+### Analytics
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon Athena | [User Guide](https://docs.aws.amazon.com/athena/latest/ug/) | [API Reference](https://docs.aws.amazon.com/athena/latest/APIReference/) |
+| Amazon CloudSearch | [Developer Guide](https://docs.aws.amazon.com/cloudsearch/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/cloudsearch/latest/developerguide/api-ref.html) |
+| Amazon DataZone | [User Guide](https://docs.aws.amazon.com/datazone/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/datazone/latest/APIReference/) |
+| Amazon EMR | [Management Guide](https://docs.aws.amazon.com/emr/latest/ManagementGuide/) | [API Reference](https://docs.aws.amazon.com/emr/latest/APIReference/) |
+| Amazon FinSpace | [User Guide](https://docs.aws.amazon.com/finspace/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/finspace/latest/management-api/) |
+| Amazon Kinesis Video Streams | [Developer Guide](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/) | [API Reference](https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/API_Reference.html) |
+| Amazon Managed Service for Apache Flink | [Developer Guide](https://docs.aws.amazon.com/managed-flink/latest/java/) | [API Reference](https://docs.aws.amazon.com/managed-flink/latest/apiv2/) |
+| Amazon MSK | [Developer Guide](https://docs.aws.amazon.com/msk/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/msk/1.0/apireference/) |
+| Amazon OpenSearch Service | [Developer Guide](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/opensearch-service/latest/APIReference/) |
+| Amazon QuickSight | [User Guide](https://docs.aws.amazon.com/quicksight/latest/user/) | [API Reference](https://docs.aws.amazon.com/quicksight/latest/APIReference/) |
+| Amazon Redshift | [Management Guide](https://docs.aws.amazon.com/redshift/latest/mgmt/) | [API Reference](https://docs.aws.amazon.com/redshift/latest/APIReference/) |
+| AWS Clean Rooms | [User Guide](https://docs.aws.amazon.com/clean-rooms/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/clean-rooms/latest/apireference/) |
+| AWS Data Exchange | [User Guide](https://docs.aws.amazon.com/data-exchange/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/data-exchange/latest/apireference/) |
+| AWS Data Pipeline | [Developer Guide](https://docs.aws.amazon.com/datapipeline/latest/DeveloperGuide/) | [API Reference](https://docs.aws.amazon.com/datapipeline/latest/APIReference/) |
+| AWS Entity Resolution | [User Guide](https://docs.aws.amazon.com/entityresolution/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/entityresolution/latest/apireference/) |
+| AWS Glue | [Developer Guide](https://docs.aws.amazon.com/glue/latest/dg/) | [API Reference](https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api.html) |
+| AWS Lake Formation | [Developer Guide](https://docs.aws.amazon.com/lake-formation/latest/dg/) | [API Reference](https://docs.aws.amazon.com/lake-formation/latest/APIReference/) |
+
+### Application Integration
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon AppFlow | [User Guide](https://docs.aws.amazon.com/appflow/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/appflow/1.0/APIReference/) |
+| Amazon MQ | [Developer Guide](https://docs.aws.amazon.com/amazon-mq/latest/developer-guide/) | [API Reference](https://docs.aws.amazon.com/amazon-mq/latest/api-reference/) |
+| Amazon MWAA | [User Guide](https://docs.aws.amazon.com/mwaa/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/mwaa/latest/API/) |
+| Amazon SWF | [Developer Guide](https://docs.aws.amazon.com/amazonswf/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/amazonswf/latest/apireference/) |
+| AWS B2B Data Interchange | [User Guide](https://docs.aws.amazon.com/b2bi/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/b2bi/latest/APIReference/) |
+
+### Blockchain
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon Managed Blockchain | [Developer Guide](https://docs.aws.amazon.com/managed-blockchain/latest/hyperledger-fabric-dev/) | [API Reference](https://docs.aws.amazon.com/managed-blockchain/latest/APIReference/) |
+
+### Business Applications
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon Chime | [User Guide](https://docs.aws.amazon.com/chime/latest/ug/) | [API Reference](https://docs.aws.amazon.com/chime/latest/APIReference/) |
+| Amazon Connect | [Administrator Guide](https://docs.aws.amazon.com/connect/latest/adminguide/) | [API Reference](https://docs.aws.amazon.com/connect/latest/APIReference/) |
+| Amazon Pinpoint | [User Guide](https://docs.aws.amazon.com/pinpoint/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/pinpoint/latest/apireference/) |
+| Amazon WorkDocs | [Developer Guide](https://docs.aws.amazon.com/workdocs/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/workdocs/latest/APIReference/) |
+| Amazon WorkMail | [User Guide](https://docs.aws.amazon.com/workmail/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/workmail/latest/APIReference/) |
+| AWS AppFabric | [Administration Guide](https://docs.aws.amazon.com/appfabric/latest/adminguide/) | [API Reference](https://docs.aws.amazon.com/appfabric/latest/api/) |
+
+### Cloud Financial Management
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| AWS Billing Conductor | [User Guide](https://docs.aws.amazon.com/billingconductor/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/billingconductor/latest/APIReference/) |
+| AWS Budgets | [User Guide](https://docs.aws.amazon.com/cost-management/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/aws-cost-management/latest/APIReference/) |
+| AWS Cost and Usage Report | [User Guide](https://docs.aws.amazon.com/cur/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/aws-cost-management/latest/APIReference/) |
+| AWS Cost Explorer | [User Guide](https://docs.aws.amazon.com/cost-management/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/aws-cost-management/latest/APIReference/) |
+
+### Compute
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon EC2 | [User Guide](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/) | [API Reference](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/) |
+| Amazon Lightsail | [User Guide](https://docs.aws.amazon.com/lightsail/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/lightsail/2016-11-28/api-reference/) |
+| AWS App Runner | [Developer Guide](https://docs.aws.amazon.com/apprunner/latest/dg/) | [API Reference](https://docs.aws.amazon.com/apprunner/latest/api/) |
+| AWS Batch | [User Guide](https://docs.aws.amazon.com/batch/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/batch/latest/APIReference/) |
+| AWS Elastic Beanstalk | [Developer Guide](https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/) | [API Reference](https://docs.aws.amazon.com/elasticbeanstalk/latest/api/) |
+| AWS Fargate | [User Guide](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/) |
+| AWS Outposts | [User Guide](https://docs.aws.amazon.com/outposts/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/outposts/latest/APIReference/) |
+| AWS Wavelength | [Developer Guide](https://docs.aws.amazon.com/wavelength/latest/developerguide/) | — |
+| EC2 Image Builder | [User Guide](https://docs.aws.amazon.com/imagebuilder/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/imagebuilder/latest/APIReference/) |
+
+### Containers
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon ECR | [User Guide](https://docs.aws.amazon.com/AmazonECR/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/AmazonECR/latest/APIReference/) |
+| Amazon ECS | [Developer Guide](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/) |
+| Amazon EKS | [User Guide](https://docs.aws.amazon.com/eks/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/eks/latest/APIReference/) |
+| Red Hat OpenShift Service on AWS | [User Guide](https://docs.aws.amazon.com/rosa/latest/userguide/) | — |
+
+### Databases
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon Aurora | [User Guide](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/) | [API Reference](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/) |
+| Amazon DocumentDB | [Developer Guide](https://docs.aws.amazon.com/documentdb/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/documentdb/latest/developerguide/api-reference.html) |
+| Amazon ElastiCache | [User Guide](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/) | [API Reference](https://docs.aws.amazon.com/AmazonElastiCache/latest/APIReference/) |
+| Amazon Keyspaces | [Developer Guide](https://docs.aws.amazon.com/keyspaces/latest/devguide/) | [API Reference](https://docs.aws.amazon.com/keyspaces/latest/APIReference/) |
+| Amazon Neptune | [User Guide](https://docs.aws.amazon.com/neptune/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/neptune/latest/apiref/) |
+| Amazon RDS | [User Guide](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/) | [API Reference](https://docs.aws.amazon.com/AmazonRDS/latest/APIReference/) |
+| Amazon Timestream | [Developer Guide](https://docs.aws.amazon.com/timestream/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/timestream/latest/developerguide/API_Reference.html) |
+| AWS Database Migration Service | [User Guide](https://docs.aws.amazon.com/dms/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/dms/latest/APIReference/) |
+
+### Developer Tools
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon CodeCatalyst | [User Guide](https://docs.aws.amazon.com/codecatalyst/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/codecatalyst/latest/APIReference/) |
+| Amazon Q Developer | [User Guide](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/) | [API Reference](https://docs.aws.amazon.com/amazonq/latest/api-reference/) |
+| AWS Cloud9 | [User Guide](https://docs.aws.amazon.com/cloud9/latest/user-guide/) | — |
+| AWS CloudShell | [User Guide](https://docs.aws.amazon.com/cloudshell/latest/userguide/) | — |
+| AWS CodeArtifact | [User Guide](https://docs.aws.amazon.com/codeartifact/latest/ug/) | [API Reference](https://docs.aws.amazon.com/codeartifact/latest/APIReference/) |
+| AWS CodeBuild | [User Guide](https://docs.aws.amazon.com/codebuild/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/codebuild/latest/APIReference/) |
+| AWS CodeCommit | [User Guide](https://docs.aws.amazon.com/codecommit/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/codecommit/latest/APIReference/) |
+| AWS CodeDeploy | [User Guide](https://docs.aws.amazon.com/codedeploy/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/codedeploy/latest/APIReference/) |
+| AWS CodePipeline | [User Guide](https://docs.aws.amazon.com/codepipeline/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/codepipeline/latest/APIReference/) |
+| AWS Fault Injection Service | [User Guide](https://docs.aws.amazon.com/fis/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/fis/latest/APIReference/) |
+| AWS X-Ray | [Developer Guide](https://docs.aws.amazon.com/xray/latest/devguide/) | [API Reference](https://docs.aws.amazon.com/xray/latest/api/) |
+
+### End User Computing
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon WorkSpaces | [Administration Guide](https://docs.aws.amazon.com/workspaces/latest/adminguide/) | [API Reference](https://docs.aws.amazon.com/workspaces/latest/api/) |
+
+### Front-end Web and Mobile
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon Location Service | [Developer Guide](https://docs.aws.amazon.com/location/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/location/latest/APIReference/) |
+| AWS Amplify | [User Guide](https://docs.aws.amazon.com/amplify/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/amplify/latest/APIReference/) |
+| AWS Device Farm | [Developer Guide](https://docs.aws.amazon.com/devicefarm/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/devicefarm/latest/APIReference/) |
+
+### Game Tech
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon GameLift | [Developer Guide](https://docs.aws.amazon.com/gameliftservers/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/gameliftservers/latest/apireference/) |
+
+### Internet of Things
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| AWS IoT Core | [Developer Guide](https://docs.aws.amazon.com/iot/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/iot/latest/apireference/) |
+| AWS IoT Events | [Developer Guide](https://docs.aws.amazon.com/iotevents/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/iotevents/latest/apireference/) |
+| AWS IoT FleetWise | [Developer Guide](https://docs.aws.amazon.com/iot-fleetwise/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/iot-fleetwise/latest/APIReference/) |
+| AWS IoT Greengrass | [Developer Guide](https://docs.aws.amazon.com/greengrass/v2/developerguide/) | [API Reference](https://docs.aws.amazon.com/greengrass/v2/APIReference/) |
+| AWS IoT SiteWise | [User Guide](https://docs.aws.amazon.com/iot-sitewise/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/iot-sitewise/latest/APIReference/) |
+| AWS IoT TwinMaker | [User Guide](https://docs.aws.amazon.com/iot-twinmaker/latest/guide/) | [API Reference](https://docs.aws.amazon.com/iot-twinmaker/latest/apireference/) |
+
+### Machine Learning and AI
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon Bedrock | [User Guide](https://docs.aws.amazon.com/bedrock/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/bedrock/latest/APIReference/) |
+| Amazon Comprehend | [Developer Guide](https://docs.aws.amazon.com/comprehend/latest/dg/) | — |
+| Amazon Forecast | [Developer Guide](https://docs.aws.amazon.com/forecast/latest/dg/) | — |
+| Amazon Fraud Detector | [User Guide](https://docs.aws.amazon.com/frauddetector/latest/ug/) | — |
+| Amazon Kendra | [Developer Guide](https://docs.aws.amazon.com/kendra/latest/dg/) | — |
+| Amazon Lex | [Developer Guide](https://docs.aws.amazon.com/lexv2/latest/dg/) | — |
+| Amazon Lookout for Equipment | [User Guide](https://docs.aws.amazon.com/lookout-for-equipment/latest/ug/) | — |
+| Amazon Lookout for Vision | [Developer Guide](https://docs.aws.amazon.com/lookout-for-vision/latest/developer-guide/) | — |
+| Amazon Personalize | [Developer Guide](https://docs.aws.amazon.com/personalize/latest/dg/) | — |
+| Amazon Polly | [Developer Guide](https://docs.aws.amazon.com/polly/latest/dg/) | — |
+| Amazon Q | [User Guide](https://docs.aws.amazon.com/amazonq/latest/qbusiness-ug/) | [API Reference](https://docs.aws.amazon.com/amazonq/latest/api-reference/) |
+| Amazon Rekognition | [Developer Guide](https://docs.aws.amazon.com/rekognition/latest/dg/) | [API Reference](https://docs.aws.amazon.com/rekognition/latest/APIReference/) |
+| Amazon SageMaker | [Developer Guide](https://docs.aws.amazon.com/sagemaker/latest/dg/) | [API Reference](https://docs.aws.amazon.com/sagemaker/latest/APIReference/) |
+| Amazon Textract | [Developer Guide](https://docs.aws.amazon.com/textract/latest/dg/) | — |
+| Amazon Transcribe | [Developer Guide](https://docs.aws.amazon.com/transcribe/latest/dg/) | — |
+| Amazon Translate | [Developer Guide](https://docs.aws.amazon.com/translate/latest/dg/) | — |
+| AWS DevOps Guru | [User Guide](https://docs.aws.amazon.com/devops-guru/latest/userguide/) | — |
+| AWS HealthLake | [Developer Guide](https://docs.aws.amazon.com/healthlake/latest/devguide/) | — |
+| AWS Panorama | [Developer Guide](https://docs.aws.amazon.com/panorama/latest/dev/) | — |
+
+### Management and Governance
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon CloudWatch | [User Guide](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/) | — |
+| Amazon Managed Grafana | [User Guide](https://docs.aws.amazon.com/grafana/latest/userguide/) | — |
+| Amazon Managed Service for Prometheus | [User Guide](https://docs.aws.amazon.com/prometheus/latest/userguide/) | — |
+| AWS Auto Scaling | [User Guide](https://docs.aws.amazon.com/autoscaling/plans/userguide/) | — |
+| AWS CloudFormation | [User Guide](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/) | [API Reference](https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/) |
+| AWS CloudTrail | [User Guide](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/) | — |
+| AWS Compute Optimizer | [User Guide](https://docs.aws.amazon.com/compute-optimizer/latest/ug/) | — |
+| AWS Control Tower | [User Guide](https://docs.aws.amazon.com/controltower/latest/userguide/) | — |
+| AWS Health | [User Guide](https://docs.aws.amazon.com/health/latest/ug/) | — |
+| AWS Launch Wizard | [User Guide](https://docs.aws.amazon.com/launchwizard/latest/userguide/) | — |
+| AWS License Manager | [User Guide](https://docs.aws.amazon.com/license-manager/latest/userguide/) | — |
+| AWS Organizations | [User Guide](https://docs.aws.amazon.com/organizations/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/organizations/latest/APIReference/) |
+| AWS Proton | [User Guide](https://docs.aws.amazon.com/proton/latest/userguide/) | — |
+| AWS Systems Manager | [User Guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/systems-manager/latest/APIReference/) |
+| AWS Trusted Advisor | [User Guide](https://docs.aws.amazon.com/awssupport/latest/user/) | — |
+| AWS Well-Architected Tool | [User Guide](https://docs.aws.amazon.com/wellarchitected/latest/userguide/) | — |
+
+### Media
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon Elastic Transcoder | [Developer Guide](https://docs.aws.amazon.com/elastictranscoder/latest/developerguide/) | — |
+| Amazon Interactive Video Service | [User Guide](https://docs.aws.amazon.com/ivs/latest/LowLatencyUserGuide/) | — |
+| AWS Elemental MediaConnect | [User Guide](https://docs.aws.amazon.com/mediaconnect/latest/ug/) | — |
+| AWS Elemental MediaConvert | [User Guide](https://docs.aws.amazon.com/mediaconvert/latest/ug/) | — |
+| AWS Elemental MediaLive | [User Guide](https://docs.aws.amazon.com/medialive/latest/ug/) | — |
+| AWS Elemental MediaPackage | [User Guide](https://docs.aws.amazon.com/mediapackage/latest/ug/) | — |
+| AWS Elemental MediaStore | [User Guide](https://docs.aws.amazon.com/mediastore/latest/ug/) | [API Reference](https://docs.aws.amazon.com/mediastore/latest/apireference/) |
+| AWS Elemental MediaTailor | [User Guide](https://docs.aws.amazon.com/mediatailor/latest/ug/) | — |
+
+### Migration and Transfer
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| AWS Application Discovery Service | [User Guide](https://docs.aws.amazon.com/application-discovery/latest/userguide/) | — |
+| AWS Application Migration Service | [User Guide](https://docs.aws.amazon.com/mgn/latest/ug/) | — |
+| AWS DataSync | [User Guide](https://docs.aws.amazon.com/datasync/latest/userguide/) | — |
+| AWS Database Migration Service | [User Guide](https://docs.aws.amazon.com/dms/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/dms/latest/APIReference/) |
+| AWS Mainframe Modernization | [User Guide](https://docs.aws.amazon.com/m2/latest/userguide/) | — |
+| AWS Migration Hub | [User Guide](https://docs.aws.amazon.com/migrationhub/latest/ug/) | — |
+| AWS Snow Family | [Developer Guide](https://docs.aws.amazon.com/snowball/latest/developer-guide/) | — |
+| AWS Transfer Family | [User Guide](https://docs.aws.amazon.com/transfer/latest/userguide/) | — |
+
+### Networking and Content Delivery
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon CloudFront | [Developer Guide](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/) | [API Reference](https://docs.aws.amazon.com/cloudfront/latest/APIReference/) |
+| Amazon Route 53 | [Developer Guide](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/) | [API Reference](https://docs.aws.amazon.com/Route53/latest/APIReference/) |
+| Amazon VPC | [User Guide](https://docs.aws.amazon.com/vpc/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/) |
+| Amazon VPC Lattice | [User Guide](https://docs.aws.amazon.com/vpc-lattice/latest/ug/) | [API Reference](https://docs.aws.amazon.com/vpc-lattice/latest/APIReference/) |
+| AWS App Mesh | [User Guide](https://docs.aws.amazon.com/app-mesh/latest/userguide/) | — |
+| AWS Cloud Map | [Developer Guide](https://docs.aws.amazon.com/cloud-map/latest/dg/) | [API Reference](https://docs.aws.amazon.com/cloud-map/latest/api/) |
+| AWS Direct Connect | [User Guide](https://docs.aws.amazon.com/directconnect/latest/UserGuide/) | [API Reference](https://docs.aws.amazon.com/directconnect/latest/APIReference/) |
+| AWS Global Accelerator | [Developer Guide](https://docs.aws.amazon.com/global-accelerator/latest/dg/) | [API Reference](https://docs.aws.amazon.com/global-accelerator/latest/api/) |
+| AWS Private 5G | [User Guide](https://docs.aws.amazon.com/private-networks/latest/userguide/) | — |
+| AWS PrivateLink | [User Guide](https://docs.aws.amazon.com/vpc/latest/privatelink/) | — |
+| AWS Verified Access | [User Guide](https://docs.aws.amazon.com/verified-access/latest/ug/) | — |
+| Elastic Load Balancing | [User Guide](https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/elasticloadbalancing/latest/APIReference/) |
+
+### Quantum Technologies
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon Braket | [Developer Guide](https://docs.aws.amazon.com/braket/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/braket/latest/APIReference/) |
+
+### Satellite
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| AWS Ground Station | [User Guide](https://docs.aws.amazon.com/ground-station/latest/ug/) | [API Reference](https://docs.aws.amazon.com/ground-station/latest/APIReference/) |
+
+### Security, Identity, and Compliance
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon Detective | [User Guide](https://docs.aws.amazon.com/detective/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/detective/latest/APIReference/) |
+| Amazon GuardDuty | [User Guide](https://docs.aws.amazon.com/guardduty/latest/ug/) | [API Reference](https://docs.aws.amazon.com/guardduty/latest/APIReference/) |
+| Amazon Inspector | [User Guide](https://docs.aws.amazon.com/inspector/latest/user/) | [API Reference](https://docs.aws.amazon.com/inspector/v2/APIReference/) |
+| Amazon Macie | [User Guide](https://docs.aws.amazon.com/macie/latest/user/) | [API Reference](https://docs.aws.amazon.com/macie/latest/APIReference/) |
+| Amazon Security Lake | [User Guide](https://docs.aws.amazon.com/security-lake/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/security-lake/latest/APIReference/) |
+| Amazon Verified Permissions | [User Guide](https://docs.aws.amazon.com/verifiedpermissions/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/verifiedpermissions/latest/apireference/) |
+| AWS Artifact | [User Guide](https://docs.aws.amazon.com/artifact/latest/ug/) | — |
+| AWS Audit Manager | [User Guide](https://docs.aws.amazon.com/audit-manager/latest/userguide/) | — |
+| AWS Certificate Manager | [User Guide](https://docs.aws.amazon.com/acm/latest/userguide/) | — |
+| AWS CloudHSM | [User Guide](https://docs.aws.amazon.com/cloudhsm/latest/userguide/) | — |
+| AWS Directory Service | [Administration Guide](https://docs.aws.amazon.com/directoryservice/latest/admin-guide/) | — |
+| AWS Firewall Manager | [Developer Guide](https://docs.aws.amazon.com/waf/latest/developerguide/) | — |
+| AWS IAM | [User Guide](https://docs.aws.amazon.com/IAM/latest/UserGuide/) | [API Reference](https://docs.aws.amazon.com/IAM/latest/APIReference/) |
+| AWS IAM Identity Center | [User Guide](https://docs.aws.amazon.com/singlesignon/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/singlesignon/latest/APIReference/) |
+| AWS Network Firewall | [Developer Guide](https://docs.aws.amazon.com/network-firewall/latest/developerguide/) | — |
+| AWS Resource Access Manager | [User Guide](https://docs.aws.amazon.com/ram/latest/userguide/) | — |
+| AWS Security Hub | [User Guide](https://docs.aws.amazon.com/securityhub/latest/userguide/) | — |
+| AWS Shield | [Developer Guide](https://docs.aws.amazon.com/waf/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/waf/latest/DDOSAPIReference/) |
+| AWS WAF | [Developer Guide](https://docs.aws.amazon.com/waf/latest/developerguide/) | [API Reference](https://docs.aws.amazon.com/waf/latest/APIReference/) |
+
+### Storage
+
+| Service | User Guide | API Reference |
+|---------|-----------|---------------|
+| Amazon EBS | [User Guide](https://docs.aws.amazon.com/ebs/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/ebs/latest/APIReference/) |
+| Amazon File Cache | [User Guide](https://docs.aws.amazon.com/fsx/latest/FileCacheGuide/) | — |
+| Amazon FSx | [User Guide](https://docs.aws.amazon.com/fsx/latest/WindowsGuide/) | [API Reference](https://docs.aws.amazon.com/fsx/latest/APIReference/) |
+| AWS Backup | [Developer Guide](https://docs.aws.amazon.com/aws-backup/latest/devguide/) | [API Reference](https://docs.aws.amazon.com/aws-backup/latest/devguide/api-reference.html) |
+| AWS Elastic Disaster Recovery | [User Guide](https://docs.aws.amazon.com/drs/latest/userguide/) | [API Reference](https://docs.aws.amazon.com/drs/latest/APIReference/) |
+| AWS Storage Gateway | [User Guide](https://docs.aws.amazon.com/filegateway/latest/files3/) | [API Reference](https://docs.aws.amazon.com/storagegateway/latest/APIReference/) |
