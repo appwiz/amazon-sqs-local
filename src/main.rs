@@ -1299,11 +1299,17 @@ async fn main() {
             let port = $port;
             let app = $app;
             tokio::spawn(async move {
-                let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
-                    .await
-                    .unwrap();
+                let listener = match tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await {
+                    Ok(l) => l,
+                    Err(e) => {
+                        eprintln!("Failed to bind {} service on port {}: {}", $name, port, e);
+                        return;
+                    }
+                };
                 println!("{} service listening on port {}", $name, port);
-                axum::serve(listener, app).await.unwrap();
+                if let Err(e) = axum::serve(listener, app).await {
+                    eprintln!("{} service on port {} exited with error: {}", $name, port, e);
+                }
             })
         }};
     }
@@ -1629,15 +1635,9 @@ async fn main() {
     handles.push(workspaces_handle);
     handles.push(xray_handle);
 
-    // Wait for any service to exit (which means an error occurred)
-    loop {
-        let mut set = tokio::task::JoinSet::new();
-        for handle in handles {
-            set.spawn(async move { handle.await.unwrap() });
-        }
-        if let Some(result) = set.join_next().await {
-            result.unwrap();
-        }
-        break;
+    // Wait for Ctrl+C to shut down
+    match tokio::signal::ctrl_c().await {
+        Ok(()) => println!("\nShutting down all services..."),
+        Err(e) => eprintln!("Failed to listen for Ctrl+C: {}", e),
     }
 }

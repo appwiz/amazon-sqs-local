@@ -210,7 +210,7 @@ pub struct CompletePart {
     #[serde(rename = "PartNumber")]
     pub part_number: i32,
     #[serde(rename = "ETag")]
-    pub _etag: String,
+    pub etag: String,
 }
 
 #[derive(Debug, Serialize)]

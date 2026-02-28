@@ -11,14 +11,14 @@ use super::types::{MessageAttributeValue, ReceiveMessageResult, SendMessageRespo
 fn now_millis() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+            .unwrap_or(std::time::Duration::from_secs(0))
         .as_millis() as u64
 }
 
 fn now_secs() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+            .unwrap_or(std::time::Duration::from_secs(0))
         .as_secs()
 }
 

@@ -284,13 +284,13 @@ async fn object_get_handler(
         builder = builder.header("content-length", slice.len().to_string());
         Ok(builder
             .body(axum::body::Body::from(slice.to_vec()))
-            .expect("valid response body"))
+            .map_err(|_| S3Error::InternalError("Failed to build response".into()))?)
     } else {
         builder = builder.status(StatusCode::OK);
         builder = builder.header("content-length", obj.data.len().to_string());
         Ok(builder
             .body(axum::body::Body::from(obj.data))
-            .expect("valid response body"))
+            .map_err(|_| S3Error::InternalError("Failed to build response".into()))?)
     }
 }
 
@@ -398,7 +398,7 @@ async fn head_object_handler(
 
     Ok(builder
         .body(axum::body::Body::empty())
-        .expect("valid response body"))
+        .map_err(|_| S3Error::InternalError("Failed to build response".into()))?)
 }
 
 async fn object_post_handler(

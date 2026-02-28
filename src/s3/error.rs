@@ -16,6 +16,7 @@ pub enum S3Error {
     NoSuchTagSet(String),
     MalformedXML(String),
     InvalidRange(String),
+    InternalError(String),
 }
 
 impl S3Error {
@@ -34,6 +35,7 @@ impl S3Error {
             S3Error::NoSuchTagSet(_) => "NoSuchTagSet",
             S3Error::MalformedXML(_) => "MalformedXML",
             S3Error::InvalidRange(_) => "InvalidRange",
+            S3Error::InternalError(_) => "InternalError",
         }
     }
 
@@ -53,6 +55,7 @@ impl S3Error {
             | S3Error::InvalidRequest(_)
             | S3Error::MalformedXML(_) => StatusCode::BAD_REQUEST,
             S3Error::InvalidRange(_) => StatusCode::RANGE_NOT_SATISFIABLE,
+            S3Error::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -70,7 +73,8 @@ impl S3Error {
             | S3Error::InvalidRequest(m)
             | S3Error::NoSuchTagSet(m)
             | S3Error::MalformedXML(m)
-            | S3Error::InvalidRange(m) => m,
+            | S3Error::InvalidRange(m)
+            | S3Error::InternalError(m) => m,
         }
     }
 }

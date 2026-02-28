@@ -205,7 +205,7 @@ impl FirehoseState {
         stream.version_id = (current_version + 1).to_string();
         stream.last_update_timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or(std::time::Duration::from_secs(0))
             .as_secs_f64();
 
         Ok(())

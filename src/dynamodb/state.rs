@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 use tokio::sync::Mutex;
@@ -34,7 +34,7 @@ impl DynamoDbState {
     fn now_epoch() -> f64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or(Duration::from_secs(0))
             .as_secs_f64()
     }
 
@@ -247,6 +247,25 @@ impl DynamoDbState {
             }
         }
 
+        // Evaluate condition expression
+        if let Some(ref cond_expr) = req.condition_expression {
+            let empty_item = HashMap::new();
+            let existing_item = table
+                .find_item_index(&req.item)
+                .map(|idx| &table.items[idx]);
+            let check_item = existing_item.unwrap_or(&empty_item);
+            if !evaluate_filter_expression(
+                check_item,
+                cond_expr,
+                req.expression_attribute_names.as_ref(),
+                req.expression_attribute_values.as_ref(),
+            ) {
+                return Err(DynamoDbError::ConditionalCheckFailedException(
+                    "The conditional request failed".into(),
+                ));
+            }
+        }
+
         let old_item = match table.find_item_index(&req.item) {
             Some(idx) => Some(std::mem::replace(&mut table.items[idx], req.item)),
             None => {
@@ -304,6 +323,25 @@ impl DynamoDbState {
             ))
         })?;
 
+        // Evaluate condition expression
+        if let Some(ref cond_expr) = req.condition_expression {
+            let empty_item = HashMap::new();
+            let existing_item = table
+                .find_item_index(&req.key)
+                .map(|idx| &table.items[idx]);
+            let check_item = existing_item.unwrap_or(&empty_item);
+            if !evaluate_filter_expression(
+                check_item,
+                cond_expr,
+                req.expression_attribute_names.as_ref(),
+                req.expression_attribute_values.as_ref(),
+            ) {
+                return Err(DynamoDbError::ConditionalCheckFailedException(
+                    "The conditional request failed".into(),
+                ));
+            }
+        }
+
         let old_item = table.find_item_index(&req.key).map(|idx| table.items.remove(idx));
 
         let attributes = match req.return_values.as_deref() {
@@ -326,6 +364,25 @@ impl DynamoDbState {
                 req.table_name
             ))
         })?;
+
+        // Evaluate condition expression
+        if let Some(ref cond_expr) = req.condition_expression {
+            let empty_item = HashMap::new();
+            let existing_item = table
+                .find_item_index(&req.key)
+                .map(|idx| &table.items[idx]);
+            let check_item = existing_item.unwrap_or(&empty_item);
+            if !evaluate_filter_expression(
+                check_item,
+                cond_expr,
+                req.expression_attribute_names.as_ref(),
+                req.expression_attribute_values.as_ref(),
+            ) {
+                return Err(DynamoDbError::ConditionalCheckFailedException(
+                    "The conditional request failed".into(),
+                ));
+            }
+        }
 
         let idx = table.find_item_index(&req.key);
         let existed = idx.is_some();
@@ -372,9 +429,46 @@ impl DynamoDbState {
 
         let attributes = match req.return_values.as_deref() {
             Some("ALL_NEW") => Some(table.items[item_idx].clone()),
-            Some("ALL_OLD") => old_item,
-            Some("UPDATED_OLD") => old_item, // Simplified: return all old attrs
-            Some("UPDATED_NEW") => Some(table.items[item_idx].clone()), // Simplified
+            Some("ALL_OLD") => old_item.clone(),
+            Some("UPDATED_OLD") => {
+                // Return only the attributes that were modified (old values)
+                if let Some(ref old) = old_item {
+                    let new_item = &table.items[item_idx];
+                    let mut updated = Item::new();
+                    for (k, v) in new_item {
+                        if old.get(k) != Some(v) {
+                            if let Some(old_v) = old.get(k) {
+                                updated.insert(k.clone(), old_v.clone());
+                            }
+                        }
+                    }
+                    // Include attributes that were removed
+                    for (k, v) in old {
+                        if !new_item.contains_key(k) {
+                            updated.insert(k.clone(), v.clone());
+                        }
+                    }
+                    if updated.is_empty() { None } else { Some(updated) }
+                } else {
+                    None
+                }
+            }
+            Some("UPDATED_NEW") => {
+                // Return only the attributes that were modified (new values)
+                if let Some(ref old) = old_item {
+                    let new_item = &table.items[item_idx];
+                    let mut updated = Item::new();
+                    for (k, v) in new_item {
+                        if old.get(k) != Some(v) {
+                            updated.insert(k.clone(), v.clone());
+                        }
+                    }
+                    if updated.is_empty() { None } else { Some(updated) }
+                } else {
+                    // Item was newly created, all attributes are "updated"
+                    Some(table.items[item_idx].clone())
+                }
+            }
             _ => None,
         };
 
@@ -513,13 +607,13 @@ impl DynamoDbState {
             ))
         })?;
 
-        let mut items: Vec<Item> = table.items.clone();
-        let scanned_count = items.len() as i64;
+        let scanned_count = table.items.len() as i64;
 
-        // Apply filter expression
-        if let Some(ref filter_expr) = req.filter_expression {
-            items = items
-                .into_iter()
+        // Apply filter expression using iterators to avoid cloning all items
+        let mut items: Vec<Item> = if let Some(ref filter_expr) = req.filter_expression {
+            table
+                .items
+                .iter()
                 .filter(|item| {
                     evaluate_filter_expression(
                         item,
@@ -528,8 +622,11 @@ impl DynamoDbState {
                         req.expression_attribute_values.as_ref(),
                     )
                 })
-                .collect();
-        }
+                .cloned()
+                .collect()
+        } else {
+            table.items.clone()
+        };
 
         // Apply pagination
         if let Some(ref start_key) = req.exclusive_start_key {
@@ -848,11 +945,10 @@ fn split_by_and(expr: &str) -> Vec<&str> {
 
     let mut i = 0;
     while i < len {
-        // Check for " AND " (case-insensitive) with word boundaries
+        // Check for " AND " (fully case-insensitive)
         if i + 5 <= len {
-            let slice = &expr[i..];
-            if slice.starts_with(" AND ") || slice.starts_with(" and ") || slice.starts_with(" And ")
-            {
+            let slice = &expr[i..i + 5];
+            if slice.to_lowercase() == " and " {
                 parts.push(&expr[last..i]);
                 last = i + 5;
                 i = last;
@@ -1063,6 +1159,41 @@ fn extract_number_value(val: &Value) -> Option<f64> {
         .and_then(|s| s.parse::<f64>().ok())
 }
 
+/// Returns the size of a DynamoDB attribute value.
+/// For S: string length. For N: number of digits (string representation length).
+/// For B: binary length. For L/SS/NS/BS: number of elements. For M: number of keys.
+/// For BOOL/NULL: 1.
+fn attribute_size(val: &Value) -> i64 {
+    if let Some(s) = val.get("S").and_then(|v| v.as_str()) {
+        return s.len() as i64;
+    }
+    if let Some(n) = val.get("N").and_then(|v| v.as_str()) {
+        return n.len() as i64;
+    }
+    if let Some(b) = val.get("B").and_then(|v| v.as_str()) {
+        return b.len() as i64;
+    }
+    if let Some(l) = val.get("L").and_then(|v| v.as_array()) {
+        return l.len() as i64;
+    }
+    if let Some(m) = val.get("M").and_then(|v| v.as_object()) {
+        return m.len() as i64;
+    }
+    if let Some(ss) = val.get("SS").and_then(|v| v.as_array()) {
+        return ss.len() as i64;
+    }
+    if let Some(ns) = val.get("NS").and_then(|v| v.as_array()) {
+        return ns.len() as i64;
+    }
+    if let Some(bs) = val.get("BS").and_then(|v| v.as_array()) {
+        return bs.len() as i64;
+    }
+    if val.get("BOOL").is_some() || val.get("NULL").is_some() {
+        return 1;
+    }
+    0
+}
+
 fn compare_attribute_values(a: Option<&Value>, b: Option<&Value>) -> std::cmp::Ordering {
     match (a, b) {
         (None, None) => std::cmp::Ordering::Equal,
@@ -1170,6 +1301,81 @@ fn evaluate_expr(
         }
     }
 
+    // Handle size(attr) comparisons: size(attr) op val
+    if let Some(inner) = extract_function_args(expr, "size") {
+        // expr is something like "size(attr) >= :val" but extract_function_args matched the size(...) part.
+        // We need to re-parse from the full expr to get the operator and value.
+        // Find the closing paren of size(...)
+        let lower = expr.to_lowercase();
+        if let Some(size_start) = lower.find("size(") {
+            let after_size = &expr[size_start + 5..];
+            // Find matching close paren
+            let mut depth = 1;
+            let mut close_pos = None;
+            for (j, ch) in after_size.char_indices() {
+                match ch {
+                    '(' => depth += 1,
+                    ')' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            close_pos = Some(size_start + 5 + j + 1);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if let Some(cp) = close_pos {
+                let remainder = expr[cp..].trim();
+                let size_operators: &[(&str, fn(i64, i64) -> bool)] = &[
+                    ("<>", |a, b| a != b),
+                    ("<=", |a, b| a <= b),
+                    (">=", |a, b| a >= b),
+                    ("=", |a, b| a == b),
+                    ("<", |a, b| a < b),
+                    (">", |a, b| a > b),
+                ];
+                for (op_str, op_fn) in size_operators {
+                    if remainder.starts_with(op_str) {
+                        let val_str = remainder[op_str.len()..].trim();
+                        let attr = resolve_name(inner.trim(), names);
+                        let attr_size = if let Some(item_val) = item.get(&attr) {
+                            attribute_size(item_val)
+                        } else {
+                            0
+                        };
+                        // The comparison value should be a number
+                        if let Some(cmp_val) = resolve_value(val_str, values) {
+                            if let Some(n_str) = cmp_val.get("N").and_then(|v| v.as_str()) {
+                                if let Ok(n) = n_str.parse::<i64>() {
+                                    return op_fn(attr_size, n);
+                                }
+                            }
+                        }
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    // Handle BETWEEN: attr BETWEEN val1 AND val2
+    if let Some((attr_str, val1_str, val2_str)) = find_between(expr) {
+        let attr = resolve_name(attr_str.trim(), names);
+        if let Some(item_val) = item.get(&attr) {
+            if let (Some(low), Some(high)) = (
+                resolve_value(val1_str.trim(), values),
+                resolve_value(val2_str.trim(), values),
+            ) {
+                let cmp_low = compare_attribute_values(Some(item_val), Some(low));
+                let cmp_high = compare_attribute_values(Some(item_val), Some(high));
+                return matches!(cmp_low, std::cmp::Ordering::Greater | std::cmp::Ordering::Equal)
+                    && matches!(cmp_high, std::cmp::Ordering::Less | std::cmp::Ordering::Equal);
+            }
+        }
+        return false;
+    }
+
     // Simple comparison operators
     let operators: &[(&str, fn(&Value, &Value) -> bool)] = &[
         ("<>", |a, b| !attribute_value_equals(a, b)),
@@ -1209,8 +1415,8 @@ fn evaluate_expr(
         }
     }
 
-    // Default: if we can't parse, don't filter
-    true
+    // Default: if we can't parse, reject the item to avoid silent data leaks
+    false
 }
 
 fn find_operator_pos(expr: &str, op: &str) -> Option<usize> {
@@ -1241,11 +1447,12 @@ fn find_operator_pos(expr: &str, op: &str) -> Option<usize> {
 fn split_logical_op<'a>(
     expr: &'a str,
     op_upper: &str,
-    op_lower: &str,
+    _op_lower: &str,
 ) -> Option<(&'a str, &'a str)> {
     let mut paren_depth = 0;
     let bytes = expr.as_bytes();
     let op_len = op_upper.len();
+    let op_upper_lower = op_upper.to_lowercase();
 
     if expr.len() < op_len {
         return None;
@@ -1261,9 +1468,9 @@ fn split_logical_op<'a>(
             }
             _ => {}
         }
-        if paren_depth == 0 {
-            let slice = &expr[i..];
-            if slice.starts_with(op_upper) || slice.starts_with(op_lower) {
+        if paren_depth == 0 && i + op_len <= expr.len() {
+            let slice = &expr[i..i + op_len];
+            if slice.to_lowercase() == op_upper_lower {
                 return Some((&expr[..i], &expr[i + op_len..]));
             }
         }
@@ -1845,6 +2052,7 @@ mod tests {
             table_name: "items".to_string(),
             item: item2,
             return_values: Some("ALL_OLD".to_string()),
+            ..Default::default()
         }).await.unwrap();
         assert!(result.attributes.is_some());
     }
@@ -1887,6 +2095,7 @@ mod tests {
             table_name: "items".to_string(),
             key,
             return_values: Some("ALL_OLD".to_string()),
+            ..Default::default()
         }).await.unwrap();
         assert!(result.attributes.is_some());
     }
@@ -1910,6 +2119,7 @@ mod tests {
             }),
             expression_attribute_values: Some(vals),
             return_values: Some("ALL_NEW".to_string()),
+            ..Default::default()
         };
         let result = state.update_item(req).await.unwrap();
         assert!(result.attributes.is_some());
@@ -2091,6 +2301,7 @@ mod tests {
             table_name: "del".to_string(),
             key,
             return_values: Some("ALL_OLD".to_string()),
+            ..Default::default()
         }).await.unwrap();
         assert!(result.attributes.is_none());
     }

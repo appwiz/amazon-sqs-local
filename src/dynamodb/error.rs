@@ -8,6 +8,7 @@ pub enum DynamoDbError {
     ResourceInUseException(String),
     ValidationException(String),
     SerializationException(String),
+    ConditionalCheckFailedException(String),
 }
 
 impl DynamoDbError {
@@ -17,6 +18,7 @@ impl DynamoDbError {
             DynamoDbError::ResourceInUseException(_) => "ResourceInUseException",
             DynamoDbError::ValidationException(_) => "ValidationException",
             DynamoDbError::SerializationException(_) => "SerializationException",
+            DynamoDbError::ConditionalCheckFailedException(_) => "ConditionalCheckFailedException",
         }
     }
 
@@ -26,6 +28,7 @@ impl DynamoDbError {
             DynamoDbError::ResourceInUseException(_) => StatusCode::BAD_REQUEST,
             DynamoDbError::ValidationException(_) => StatusCode::BAD_REQUEST,
             DynamoDbError::SerializationException(_) => StatusCode::BAD_REQUEST,
+            DynamoDbError::ConditionalCheckFailedException(_) => StatusCode::BAD_REQUEST,
         }
     }
 
@@ -34,7 +37,8 @@ impl DynamoDbError {
             DynamoDbError::ResourceNotFoundException(m)
             | DynamoDbError::ResourceInUseException(m)
             | DynamoDbError::ValidationException(m)
-            | DynamoDbError::SerializationException(m) => m,
+            | DynamoDbError::SerializationException(m)
+            | DynamoDbError::ConditionalCheckFailedException(m) => m,
         }
     }
 }

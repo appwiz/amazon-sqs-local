@@ -180,6 +180,12 @@ pub struct PutItemRequest {
     pub item: Item,
     #[serde(rename = "ReturnValues", default)]
     pub return_values: Option<String>,
+    #[serde(rename = "ConditionExpression", default)]
+    pub condition_expression: Option<String>,
+    #[serde(rename = "ExpressionAttributeNames", default)]
+    pub expression_attribute_names: Option<HashMap<String, String>>,
+    #[serde(rename = "ExpressionAttributeValues", default)]
+    pub expression_attribute_values: Option<Item>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -218,6 +224,12 @@ pub struct DeleteItemRequest {
     pub key: Item,
     #[serde(rename = "ReturnValues", default)]
     pub return_values: Option<String>,
+    #[serde(rename = "ConditionExpression", default)]
+    pub condition_expression: Option<String>,
+    #[serde(rename = "ExpressionAttributeNames", default)]
+    pub expression_attribute_names: Option<HashMap<String, String>>,
+    #[serde(rename = "ExpressionAttributeValues", default)]
+    pub expression_attribute_values: Option<Item>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -242,6 +254,8 @@ pub struct UpdateItemRequest {
     pub expression_attribute_values: Option<Item>,
     #[serde(rename = "ReturnValues", default)]
     pub return_values: Option<String>,
+    #[serde(rename = "ConditionExpression", default)]
+    pub condition_expression: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

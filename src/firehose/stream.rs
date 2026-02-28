@@ -26,7 +26,7 @@ impl DeliveryStream {
     pub fn new(name: String, arn: String, stream_type: String) -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or(std::time::Duration::from_secs(0))
             .as_secs_f64();
 
         DeliveryStream {

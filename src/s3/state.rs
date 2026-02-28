@@ -559,6 +559,12 @@ impl S3State {
             ))
         })?;
 
+        if parts.is_empty() {
+            return Err(S3Error::InvalidArgument(
+                "You must specify at least one part".into(),
+            ));
+        }
+
         let upload = bucket
             .multipart_uploads
             .remove(upload_id)
@@ -584,6 +590,16 @@ impl S3State {
             let part = upload.parts.get(&cp.part_number).ok_or_else(|| {
                 S3Error::InvalidPart(format!("Part {} not found", cp.part_number))
             })?;
+
+            // Validate ETag matches
+            let stored_etag = part.etag.trim_matches('"');
+            let provided_etag = cp.etag.trim_matches('"');
+            if stored_etag != provided_etag {
+                return Err(S3Error::InvalidPart(format!(
+                    "Part {} ETag mismatch: expected {}, got {}",
+                    cp.part_number, stored_etag, provided_etag
+                )));
+            }
 
             combined_data.extend_from_slice(&part.data);
             // Parse the hex MD5 from the quoted etag for the composite etag
@@ -937,8 +953,10 @@ mod tests {
         state.create_bucket("mp-bucket".to_string(), None).await.unwrap();
         let upload = state.create_multipart_upload("mp-bucket", "big-key".to_string(), None, HashMap::new()).await.unwrap();
         let upload_id = upload.upload_id;
-        assert!(state.upload_part("mp-bucket", "big-key", &upload_id, 1, b"part1".to_vec()).await.is_ok());
-        let complete = state.complete_multipart_upload("mp-bucket", "big-key", &upload_id, vec![]).await;
+        let etag = state.upload_part("mp-bucket", "big-key", &upload_id, 1, b"part1".to_vec()).await.unwrap();
+        let complete = state.complete_multipart_upload("mp-bucket", "big-key", &upload_id, vec![
+            crate::s3::types::CompletePart { part_number: 1, etag },
+        ]).await;
         assert!(complete.is_ok());
     }
 

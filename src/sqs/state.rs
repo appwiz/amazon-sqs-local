@@ -132,6 +132,7 @@ impl SqsState {
     fn handle_dlq_redrives(
         queues: &mut HashMap<String, QueueEntry>,
         redrives: Vec<DlqRedrive>,
+        source_queue_name: &str,
     ) {
         for redrive in redrives {
             // Find queue by ARN
@@ -139,8 +140,12 @@ impl SqsState {
             if let Some(dlq_entry) = queues.get_mut(dlq_name) {
                 dlq_entry.queue.messages.push_back(redrive.message);
                 dlq_entry.notify.notify_waiters();
+            } else {
+                // DLQ doesn't exist — return message to source queue
+                if let Some(source_entry) = queues.get_mut(source_queue_name) {
+                    source_entry.queue.messages.push_back(redrive.message);
+                }
             }
-            // If DLQ doesn't exist, message is lost (same as AWS behavior when DLQ is deleted)
         }
     }
 
@@ -425,9 +430,11 @@ impl SqsState {
             }
 
             // Handle DLQ redrives
-            let redrives = inner.queues.get_mut(&name).unwrap().queue.return_expired_inflight();
-            if !redrives.is_empty() {
-                Self::handle_dlq_redrives(&mut inner.queues, redrives);
+            if let Some(entry) = inner.queues.get_mut(&name) {
+                let redrives = entry.queue.return_expired_inflight();
+                if !redrives.is_empty() {
+                    Self::handle_dlq_redrives(&mut inner.queues, redrives, &name);
+                }
             }
 
             if let Some(entry) = inner.queues.get_mut(&name) {
@@ -471,13 +478,18 @@ impl SqsState {
 
         // Second attempt after waiting
         let mut inner = self.inner.lock().await;
+        if !inner.queues.contains_key(&name) {
+            return Err(SqsError::QueueDoesNotExist(
+                "The specified queue does not exist.".into(),
+            ));
+        }
         let account_id = inner.account_id.clone();
 
         // Handle DLQ redrives again
         if let Some(entry) = inner.queues.get_mut(&name) {
             let redrives = entry.queue.return_expired_inflight();
             if !redrives.is_empty() {
-                Self::handle_dlq_redrives(&mut inner.queues, redrives);
+                Self::handle_dlq_redrives(&mut inner.queues, redrives, &name);
             }
         }
         if let Some(entry) = inner.queues.get_mut(&name) {
@@ -798,7 +810,7 @@ impl SqsState {
             max_per_second: req.max_number_of_messages_per_second,
             started_timestamp: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+            .unwrap_or(std::time::Duration::from_secs(0))
                 .as_millis() as i64,
             cancel_flag: cancel_flag.clone(),
         };
