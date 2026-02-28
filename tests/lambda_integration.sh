@@ -1,20 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for Lambda service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19050
+PORT=$(service_port lambda)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
-
-# ── helpers ──────────────────────────────────────────────────────────────
 
 aws_lambda() {
   aws lambda "$@" \
@@ -25,70 +13,13 @@ aws_lambda() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
+trap 'rm -f /tmp/lambda-test-output.json /tmp/lambda-dummy.zip /tmp/lambda-dummy-file.txt' EXIT
 
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
+ensure_server
 
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-  rm -f /tmp/lambda-test-output.json /tmp/lambda-dummy.zip
-}
-trap cleanup EXIT
-
-# ── build & start server ─────────────────────────────────────────────────
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-# Create a dummy zip file
+# Create a dummy zip file for function deployments
 echo "dummy" > /tmp/lambda-dummy-file.txt
 (cd /tmp && zip -q lambda-dummy.zip lambda-dummy-file.txt)
-
-echo "Starting server with Lambda on port ${PORT}..."
-"$BINARY" --lambda-port "$PORT" --s3-port 19030 --sns-port 19031 --sqs-port 19032 \
-  --dynamodb-port 19033 --firehose-port 19034 --memorydb-port 19035 --cognito-port 19036 \
-  --apigateway-port 19037 --kms-port 19038 --secretsmanager-port 19039 --kinesis-port 19040 \
-  --eventbridge-port 19041 --stepfunctions-port 19042 --ssm-port 19043 \
-  --cloudwatchlogs-port 19044 --ses-port 19045 --servicecatalog-port 19046 \
-  --config-port 19047 --efs-port 19048 --appsync-port 19049 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
 
 # ── Tests ────────────────────────────────────────────────────────────────
 
@@ -220,13 +151,5 @@ assert_contains "DeleteFunction not found" "$OUT" "ResourceNotFoundException"
 
 # ── report ───────────────────────────────────────────────────────────────
 
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  Lambda Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "Lambda"
+exit $?

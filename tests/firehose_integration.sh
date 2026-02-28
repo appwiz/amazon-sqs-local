@@ -1,20 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for Firehose service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=14573
+PORT=$(service_port firehose)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
-
-# ── helpers ──────────────────────────────────────────────────────────────
 
 aws_firehose() {
   aws firehose "$@" \
@@ -25,65 +13,7 @@ aws_firehose() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-# ── build & start server ─────────────────────────────────────────────────
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with Firehose on port ${PORT}..."
-"$BINARY" --firehose-port "$PORT" --s3-port 14001 --sns-port 14002 --sqs-port 14003 \
-  --dynamodb-port 14004 --lambda-port 14005 --memorydb-port 14006 --cognito-port 14007 \
-  --apigateway-port 14008 --kms-port 14009 --secretsmanager-port 14010 --kinesis-port 14011 \
-  --eventbridge-port 14012 --stepfunctions-port 14013 --ssm-port 14014 \
-  --cloudwatchlogs-port 14015 --ses-port 14016 --servicecatalog-port 14017 \
-  --config-port 14018 --efs-port 14019 --appsync-port 14020 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
+ensure_server
 
 # ── Tests ────────────────────────────────────────────────────────────────
 
@@ -164,13 +94,5 @@ assert_contains "DeleteDeliveryStream not found" "$OUT" "ResourceNotFoundExcepti
 
 # ── report ───────────────────────────────────────────────────────────────
 
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  Firehose Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "Firehose"
+exit $?

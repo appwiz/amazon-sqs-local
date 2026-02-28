@@ -1,18 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for Secrets Manager service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=17700
+PORT=$(service_port secretsmanager)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
 
 aws_sm() {
   aws secretsmanager "$@" \
@@ -23,67 +13,7 @@ aws_sm() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with Secrets Manager on port ${PORT}..."
-"$BINARY" \
-  --secretsmanager-port "$PORT" \
-  --s3-port 17101 --sns-port 17102 --sqs-port 17103 --dynamodb-port 17104 \
-  --lambda-port 17105 --firehose-port 17106 --memorydb-port 17107 \
-  --cognito-port 17108 --apigateway-port 17109 --kms-port 17110 \
-  --kinesis-port 17111 --eventbridge-port 17112 --stepfunctions-port 17113 \
-  --ssm-port 17114 --cloudwatchlogs-port 17115 --ses-port 17116 \
-  --servicecatalog-port 17117 --config-port 17118 --efs-port 17119 --appsync-port 17120 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
-
-echo "Running Secrets Manager integration tests..."
+ensure_server
 
 # 1. CreateSecret
 OUT=$(aws_sm create-secret \
@@ -169,13 +99,5 @@ assert_contains "GetSecretValue deleted" "$OUT" "ResourceNotFoundException"
 
 # ── report ───────────────────────────────────────────────────────────────
 
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  Secrets Manager Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "Secrets Manager"
+exit $?

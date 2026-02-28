@@ -1,20 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for Cognito service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19229
+PORT=$(service_port cognito)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
-
-# ── helpers ──────────────────────────────────────────────────────────────
 
 aws_cognito() {
   aws cognito-idp "$@" \
@@ -25,69 +13,7 @@ aws_cognito() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-json_field() {
-  python3 -c "import sys,json; d=json.load(sys.stdin); print($1)" 2>/dev/null
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-# ── build & start server ─────────────────────────────────────────────────
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with Cognito on port ${PORT}..."
-"$BINARY" --cognito-port "$PORT" --s3-port 19230 --sns-port 19231 --sqs-port 19232 \
-  --dynamodb-port 19233 --lambda-port 19234 --firehose-port 19235 --memorydb-port 19236 \
-  --apigateway-port 19237 --kms-port 19238 --secretsmanager-port 19239 --kinesis-port 19240 \
-  --eventbridge-port 19241 --stepfunctions-port 19242 --ssm-port 19243 \
-  --cloudwatchlogs-port 19244 --ses-port 19245 --servicecatalog-port 19246 \
-  --config-port 19247 --efs-port 19248 --appsync-port 19249 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
+ensure_server
 
 # ── Tests ────────────────────────────────────────────────────────────────
 
@@ -310,13 +236,5 @@ assert_contains "DeleteUserPool verify" "$OUT" "ResourceNotFoundException"
 
 # ── report ───────────────────────────────────────────────────────────────
 
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  Cognito Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "Cognito"
+exit $?

@@ -1,18 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for EventBridge service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19195
+PORT=$(service_port eventbridge)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
 
 aws_events() {
   aws events "$@" \
@@ -23,67 +13,7 @@ aws_events() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with EventBridge on port ${PORT}..."
-"$BINARY" \
-  --eventbridge-port "$PORT" \
-  --s3-port 19001 --sns-port 19002 --sqs-port 19003 --dynamodb-port 19004 \
-  --lambda-port 19005 --firehose-port 19006 --memorydb-port 19007 \
-  --cognito-port 19008 --apigateway-port 19009 --kms-port 19010 \
-  --secretsmanager-port 19011 --kinesis-port 19012 --stepfunctions-port 19013 \
-  --ssm-port 19014 --cloudwatchlogs-port 19015 --ses-port 19016 \
-  --servicecatalog-port 19196 --config-port 19197 --efs-port 19198 --appsync-port 19199 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
-
-echo "Running EventBridge integration tests..."
+ensure_server
 
 # 1. DescribeEventBus (default)
 OUT=$(aws_events describe-event-bus)
@@ -170,13 +100,5 @@ assert_not_contains "ListEventBuses after delete" "$OUT" "mybus"
 
 # ── report ───────────────────────────────────────────────────────────────
 
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  EventBridge Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "EventBridge"
+exit $?

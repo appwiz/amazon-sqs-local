@@ -1,18 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for Amazon EFS service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19550
+PORT=$(service_port efs)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
 
 aws_efs() {
   aws efs "$@" \
@@ -23,67 +13,7 @@ aws_efs() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with EFS on port ${PORT}..."
-"$BINARY" \
-  --efs-port "$PORT" \
-  --s3-port 19551 --sns-port 19552 --sqs-port 19553 --dynamodb-port 19554 \
-  --lambda-port 19555 --firehose-port 19556 --memorydb-port 19557 \
-  --cognito-port 19558 --apigateway-port 19559 --kms-port 19560 \
-  --secretsmanager-port 19561 --kinesis-port 19562 --eventbridge-port 19563 \
-  --stepfunctions-port 19564 --ssm-port 19565 --cloudwatchlogs-port 19566 \
-  --ses-port 19567 --servicecatalog-port 19568 --config-port 19569 --appsync-port 19570 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
-
-echo "Running EFS integration tests..."
+ensure_server
 
 # 1. CreateFileSystem
 OUT=$(aws_efs create-file-system --creation-token my-fs-1 --tags Key=Name,Value=TestFS)
@@ -205,13 +135,5 @@ assert_contains "DeleteAccessPoint not found" "$OUT" "AccessPointNotFound"
 
 # ── report ───────────────────────────────────────────────────────────────
 
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  EFS Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "EFS"
+exit $?

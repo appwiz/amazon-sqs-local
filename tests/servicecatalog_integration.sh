@@ -1,18 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for Service Catalog service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19700
+PORT=$(service_port servicecatalog)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
 
 aws_sc() {
   aws servicecatalog "$@" \
@@ -23,67 +13,7 @@ aws_sc() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with Service Catalog on port ${PORT}..."
-"$BINARY" \
-  --servicecatalog-port "$PORT" \
-  --s3-port 19701 --sns-port 19702 --sqs-port 19703 --dynamodb-port 19704 \
-  --lambda-port 19705 --firehose-port 19706 --memorydb-port 19707 \
-  --cognito-port 19708 --apigateway-port 19709 --kms-port 19710 \
-  --secretsmanager-port 19711 --kinesis-port 19712 --eventbridge-port 19713 \
-  --stepfunctions-port 19714 --ssm-port 19715 --cloudwatchlogs-port 19716 \
-  --ses-port 19717 --config-port 19718 --efs-port 19719 --appsync-port 19720 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
-
-echo "Running Service Catalog integration tests..."
+ensure_server
 
 # 1. CreatePortfolio
 OUT=$(aws_sc create-portfolio \
@@ -182,13 +112,5 @@ assert_contains "DescribePortfolio not found" "$OUT" "ResourceNotFoundException"
 
 # ── report ───────────────────────────────────────────────────────────────
 
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  Service Catalog Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "Service Catalog"
+exit $?

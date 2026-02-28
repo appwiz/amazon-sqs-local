@@ -1,20 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for KMS service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=17600
+PORT=$(service_port kms)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
-
-# ── helpers ──────────────────────────────────────────────────────────────
 
 aws_kms() {
   aws kms "$@" \
@@ -25,67 +13,7 @@ aws_kms() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-# ── build & start server ─────────────────────────────────────────────────
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with KMS on port ${PORT}..."
-"$BINARY" \
-  --kms-port "$PORT" \
-  --s3-port 17001 --sns-port 17002 --sqs-port 17003 --dynamodb-port 17004 \
-  --lambda-port 17005 --firehose-port 17006 --memorydb-port 17007 \
-  --cognito-port 17008 --apigateway-port 17009 --secretsmanager-port 17010 \
-  --kinesis-port 17011 --eventbridge-port 17012 --stepfunctions-port 17013 \
-  --ssm-port 17014 --cloudwatchlogs-port 17015 --ses-port 17016 \
-  --servicecatalog-port 17017 --config-port 17018 --efs-port 17019 --appsync-port 17020 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
+ensure_server
 
 # ── Tests ────────────────────────────────────────────────────────────────
 
@@ -190,13 +118,5 @@ assert_contains "DescribeKey not found" "$OUT" "NotFoundException"
 
 # ── report ───────────────────────────────────────────────────────────────
 
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  KMS Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "KMS"
+exit $?

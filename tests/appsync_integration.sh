@@ -1,18 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for AWS AppSync service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19600
+PORT=$(service_port appsync)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
 
 aws_appsync() {
   aws appsync "$@" \
@@ -23,68 +13,7 @@ aws_appsync() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with AppSync on port ${PORT}..."
-"$BINARY" \
-  --appsync-port "$PORT" \
-  --s3-port 19601 --sns-port 19602 --sqs-port 19603 --dynamodb-port 19604 \
-  --lambda-port 19605 --firehose-port 19606 --memorydb-port 19607 \
-  --cognito-port 19608 --apigateway-port 19609 --kms-port 19610 \
-  --secretsmanager-port 19611 --kinesis-port 19612 --eventbridge-port 19613 \
-  --stepfunctions-port 19614 --ssm-port 19615 --cloudwatchlogs-port 19616 \
-  --ses-port 19617 --servicecatalog-port 19618 --config-port 19619 \
-  --efs-port 19620 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
-
-echo "Running AppSync integration tests..."
+ensure_server
 
 # 1. CreateGraphqlApi
 OUT=$(aws_appsync create-graphql-api --name TestApi --authentication-type API_KEY --tags Env=Test)
@@ -211,13 +140,5 @@ assert_contains "DeleteDataSource not found" "$OUT" "NotFoundException"
 
 # ── report ───────────────────────────────────────────────────────────────
 
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  AppSync Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "AppSync"
+exit $?

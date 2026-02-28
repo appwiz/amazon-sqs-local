@@ -1,21 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for in-memory SNS service using the system awscli.
-# Exercises all SNS API operations.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19911
+PORT=$(service_port sns)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
-
-# ── helpers ──────────────────────────────────────────────────────────────
 
 aws_sns() {
   aws sns "$@" \
@@ -26,82 +13,7 @@ aws_sns() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-assert_exit_zero() {
-  local label="$1"
-  shift
-  if "$@" > /dev/null 2>&1; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (non-zero exit)")
-    echo "FAIL: $label" >&2
-  fi
-}
-
-json_field() {
-  python3 -c "import sys,json; print(json.load(sys.stdin)$1)" 2>/dev/null
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-# ── build & start server ─────────────────────────────────────────────────
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-echo "Starting server on port ${PORT}..."
-"$BINARY" --s3-port 19820 --sns-port "$PORT" --sqs-port 19821 --dynamodb-port 19822 \
-  --lambda-port 19823 --firehose-port 19824 --memorydb-port 19825 --cognito-port 19826 \
-  --apigateway-port 19827 --kms-port 19828 --secretsmanager-port 19829 --kinesis-port 19830 \
-  --eventbridge-port 19831 --stepfunctions-port 19832 --ssm-port 19833 \
-  --cloudwatchlogs-port 19834 --ses-port 19835 --servicecatalog-port 19836 \
-  --config-port 19837 --efs-port 19838 --appsync-port 19839 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "FATAL: server failed to start" >&2
-  exit 1
-fi
-
-echo "Server running (pid $SERVER_PID). Running tests..."
-echo
+ensure_server
 
 TOPIC_ARN="arn:aws:sns:${REGION}:${ACCOUNT}:test-topic"
 
@@ -309,16 +221,5 @@ assert_not_contains "DeleteTopic: FIFO removed" "$OUT" "test-fifo"
 # Summary
 # ═════════════════════════════════════════════════════════════════════════
 
-echo
-echo "═══════════════════════════════════════════════════"
-echo "  SNS Results: ${PASS} passed, ${FAIL} failed"
-echo "═══════════════════════════════════════════════════"
-echo
-for t in "${TESTS[@]}"; do
-  echo "  $t"
-done
-echo
-
-if [ "$FAIL" -gt 0 ]; then
-  exit 1
-fi
+report_results "SNS"
+exit $?

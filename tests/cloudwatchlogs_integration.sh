@@ -1,18 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for CloudWatch Logs service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19400
+PORT=$(service_port cloudwatchlogs)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
 
 aws_logs() {
   aws logs "$@" \
@@ -23,67 +13,7 @@ aws_logs() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with CloudWatch Logs on port ${PORT}..."
-"$BINARY" \
-  --cloudwatchlogs-port "$PORT" \
-  --s3-port 19401 --sns-port 19402 --sqs-port 19403 --dynamodb-port 19404 \
-  --lambda-port 19405 --firehose-port 19406 --memorydb-port 19407 \
-  --cognito-port 19408 --apigateway-port 19409 --kms-port 19410 \
-  --secretsmanager-port 19411 --kinesis-port 19412 --eventbridge-port 19413 \
-  --ssm-port 19414 --stepfunctions-port 19415 --ses-port 19416 \
-  --servicecatalog-port 19417 --config-port 19418 --efs-port 19419 --appsync-port 19420 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
-
-echo "Running CloudWatch Logs integration tests..."
+ensure_server
 
 # 1. CreateLogGroup
 OUT=$(aws_logs create-log-group --log-group-name /myapp/service)
@@ -215,13 +145,5 @@ assert_not_contains "DescribeLogGroups after delete" "$OUT" "/myapp/service"
 
 # ── report ───────────────────────────────────────────────────────────────
 
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  CloudWatch Logs Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "CloudWatch Logs"
+exit $?

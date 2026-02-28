@@ -1,20 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for in-memory S3 service using the system awscli.
-# Exercises all S3 API operations.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19000
+PORT=$(service_port s3)
 ENDPOINT="http://localhost:${PORT}"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
-
-# ── helpers ──────────────────────────────────────────────────────────────
 
 aws_s3api() {
   aws s3api "$@" \
@@ -25,83 +13,8 @@ aws_s3api() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
+ensure_server
 
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-assert_exit_zero() {
-  local label="$1"
-  shift
-  if "$@" > /dev/null 2>&1; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (non-zero exit)")
-    echo "FAIL: $label" >&2
-  fi
-}
-
-json_field() {
-  python3 -c "import sys,json; print(json.load(sys.stdin)$1)" 2>/dev/null
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-  rm -f /tmp/s3-test-upload.txt /tmp/s3-test-download.txt /tmp/s3-test-copy.txt
-  rm -f /tmp/s3-test-part1.bin /tmp/s3-test-part2.bin /tmp/s3-test-multipart.txt
-}
-trap cleanup EXIT
-
-# ── build & start server ─────────────────────────────────────────────────
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-echo "Starting server on port ${PORT}..."
-"$BINARY" --s3-port "$PORT" --sns-port 19800 --sqs-port 19801 --dynamodb-port 19802 \
-  --lambda-port 19803 --firehose-port 19804 --memorydb-port 19805 --cognito-port 19806 \
-  --apigateway-port 19807 --kms-port 19808 --secretsmanager-port 19809 --kinesis-port 19810 \
-  --eventbridge-port 19811 --stepfunctions-port 19812 --ssm-port 19813 \
-  --cloudwatchlogs-port 19814 --ses-port 19815 --servicecatalog-port 19816 \
-  --config-port 19817 --efs-port 19818 --appsync-port 19819 \
-  --region "$REGION" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "FATAL: server failed to start" >&2
-  exit 1
-fi
-
-echo "Server running (pid $SERVER_PID). Running tests..."
 echo
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -363,20 +276,5 @@ assert_exit_zero "DeleteBucket: another-bucket" \
 OUT=$(aws_s3api list-buckets)
 assert_not_contains "DeleteBucket: all removed" "$OUT" "test-bucket"
 
-# ═════════════════════════════════════════════════════════════════════════
-# Summary
-# ═════════════════════════════════════════════════════════════════════════
-
-echo
-echo "═══════════════════════════════════════════════════"
-echo "  S3 Results: ${PASS} passed, ${FAIL} failed"
-echo "═══════════════════════════════════════════════════"
-echo
-for t in "${TESTS[@]}"; do
-  echo "  $t"
-done
-echo
-
-if [ "$FAIL" -gt 0 ]; then
-  exit 1
-fi
+report_results "S3"
+exit $?

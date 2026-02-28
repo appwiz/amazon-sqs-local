@@ -1,21 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for SQS service within aws-inmemory-services.
-# Exercises all 23 SQS API operations.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19324
+PORT=$(service_port sqs)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
-
-# ── helpers ──────────────────────────────────────────────────────────────
 
 aws_sqs() {
   aws sqs "$@" \
@@ -26,87 +13,10 @@ aws_sqs() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
+trap 'rm -f /tmp/sqs-lp-result.json' EXIT
 
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
+ensure_server
 
-assert_exit_zero() {
-  local label="$1"
-  shift
-  if "$@" > /dev/null 2>&1; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (non-zero exit)")
-    echo "FAIL: $label" >&2
-  fi
-}
-
-json_field() {
-  python3 -c "import sys,json; print(json.load(sys.stdin)$1)" 2>/dev/null
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-  rm -f /tmp/sqs-lp-result.json
-}
-trap cleanup EXIT
-
-# ── build & start server ─────────────────────────────────────────────────
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-# Kill any existing process on the port
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with SQS on port ${PORT}..."
-"$BINARY" --sqs-port "$PORT" --s3-port 19840 --sns-port 19841 --dynamodb-port 19842 \
-  --lambda-port 19843 --firehose-port 19844 --memorydb-port 19845 --cognito-port 19846 \
-  --apigateway-port 19847 --kms-port 19848 --secretsmanager-port 19849 --kinesis-port 19850 \
-  --eventbridge-port 19851 --stepfunctions-port 19852 --ssm-port 19853 \
-  --cloudwatchlogs-port 19854 --ses-port 19855 --servicecatalog-port 19856 \
-  --config-port 19857 --efs-port 19858 --appsync-port 19859 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "FATAL: server failed to start" >&2
-  exit 1
-fi
-
-echo "Server running (pid $SERVER_PID). Running SQS tests..."
-echo
 
 QUEUE_URL="${ENDPOINT}/${ACCOUNT}/test-queue"
 FIFO_URL="${ENDPOINT}/${ACCOUNT}/test-fifo.fifo"
@@ -547,19 +457,6 @@ assert_contains "CreateQueue tags: Project" "$OUT" '"Project": "test"'
 aws_sqs delete-queue --queue-url "$CUSTOM_URL" > /dev/null 2>&1 || true
 
 # ═════════════════════════════════════════════════════════════════════════
-# Summary
-# ═════════════════════════════════════════════════════════════════════════
 
-echo
-echo "═══════════════════════════════════════════════════"
-echo "  SQS Results: ${PASS} passed, ${FAIL} failed"
-echo "═══════════════════════════════════════════════════"
-echo
-for t in "${TESTS[@]}"; do
-  echo "  $t"
-done
-echo
-
-if [ "$FAIL" -gt 0 ]; then
-  exit 1
-fi
+report_results "SQS"
+exit $?

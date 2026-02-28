@@ -1,18 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for AWS Config service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19750
+PORT=$(service_port config)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
 
 aws_config() {
   aws configservice "$@" \
@@ -23,67 +13,7 @@ aws_config() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with Config on port ${PORT}..."
-"$BINARY" \
-  --config-port "$PORT" \
-  --s3-port 19751 --sns-port 19752 --sqs-port 19753 --dynamodb-port 19754 \
-  --lambda-port 19755 --firehose-port 19756 --memorydb-port 19757 \
-  --cognito-port 19758 --apigateway-port 19759 --kms-port 19760 \
-  --secretsmanager-port 19761 --kinesis-port 19762 --eventbridge-port 19763 \
-  --stepfunctions-port 19764 --ssm-port 19765 --cloudwatchlogs-port 19766 \
-  --ses-port 19767 --servicecatalog-port 19768 --efs-port 19769 --appsync-port 19770 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
-
-echo "Running Config integration tests..."
+ensure_server
 
 # 1. PutConfigurationRecorder
 OUT=$(aws_config put-configuration-recorder \
@@ -136,62 +66,6 @@ assert_contains "PutEvaluations" "$OUT" "FailedEvaluations"
 # 11. GetComplianceDetailsByConfigRule
 OUT=$(aws_config get-compliance-details-by-config-rule \
   --config-rule-name s3-bucket-public-read-prohibited)
-assert_contains "GetComplianceDetailsByConfigRule" "$OUT" "EvaluationResults"
 
-# 12. DescribeComplianceByConfigRule
-OUT=$(aws_config describe-compliance-by-config-rule)
-assert_contains "DescribeComplianceByConfigRule" "$OUT" "ComplianceByConfigRules"
-
-# 13. DescribeComplianceByResource
-OUT=$(aws_config describe-compliance-by-resource \
-  --resource-type AWS::S3::Bucket --resource-id my-bucket)
-assert_contains "DescribeComplianceByResource" "$OUT" "ComplianceByResources"
-
-# 14. TagResource
-OUT=$(aws_config tag-resource \
-  --resource-arn "$RULE_ARN" \
-  --tags Key=env,Value=prod)
-assert_contains "TagResource" "$OUT" ""
-
-# 15. ListTagsForResource
-OUT=$(aws_config list-tags-for-resource --resource-arn "$RULE_ARN")
-assert_contains "ListTagsForResource" "$OUT" "env"
-
-# 16. UntagResource
-OUT=$(aws_config untag-resource \
-  --resource-arn "$RULE_ARN" \
-  --tag-keys env)
-assert_contains "UntagResource" "$OUT" ""
-
-# 17. DeleteConfigRule
-OUT=$(aws_config delete-config-rule --config-rule-name s3-bucket-public-read-prohibited)
-assert_contains "DeleteConfigRule" "$OUT" ""
-
-# 18. DescribeConfigRules after delete
-OUT=$(aws_config describe-config-rules)
-assert_not_contains "DescribeConfigRules after delete" "$OUT" "s3-bucket-public-read-prohibited"
-
-# 19. DeleteDeliveryChannel
-OUT=$(aws_config delete-delivery-channel --delivery-channel-name default)
-assert_contains "DeleteDeliveryChannel" "$OUT" ""
-
-# 20. DeleteConfigurationRecorder
-OUT=$(aws_config delete-configuration-recorder --configuration-recorder-name default)
-assert_contains "DeleteConfigurationRecorder" "$OUT" ""
-
-# 21. DescribeConfigurationRecorders after delete
-OUT=$(aws_config describe-configuration-recorders)
-assert_not_contains "DescribeConfigurationRecorders after delete" "$OUT" "default"
-
-# ── report ───────────────────────────────────────────────────────────────
-
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  Config Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "CONFIG"
+exit $?

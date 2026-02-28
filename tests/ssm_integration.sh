@@ -1,18 +1,8 @@
 #!/usr/bin/env bash
-#
-# Integration tests for SSM Parameter Store service within aws-inmemory-services.
-#
-set -uo pipefail
+source "$(dirname "$0")/test_helpers.sh"
 
-PORT=19100
+PORT=$(service_port ssm)
 ENDPOINT="http://localhost:${PORT}"
-ACCOUNT="000000000000"
-REGION="us-east-1"
-BINARY="./target/debug/aws-inmemory-services"
-
-PASS=0
-FAIL=0
-TESTS=()
 
 aws_ssm() {
   aws ssm "$@" \
@@ -23,67 +13,7 @@ aws_ssm() {
     --output json 2>&1
 }
 
-assert_contains() {
-  local label="$1" output="$2" expected="$3"
-  if echo "$output" | grep -qF "$expected"; then
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  else
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (expected '$expected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  expected: $expected" >&2
-    echo "  output:   $output" >&2
-  fi
-}
-
-assert_not_contains() {
-  local label="$1" output="$2" unexpected="$3"
-  if echo "$output" | grep -qF "$unexpected"; then
-    FAIL=$((FAIL + 1))
-    TESTS+=("FAIL  $label  (did not expect '$unexpected' in output)")
-    echo "FAIL: $label" >&2
-    echo "  unexpected: $unexpected" >&2
-    echo "  output:     $output" >&2
-  else
-    PASS=$((PASS + 1))
-    TESTS+=("PASS  $label")
-  fi
-}
-
-cleanup() {
-  if [[ -n "${SERVER_PID:-}" ]]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
-
-echo "Building..."
-cargo build --quiet 2>&1
-
-lsof -ti:${PORT} | xargs kill 2>/dev/null || true
-sleep 0.5
-
-echo "Starting server with SSM on port ${PORT}..."
-"$BINARY" \
-  --ssm-port "$PORT" \
-  --s3-port 19201 --sns-port 19202 --sqs-port 19203 --dynamodb-port 19204 \
-  --lambda-port 19205 --firehose-port 19206 --memorydb-port 19207 \
-  --cognito-port 19208 --apigateway-port 19209 --kms-port 19210 \
-  --secretsmanager-port 19211 --kinesis-port 19212 --eventbridge-port 19213 \
-  --stepfunctions-port 19214 --cloudwatchlogs-port 19215 --ses-port 19216 \
-  --servicecatalog-port 19217 --config-port 19218 --efs-port 19219 --appsync-port 19220 \
-  --region "$REGION" --account-id "$ACCOUNT" &
-SERVER_PID=$!
-sleep 1
-
-if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-  echo "ERROR: server failed to start"
-  exit 1
-fi
-
-echo "Running SSM Parameter Store integration tests..."
+ensure_server
 
 # 1. PutParameter (String)
 OUT=$(aws_ssm put-parameter \
@@ -182,13 +112,5 @@ assert_contains "PutParameter no-overwrite conflict" "$OUT" "ParameterAlreadyExi
 
 # ── report ───────────────────────────────────────────────────────────────
 
-echo ""
-echo "══════════════════════════════════════════════"
-echo "  SSM Parameter Store Integration Test Results"
-echo "══════════════════════════════════════════════"
-for t in "${TESTS[@]}"; do echo "  $t"; done
-echo "──────────────────────────────────────────────"
-echo "  Passed: $PASS   Failed: $FAIL"
-echo "══════════════════════════════════════════════"
-
-exit "$FAIL"
+report_results "SSM"
+exit $?
